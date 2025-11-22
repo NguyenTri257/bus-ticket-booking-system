@@ -33,6 +33,7 @@
   },
   "jest": {
     "testEnvironment": "node",
+    "setupFiles": ["<rootDir>/tests/test-env.js"],
     "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
     "testMatch": ["**/tests/**/*.test.js"],
     "collectCoverageFrom": [

@@ -74,9 +74,22 @@ jest.mock('google-auth-library', () => ({
 }));
 
 // Mock userRepository
-const mockRegisteredUsers = new Set(['existing@example.com']);
+const mockRegisteredUsers = new Set([
+  'existing@example.com',
+  'test@example.com',
+  'verified@example.com',
+  'passenger@example.com',
+  'admin@example.com',
+  'admin2@example.com',
+  'passenger2@example.com'
+]);
 const mockRegisteredPhones = new Set(['+84901234567']);
-const mockVerifiedEmails = new Set();
+const mockVerifiedEmails = new Set([
+  'verified@example.com',
+  'test@example.com',
+  'passenger@example.com',
+  'admin@example.com'
+]);
 
 jest.mock('../src/userRepository', () => ({
   create: jest.fn((userData) => {
@@ -196,50 +209,16 @@ jest.mock('axios', () => ({
   delete: jest.fn(() => Promise.resolve({ data: { success: true } })),
 }));
 
-// Set test environment variables
+// Set test environment variables BEFORE requiring any modules
 process.env.NODE_ENV = 'test';
-process.env.PORT = '3002';
-process.env.JWT_SECRET = 'test-secret';
+process.env.DB_HOST = 'localhost';
+process.env.DB_PORT = '5432';
+process.env.DB_NAME = 'bus_ticket_test';
+process.env.DB_USER = 'test_user';
+process.env.DB_PASSWORD = 'test_password';
+process.env.REDIS_URL = 'redis://localhost:6379/1'; // Use DB 1 for tests
+process.env.JWT_SECRET = 'test-jwt-secret';
 process.env.JWT_REFRESH_SECRET = 'test-refresh-secret';
-process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
-process.env.REDIS_URL = 'redis://localhost:6379';
 process.env.GOOGLE_CLIENT_ID = 'test-google-client-id';
 process.env.NOTIFICATION_SERVICE_URL = 'http://localhost:3003';
-
-// Debug: Log that setup is running
-console.log('🧪 Test setup loaded');
-
-// Set up nock for HTTP mocking
-const nock = require('nock');
-
-beforeAll(() => {
-  // Mock notification service calls
-  nock('http://localhost:3003')
-    .persist()
-    .post('/send-email')
-    .reply(200, { success: true, message: 'Email sent successfully' });
-});
-
-beforeEach(() => {
-  // Clear mock data before each test
-  mockRegisteredUsers.clear();
-  mockRegisteredPhones.clear();
-  mockVerifiedEmails.clear();
-  mockRegisteredUsers.add('existing@example.com');
-  mockRegisteredPhones.add('+84901234567');
-  // Add users for authz tests
-  mockRegisteredUsers.add('passenger@example.com');
-  mockRegisteredUsers.add('admin@example.com');
-  mockVerifiedEmails.add('passenger@example.com');
-  mockVerifiedEmails.add('admin@example.com');
-  // Add verified user for concurrent login test
-  mockRegisteredUsers.add('test@example.com');
-  mockVerifiedEmails.add('test@example.com');
-  // Add verified user for login test
-  mockRegisteredUsers.add('verified@example.com');
-  mockVerifiedEmails.add('verified@example.com');
-});
-
-afterAll(() => {
-  nock.cleanAll();
-});
+process.env.PORT = '3002';

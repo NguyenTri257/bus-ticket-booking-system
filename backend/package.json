@@ -9,7 +9,7 @@
     "lint": "eslint src/**/*.js",
     "lint:fix": "eslint src/**/*.js --fix",
     "format": "prettier --write src/**/*.js",
-    "prepare": "husky install"
+    "prepare": "husky"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",

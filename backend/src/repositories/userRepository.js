@@ -26,7 +26,8 @@ class UserRepository {
   }
 
   async findById(userId) {
-    const query = 'SELECT user_id, email, phone, full_name, role, google_id, created_at FROM users WHERE user_id = $1';
+    const query =
+      'SELECT user_id, email, phone, full_name, role, google_id, created_at FROM users WHERE user_id = $1';
     const result = await pool.query(query, [userId]);
     return result.rows[0];
   }

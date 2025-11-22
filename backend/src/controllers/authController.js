@@ -4,7 +4,14 @@ const crypto = require('crypto');
 const userRepository = require('../repositories/userRepository');
 const authService = require('../services/authService');
 const emailService = require('../services/emailService');
-const { registerSchema, loginSchema, googleAuthSchema, refreshSchema, forgotPasswordSchema, resetPasswordSchema } = require('../validators/authValidators');
+const {
+  registerSchema,
+  loginSchema,
+  googleAuthSchema,
+  refreshSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} = require('../validators/authValidators');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -16,7 +23,7 @@ class AuthController {
         return res.status(422).json({
           success: false,
           error: { code: 'VAL_001', message: 'Validation error', details: error.details },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -28,7 +35,7 @@ class AuthController {
         return res.status(409).json({
           success: false,
           error: { code: 'USER_002', message: 'Email already exists' },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -37,7 +44,7 @@ class AuthController {
         return res.status(409).json({
           success: false,
           error: { code: 'USER_003', message: 'Phone already exists' },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -70,17 +77,17 @@ class AuthController {
           fullName: user.full_name,
           role: user.role,
           emailVerified: user.email_verified,
-          createdAt: user.created_at
+          createdAt: user.created_at,
         },
         message: 'Registration successful. Please check your email to verify your account.',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('⚠️', error);
       res.status(500).json({
         success: false,
         error: { code: 'SYS_001', message: 'Internal server error' },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -92,7 +99,7 @@ class AuthController {
         return res.status(422).json({
           success: false,
           error: { code: 'VAL_001', message: 'Validation error', details: error.details },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -108,7 +115,7 @@ class AuthController {
         return res.status(401).json({
           success: false,
           error: { code: 'AUTH_001', message: 'Invalid credentials' },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -117,12 +124,15 @@ class AuthController {
         return res.status(403).json({
           success: false,
           error: { code: 'AUTH_005', message: 'Please verify your email before logging in' },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
       // Generate tokens
-      const accessToken = authService.generateAccessToken({ userId: user.user_id, role: user.role });
+      const accessToken = authService.generateAccessToken({
+        userId: user.user_id,
+        role: user.role,
+      });
       const refreshToken = authService.generateRefreshToken({ userId: user.user_id });
 
       // Store refresh token
@@ -138,17 +148,17 @@ class AuthController {
             userId: user.user_id,
             email: user.email,
             fullName: user.full_name,
-            role: user.role
-          }
+            role: user.role,
+          },
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('⚠️', error);
       res.status(500).json({
         success: false,
         error: { code: 'SYS_001', message: 'Internal server error' },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -160,7 +170,7 @@ class AuthController {
         return res.status(422).json({
           success: false,
           error: { code: 'VAL_001', message: 'Validation error', details: error.details },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -191,7 +201,7 @@ class AuthController {
             phone: null,
             passwordHash,
             fullName: name,
-            role: 'passenger'
+            role: 'passenger',
           });
           await userRepository.updateGoogleId(user.user_id, googleId);
           isNewUser = true;
@@ -199,7 +209,10 @@ class AuthController {
       }
 
       // Generate tokens
-      const accessToken = authService.generateAccessToken({ userId: user.user_id, role: user.role });
+      const accessToken = authService.generateAccessToken({
+        userId: user.user_id,
+        role: user.role,
+      });
       const refreshToken = authService.generateRefreshToken({ userId: user.user_id });
 
       await authService.storeRefreshToken(user.user_id, refreshToken);
@@ -214,17 +227,17 @@ class AuthController {
             userId: user.user_id,
             email: user.email,
             fullName: user.full_name,
-            role: user.role
-          }
+            role: user.role,
+          },
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('⚠️', error);
       res.status(401).json({
         success: false,
         error: { code: 'AUTH_001', message: 'Invalid Google token' },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -236,7 +249,7 @@ class AuthController {
         return res.status(422).json({
           success: false,
           error: { code: 'VAL_001', message: 'Validation error', details: error.details },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -246,7 +259,7 @@ class AuthController {
         return res.status(401).json({
           success: false,
           error: { code: 'AUTH_002', message: 'Invalid refresh token' },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -255,7 +268,7 @@ class AuthController {
         return res.status(401).json({
           success: false,
           error: { code: 'AUTH_002', message: 'Refresh token revoked' },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -266,22 +279,25 @@ class AuthController {
         await authService.blacklistAccessToken(oldAccessToken);
       }
 
-      const newAccessToken = authService.generateAccessToken({ userId: decoded.userId, role: decoded.role });
+      const newAccessToken = authService.generateAccessToken({
+        userId: decoded.userId,
+        role: decoded.role,
+      });
 
       res.json({
         success: true,
         data: {
           accessToken: newAccessToken,
-          expiresIn: 3600
+          expiresIn: 3600,
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('⚠️', error);
       res.status(500).json({
         success: false,
         error: { code: 'SYS_001', message: 'Internal server error' },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -289,27 +305,27 @@ class AuthController {
   async logout(req, res) {
     try {
       const userId = req.user.userId;
-      
+
       // Blacklist the current access token
       const authHeader = req.headers.authorization;
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.substring(7);
         await authService.blacklistAccessToken(token);
       }
-      
+
       await authService.deleteRefreshToken(userId);
 
       res.json({
         success: true,
         message: 'Logged out successfully',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('⚠️', error);
       res.status(500).json({
         success: false,
         error: { code: 'SYS_001', message: 'Internal server error' },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -322,7 +338,7 @@ class AuthController {
         return res.status(400).json({
           success: false,
           error: { code: 'VAL_001', message: 'Verification token is required' },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -332,7 +348,7 @@ class AuthController {
         return res.status(400).json({
           success: false,
           error: { code: 'AUTH_003', message: 'Invalid or expired verification token' },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -342,14 +358,14 @@ class AuthController {
       res.json({
         success: true,
         message: 'Email verified successfully. You can now log in.',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('⚠️', error);
       res.status(500).json({
         success: false,
         error: { code: 'SYS_001', message: 'Internal server error' },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -362,7 +378,7 @@ class AuthController {
         return res.status(400).json({
           success: false,
           error: { code: 'VAL_001', message: 'Email is required' },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -371,7 +387,7 @@ class AuthController {
         return res.status(404).json({
           success: false,
           error: { code: 'USER_001', message: 'User not found' },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -379,7 +395,7 @@ class AuthController {
         return res.status(400).json({
           success: false,
           error: { code: 'AUTH_004', message: 'Email is already verified' },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -395,14 +411,14 @@ class AuthController {
       res.json({
         success: true,
         message: 'Verification email sent successfully',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('⚠️', error);
       res.status(500).json({
         success: false,
         error: { code: 'SYS_001', message: 'Internal server error' },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -414,7 +430,7 @@ class AuthController {
         return res.status(422).json({
           success: false,
           error: { code: 'VAL_001', message: 'Validation error', details: error.details },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -426,7 +442,7 @@ class AuthController {
         return res.json({
           success: true,
           message: 'If the email exists, a password reset link has been sent.',
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -447,14 +463,14 @@ class AuthController {
       res.json({
         success: true,
         message: 'If the email exists, a password reset link has been sent.',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('⚠️', error);
       res.status(500).json({
         success: false,
         error: { code: 'SYS_001', message: 'Internal server error' },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -466,7 +482,7 @@ class AuthController {
         return res.status(422).json({
           success: false,
           error: { code: 'VAL_001', message: 'Validation error', details: error.details },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -478,7 +494,7 @@ class AuthController {
         return res.status(400).json({
           success: false,
           error: { code: 'AUTH_006', message: 'Invalid or expired reset token' },
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -487,8 +503,12 @@ class AuthController {
       if (passwordValidation.error) {
         return res.status(422).json({
           success: false,
-          error: { code: 'VAL_001', message: 'Password validation failed', details: passwordValidation.error.details },
-          timestamp: new Date().toISOString()
+          error: {
+            code: 'VAL_001',
+            message: 'Password validation failed',
+            details: passwordValidation.error.details,
+          },
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -501,14 +521,14 @@ class AuthController {
       res.json({
         success: true,
         message: 'Password reset successfully. You can now log in with your new password.',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     } catch (error) {
       console.error('⚠️', error);
       res.status(500).json({
         success: false,
         error: { code: 'SYS_001', message: 'Internal server error' },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
   }

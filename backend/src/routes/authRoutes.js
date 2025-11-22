@@ -8,6 +8,8 @@ router.post('/register', authController.register);
 router.post('/login', authController.login);
 router.post('/oauth/google', authController.googleAuth);
 router.post('/refresh', authenticate, authController.refresh);
+router.get('/verify-email', authController.verifyEmail);
+router.post('/resend-verification', authController.resendVerificationEmail);
 
 // Protected routes
 router.post('/logout', authenticate, authController.logout);

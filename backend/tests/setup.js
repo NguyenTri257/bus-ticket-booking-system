@@ -80,6 +80,7 @@ jest.mock('../src/repositories/userRepository', () => ({
       phone: userData.phone,
       full_name: userData.fullName,
       role: userData.role,
+      email_verified: true, // All test users are verified by default
       created_at: new Date()
     });
   }),
@@ -90,7 +91,8 @@ jest.mock('../src/repositories/userRepository', () => ({
         email,
         password_hash: 'hashedPassword',
         role: email.includes('admin') ? 'admin' : 'passenger',
-        full_name: 'Test User'
+        full_name: 'Test User',
+        email_verified: email !== 'unverified@example.com' // Only this user is unverified
       });
     }
     return Promise.resolve(null);
@@ -103,6 +105,23 @@ jest.mock('../src/repositories/userRepository', () => ({
   })),
   findByGoogleId: jest.fn(() => Promise.resolve(null)),
   updateGoogleId: jest.fn(() => Promise.resolve({})),
+  setEmailVerificationToken: jest.fn(() => Promise.resolve({})),
+  findByEmailVerificationToken: jest.fn((token) => {
+    if (token === 'validToken') {
+      return Promise.resolve({
+        user_id: 1,
+        email: 'test@example.com',
+        email_verified: false
+      });
+    }
+    return Promise.resolve(null);
+  }),
+  verifyEmail: jest.fn(() => Promise.resolve({
+    user_id: 1,
+    email: 'test@example.com',
+    email_verified: true
+  })),
+  clearEmailVerificationToken: jest.fn(() => Promise.resolve({})),
 }));
 
 // Mock authService
@@ -130,6 +149,12 @@ jest.mock('../src/services/authService', () => ({
     return Promise.resolve();
   }),
   isTokenBlacklisted: jest.fn((token) => Promise.resolve(mockBlacklistedTokens.has(token))),
+}));
+
+// Mock emailService
+jest.mock('../src/services/emailService', () => ({
+  sendVerificationEmail: jest.fn(() => Promise.resolve()),
+  sendPasswordResetEmail: jest.fn(() => Promise.resolve()),
 }));
 
 // Set test environment variables

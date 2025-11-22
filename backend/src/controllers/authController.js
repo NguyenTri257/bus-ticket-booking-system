@@ -1,7 +1,9 @@
 const bcrypt = require('bcrypt');
 const { OAuth2Client } = require('google-auth-library');
+const crypto = require('crypto');
 const userRepository = require('../repositories/userRepository');
 const authService = require('../services/authService');
+const emailService = require('../services/emailService');
 const { registerSchema, loginSchema, googleAuthSchema, refreshSchema } = require('../validators/authValidators');
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -45,6 +47,20 @@ class AuthController {
       // Create user
       const user = await userRepository.create({ email, phone, passwordHash, fullName, role });
 
+      // Generate email verification token
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      await userRepository.setEmailVerificationToken(user.user_id, verificationToken, expiresAt);
+
+      // Send verification email
+      try {
+        await emailService.sendVerificationEmail(email, verificationToken);
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+        // Don't fail registration if email fails, but log it
+      }
+
       res.status(201).json({
         success: true,
         data: {
@@ -53,9 +69,10 @@ class AuthController {
           phone: user.phone,
           fullName: user.full_name,
           role: user.role,
+          emailVerified: user.email_verified,
           createdAt: user.created_at
         },
-        message: 'Registration successful',
+        message: 'Registration successful. Please check your email to verify your account.',
         timestamp: new Date().toISOString()
       });
     } catch (error) {
@@ -91,6 +108,15 @@ class AuthController {
         return res.status(401).json({
           success: false,
           error: { code: 'AUTH_001', message: 'Invalid credentials' },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Check if email is verified
+      if (!user.email_verified) {
+        return res.status(403).json({
+          success: false,
+          error: { code: 'AUTH_005', message: 'Please verify your email before logging in' },
           timestamp: new Date().toISOString()
         });
       }
@@ -276,6 +302,99 @@ class AuthController {
       res.json({
         success: true,
         message: 'Logged out successfully',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_001', message: 'Internal server error' },
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  async verifyEmail(req, res) {
+    try {
+      const { token } = req.query;
+
+      if (!token) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'VAL_001', message: 'Verification token is required' },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Find user by verification token
+      const user = await userRepository.findByEmailVerificationToken(token);
+      if (!user) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'AUTH_003', message: 'Invalid or expired verification token' },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Verify the email
+      await userRepository.verifyEmail(user.user_id);
+
+      res.json({
+        success: true,
+        message: 'Email verified successfully. You can now log in.',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_001', message: 'Internal server error' },
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
+
+  async resendVerificationEmail(req, res) {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'VAL_001', message: 'Email is required' },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      const user = await userRepository.findByEmail(email);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'USER_001', message: 'User not found' },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      if (user.email_verified) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'AUTH_004', message: 'Email is already verified' },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Generate new verification token
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+      await userRepository.setEmailVerificationToken(user.user_id, verificationToken, expiresAt);
+
+      // Send verification email
+      await emailService.sendVerificationEmail(email, verificationToken);
+
+      res.json({
+        success: true,
+        message: 'Verification email sent successfully',
         timestamp: new Date().toISOString()
       });
     } catch (error) {

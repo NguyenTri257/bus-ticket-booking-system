@@ -21,6 +21,8 @@ describe('Authentication API', () => {
     expect(response.body.data).toHaveProperty('userId');
     expect(response.body.data.email).toBe('test@example.com');
     expect(response.body.data.role).toBe('passenger');
+    expect(response.body.data.emailVerified).toBe(true);
+    expect(response.body.message).toContain('Registration successful');
   });
 
   it('should fail registration with invalid email', async () => {
@@ -53,7 +55,16 @@ describe('Authentication API', () => {
     expect(response.body.error.code).toBe('USER_002');
   });
 
-  it('should login with valid credentials', async () => {
+  it('should verify email with valid token', async () => {
+    const response = await request(app)
+      .get('/auth/verify-email?token=validToken')
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toBe('Email verified successfully. You can now log in.');
+  });
+
+  it('should login with valid credentials after email verification', async () => {
     const response = await request(app)
       .post('/auth/login')
       .send({
@@ -69,6 +80,31 @@ describe('Authentication API', () => {
 
     accessToken = response.body.data.accessToken;
     refreshToken = response.body.data.refreshToken;
+  });
+
+  it('should fail login with unverified email', async () => {
+    // Register another user without verifying
+    await request(app)
+      .post('/auth/register')
+      .send({
+        email: 'unverified@example.com',
+        phone: '+84909876543',
+        password: 'SecurePass123!',
+        fullName: 'Unverified User',
+        role: 'passenger'
+      })
+      .expect(201);
+
+    const response = await request(app)
+      .post('/auth/login')
+      .send({
+        identifier: 'unverified@example.com',
+        password: 'SecurePass123!'
+      })
+      .expect(403);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.code).toBe('AUTH_005');
   });
 
   it('should fail login with invalid credentials', async () => {

@@ -6,9 +6,9 @@ services:
     image: postgres:15-alpine
     container_name: bus-ticket-postgres
     environment:
-      POSTGRES_DB: busticket
+      POSTGRES_DB: bus_ticket_dev
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
@@ -16,6 +16,11 @@ services:
       - ./sql:/docker-entrypoint-initdb.d
     networks:
       - bus-ticket-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Redis Cache
   redis:
@@ -27,6 +32,11 @@ services:
       - redis_data:/data
     networks:
       - bus-ticket-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   # Auth Service
   auth-service:
@@ -39,15 +49,17 @@ services:
       - PORT=3001
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/busticket
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - JWT_SECRET=${JWT_SECRET:-default-jwt-secret}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-default-refresh-secret}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-default-google-client-id}
       - NOTIFICATION_SERVICE_URL=http://notification-service:3003
     ports:
       - "3001:3001"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - bus-ticket-network
     volumes:
@@ -63,9 +75,9 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3003
-      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
-      - EMAIL_FROM=${EMAIL_FROM}
-      - FRONTEND_URL=${FRONTEND_URL}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY:-default-sendgrid-api-key}
+      - EMAIL_FROM=${EMAIL_FROM:-default@email.com}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
     ports:
       - "3003:3003"
     networks:

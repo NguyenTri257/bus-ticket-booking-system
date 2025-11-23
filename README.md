@@ -111,7 +111,7 @@ backend/
 
 4. Set up database:
 
-   - Create PostgreSQL database: `busticket`
+   - Create PostgreSQL database: `bus_ticket_dev`
    - Run migrations from `backend/sql/` directory
 
 5. Start services:
@@ -247,7 +247,7 @@ NOTIFICATION_SERVICE_URL=http://localhost:3003
 ```
 NODE_ENV=development
 PORT=3001
-DATABASE_URL=postgresql://postgres:password@localhost:5432/busticket
+DATABASE_URL=postgresql://postgres:password@localhost:5432/bus_ticket_dev
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=your-jwt-secret
 JWT_REFRESH_SECRET=your-refresh-secret

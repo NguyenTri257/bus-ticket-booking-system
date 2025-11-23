@@ -25,11 +25,19 @@ class AuthController {
       // Check if email or phone exists
       const existingEmail = await userRepository.findByEmail(email);
       if (existingEmail) {
-        return res.status(409).json({
-          success: false,
-          error: { code: 'USER_002', message: 'Email already exists' },
-          timestamp: new Date().toISOString()
-        });
+        if (existingEmail.google_id) {
+          return res.status(409).json({
+            success: false,
+            error: { code: 'USER_002', message: 'An account with this email already exists via Google. Please sign in with Google.' },
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          return res.status(409).json({
+            success: false,
+            error: { code: 'USER_002', message: 'Email already exists' },
+            timestamp: new Date().toISOString()
+          });
+        }
       }
 
       const existingPhone = await userRepository.findByPhone(phone);
@@ -108,7 +116,24 @@ class AuthController {
         user = await userRepository.findByPhone(identifier);
       }
 
-      if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_001', message: 'Invalid credentials' },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Check if user has Google ID (OAuth account)
+      if (user.google_id) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_007', message: 'This account is linked to Google. Please sign in with Google.' },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      if (!(await bcrypt.compare(password, user.password_hash))) {
         return res.status(401).json({
           success: false,
           error: { code: 'AUTH_001', message: 'Invalid credentials' },
@@ -176,7 +201,7 @@ class AuthController {
         audience: process.env.GOOGLE_CLIENT_ID,
       });
       const payload = ticket.getPayload();
-      const { sub: googleId, email, name } = payload;
+      const { sub: googleId, email, name, email_verified } = payload;
 
       // Find or create user
       let user = await userRepository.findByGoogleId(googleId);
@@ -195,7 +220,8 @@ class AuthController {
             phone: null,
             passwordHash,
             fullName: name,
-            role: 'passenger'
+            role: 'passenger',
+            emailVerified: email_verified
           });
           await userRepository.updateGoogleId(user.user_id, googleId);
           isNewUser = true;

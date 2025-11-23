@@ -2,13 +2,13 @@ const pool = require('./database');
 
 class UserRepository {
   async create(userData) {
-    const { email, phone, passwordHash, fullName, role = 'passenger' } = userData;
+    const { email, phone, passwordHash, fullName, role = 'passenger', emailVerified = false } = userData;
     const query = `
       INSERT INTO users (email, phone, password_hash, full_name, role, email_verified, created_at)
       VALUES ($1, $2, $3, $4, $5, $6, NOW())
       RETURNING user_id, email, phone, full_name, role, email_verified, created_at
     `;
-    const values = [email, phone, passwordHash, fullName, role, false];
+    const values = [email, phone, passwordHash, fullName, role, emailVerified];
     const result = await pool.query(query, values);
     return result.rows[0];
   }

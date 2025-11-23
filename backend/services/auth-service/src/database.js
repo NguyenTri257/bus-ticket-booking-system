@@ -6,8 +6,11 @@ if (process.env.DATABASE_URL) {
   // Use DATABASE_URL if provided (for production/Docker)
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    min: parseInt(process.env.DB_POOL_MIN) || 2,
+    min: 1,
     max: parseInt(process.env.DB_POOL_MAX) || 10,
+    connectionTimeoutMillis: 10000, // 10 seconds
+    query_timeout: 10000, // 10 seconds
+    idleTimeoutMillis: 30000, // 30 seconds
   });
 } else {
   // Use individual environment variables (for development)
@@ -17,8 +20,11 @@ if (process.env.DATABASE_URL) {
     database: process.env.DB_NAME,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    min: parseInt(process.env.DB_POOL_MIN) || 2,
+    min: 1,
     max: parseInt(process.env.DB_POOL_MAX) || 10,
+    connectionTimeoutMillis: 10000, // 10 seconds
+    query_timeout: 10000, // 10 seconds
+    idleTimeoutMillis: 30000, // 30 seconds
   });
 }
 

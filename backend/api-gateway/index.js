@@ -75,10 +75,9 @@ app.use('/auth', async (req, res) => {
       url: `${authServiceUrl}${req.path}`,
       data: req.body,
       headers: {
-        ...req.headers,
-        host: undefined, // Remove host header to avoid conflicts
+        'content-type': 'application/json',
       },
-      timeout: 10000, // 10 seconds timeout
+      timeout: 30000, // Increased timeout to 30 seconds
     });
     console.log(`✅ Auth service responded with status ${response.status}`);
     res.status(response.status).json(response.data);

@@ -97,8 +97,8 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - AUTH_SERVICE_URL=http://host.docker.internal:3001
-      - NOTIFICATION_SERVICE_URL=http://host.docker.internal:3003
+      - AUTH_SERVICE_URL=http://auth-service:3001
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3003
     ports:
       - "3000:3000"
     networks:

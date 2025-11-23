@@ -6,9 +6,9 @@
     "start": "node ./bin/www",
     "dev": "nodemon ./bin/www",
     "test": "echo 'Tests should be run from individual service directories, not from the backend root. Please navigate to a specific service (e.g., cd services/auth-service) and run npm test there.' && exit 1",
-    "lint": "eslint src/**/*.js",
-    "lint:fix": "eslint src/**/*.js --fix",
-    "format": "prettier --write src/**/*.js",
+    "lint": "eslint routes/**/*.js",
+    "lint:fix": "eslint routes/**/*.js --fix",
+    "format": "prettier --write routes/**/*.js",
     "prepare": "husky"
   },
   "dependencies": {

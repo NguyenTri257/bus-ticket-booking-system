@@ -7,40 +7,10 @@ require('dotenv').config();
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
-const authRouter = require('./src/routes/authRoutes');
-const dashboardRouter = require('./src/routes/dashboardRoutes');
 
-// Test database connection on startup
-const pool = require('./src/config/database');
-pool.query('SELECT NOW()', (err) => {
-  if (err) {
-    console.error('⚠️ Database connection failed:', err.message);
-    process.exit(1);
-  } else {
-    console.log('💾 Database connected successfully');
-  }
-});
-
-// Test Redis connection on startup
-const redis = require('redis');
-const redisClient = redis.createClient({
-  host: process.env.REDIS_HOST,
-  port: parseInt(process.env.REDIS_PORT),
-  password: process.env.REDIS_PASSWORD || undefined,
-  database: parseInt(process.env.REDIS_DB) || 0,
-});
-
-redisClient.connect()
-  .then(() => {
-    console.log('🔌 Redis connected successfully');
-    return redisClient.quit();
-  })
-  .catch((err) => {
-    console.error('⚠️ Redis connection failed:', err.message);
-    console.error('⚠️ Make sure Redis is running on', process.env.REDIS_HOST + ':' + process.env.REDIS_PORT);
-    console.error('⚠️ If using Docker: docker run -d -p 6379:6379 redis:alpine');
-    process.exit(1);
-  });
+// Import microservice proxy routes
+const authRouter = require('./routes/authRoutes');
+const dashboardRouter = require('./routes/dashboardRoutes');
 
 var app = express();
 
@@ -64,6 +34,16 @@ app.use((req, res, next) => {
   } else {
     next();
   }
+});
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({
+    service: 'api-gateway',
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  });
 });
 
 app.use('/', indexRouter);

@@ -31,17 +31,16 @@ app.post('/send-email', async (req, res) => {
   try {
     const { to, subject, html, type } = req.body;
 
-    if (!to || !subject || !html) {
+    if (!to) {
       return res.status(400).json({
         success: false,
-        error: { code: 'VAL_001', message: 'Missing required fields: to, subject, html' },
+        error: { code: 'VAL_001', message: 'Missing required field: to' },
         timestamp: new Date().toISOString()
       });
     }
 
-    let result;
     switch (type) {
-      case 'verification':
+      case 'verification': {
         const { token } = req.body;
         if (!token) {
           return res.status(400).json({
@@ -50,10 +49,11 @@ app.post('/send-email', async (req, res) => {
             timestamp: new Date().toISOString()
           });
         }
-        result = await emailService.sendVerificationEmail(to, token);
+        await emailService.sendVerificationEmail(to, token);
         break;
+      }
 
-      case 'password-reset':
+      case 'password-reset': {
         const { resetToken } = req.body;
         if (!resetToken) {
           return res.status(400).json({
@@ -62,22 +62,33 @@ app.post('/send-email', async (req, res) => {
             timestamp: new Date().toISOString()
           });
         }
-        result = await emailService.sendPasswordResetEmail(to, resetToken);
+        await emailService.sendPasswordResetEmail(to, resetToken);
         break;
+      }
 
       default:
         // Generic email sending
-        const sgMail = require('@sendgrid/mail');
-        sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+        {
+          if (!subject || !html) {
+            return res.status(400).json({
+              success: false,
+              error: { code: 'VAL_001', message: 'Missing required fields: subject, html' },
+              timestamp: new Date().toISOString()
+            });
+          }
+          const sgMail = require('@sendgrid/mail');
+          sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-        const msg = {
-          to,
-          from: process.env.EMAIL_FROM || 'noreply@busticket.com',
-          subject,
-          html
-        };
+          const msg = {
+            to,
+            from: process.env.EMAIL_FROM || 'noreply@busticket.com',
+            subject,
+            html
+          };
 
-        result = await sgMail.send(msg);
+          await sgMail.send(msg);
+        }
+        break;
     }
 
     res.json({
@@ -96,7 +107,7 @@ app.post('/send-email', async (req, res) => {
 });
 
 // Error handling
-app.use((err, req, res, next) => {
+app.use((err, req, res) => {
   console.error('⚠️', err.stack);
   res.status(500).json({
     success: false,

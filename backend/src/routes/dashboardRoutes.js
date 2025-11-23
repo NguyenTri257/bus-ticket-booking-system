@@ -1,5 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const axios = require('axios');
+
+// For now, dashboard routes still use local controllers
+// TODO: Move dashboard to separate microservice
 const dashboardController = require('../controllers/dashboardController');
 const { authenticate, authorize } = require('../middlewares/authMiddleware');
 

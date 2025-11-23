@@ -14,6 +14,19 @@ The system is built using a **microservices architecture** with the following se
 - **PostgreSQL** (Port 5432): Primary database for user data and business entities
 - **Redis** (Port 6379): Cache for JWT refresh tokens and session management
 
+### Architecture
+
+```
+backend/
+├── app.js                    # API Gateway (proxy only)
+├── routes/
+│   ├── authRoutes.js        # Proxies to auth-service:3001
+│   └── dashboardRoutes.js   # Local dashboard
+└── services/                # Microservices
+    ├── auth-service/        # Auth business logic
+    └── notification-service/
+```
+
 ## Features
 
 - **Authentication**: Email/password signup/login, Google OAuth integration
@@ -79,12 +92,12 @@ The system is built using a **microservices architecture** with the following se
 2. Install dependencies for all services:
 
    ```bash
-   # API Gateway
-   cd backend/api-gateway
+   # API Gateway (main backend)
+   cd backend
    npm install
 
    # Auth Service
-   cd ../services/auth-service
+   cd services/auth-service
    npm install
 
    # Notification Service
@@ -114,9 +127,9 @@ The system is built using a **microservices architecture** with the following se
      ./scripts/start-redis.sh
      ```
 
+   - **API Gateway**: `cd backend && npm run dev`
    - **Auth Service**: `cd backend/services/auth-service && npm run dev`
    - **Notification Service**: `cd backend/services/notification-service && npm run dev`
-   - **API Gateway**: `cd backend/api-gateway && npm run dev`
 
 6. Test health checks:
    ```bash
@@ -130,6 +143,8 @@ The system is built using a **microservices architecture** with the following se
 All API requests go through the API Gateway at `http://localhost:3000`. The gateway routes requests to the appropriate microservice.
 
 #### Authentication
+
+All auth endpoints are proxied to the auth service:
 
 - `POST /auth/register` - Register new user
 - `POST /auth/login` - Login with email/phone
@@ -151,8 +166,6 @@ All API requests go through the API Gateway at `http://localhost:3000`. The gate
 #### Service Health Checks
 
 - `GET /health` - API Gateway health
-- `GET /auth/health` - Auth Service health
-- `GET /notification/health` - Notification Service health
 
 ### Authentication & Authorization Design
 
@@ -177,17 +190,24 @@ All API requests go through the API Gateway at `http://localhost:3000`. The gate
 
 ### Decisions & Tradeoffs
 
+- **Microservices Architecture**: Proper separation with API Gateway proxying vs monolithic implementation
 - **JWT vs Sessions**: JWT chosen for stateless auth, but requires refresh logic for security
 - **Password Hashing**: bcrypt with salt rounds 12 for security
 - **Role-Based Auth**: Simple roles over scopes for this assignment; extensible
 - **Mock Data**: Dashboard uses mock data; replace with real DB queries later
+- **Code Organization**: Removed duplication by implementing proper service boundaries
 
 ## Testing
 
-Run the test suite:
+Run the test suite for individual services:
 
 ```bash
-cd backend
+# Auth Service tests
+cd backend/services/auth-service
+npm test
+
+# API Gateway tests (when implemented)
+cd ../../api-gateway
 npm test
 ```
 
@@ -257,7 +277,3 @@ SENDGRID_API_KEY=your-sendgrid-api-key
 EMAIL_FROM=noreply@busticket.com
 FRONTEND_URL=http://localhost:5173
 ```
-
-## Next Steps
-
-See `NEXT_STEPS.md` for future enhancements.

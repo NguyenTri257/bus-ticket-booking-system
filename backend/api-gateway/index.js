@@ -3,7 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const axios = require('axios');
-const jwt = require('jsonwebtoken');
+const { authenticate, authorize } = require('./middlewares/auth');
 if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
 }
@@ -26,45 +26,6 @@ app.use(cors({
 app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Authentication middleware
-const authenticate = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      success: false,
-      error: { code: 'AUTH_001', message: 'Authorization header missing or invalid' },
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  const token = authHeader.substring(7);
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      success: false,
-      error: { code: 'AUTH_002', message: 'Token expired or invalid' },
-      timestamp: new Date().toISOString()
-    });
-  }
-};
-
-// Authorization middleware
-const authorize = (roles) => {
-  return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        error: { code: 'AUTH_003', message: 'Insufficient permissions' },
-        timestamp: new Date().toISOString()
-      });
-    }
-    next();
-  };
-};
 
 // Health check
 app.get('/health', (req, res) => {
@@ -242,13 +203,331 @@ app.get('/dashboard/stats', authenticate, authorize(['admin']), async (req, res)
   }
 });
 
-// Catch-all for invalid dashboard endpoints
-app.use('/dashboard/*', authenticate, (req, res) => {
-  res.status(404).json({
-    success: false,
-    error: { code: 'NOT_FOUND', message: 'Dashboard endpoint not found' },
-    timestamp: new Date().toISOString()
-  });
+app.get('/dashboard/passenger-profile', authenticate, authorize(['passenger']), async (req, res) => {
+  try {
+    // Passenger-only profile data
+    const profileData = {
+      loyaltyPoints: 250,
+      favoriteRoutes: ['Hanoi - Ho Chi Minh', 'Hanoi - Da Nang'],
+      travelHistory: 12,
+      nextTrip: {
+        destination: 'Ho Chi Minh City',
+        date: '2025-12-01',
+        status: 'confirmed'
+      }
+    };
+    return res.json({
+      success: true,
+      data: profileData,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('⚠️ Dashboard passenger profile error:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/dashboard/upcoming-trips', authenticate, authorize(['passenger']), async (req, res) => {
+  try {
+    // Get user's upcoming trips
+    const upcomingTrips = [
+      {
+        bookingId: 'BK2025HS001',
+        from: 'HCM',
+        to: 'Hanoi',
+        date: '2025-11-15',
+        time: '08:00',
+        seats: ['A1', 'A2'],
+        status: 'confirmed',
+        price: 500000
+      },
+      {
+        bookingId: 'BK2025HH002',
+        from: 'Hanoi',
+        to: 'Hue',
+        date: '2025-11-20',
+        time: '14:00',
+        seats: ['B3'],
+        status: 'confirmed',
+        price: 350000
+      }
+    ];
+    return res.json({
+      success: true,
+      data: upcomingTrips,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('⚠️ Dashboard upcoming trips error:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/dashboard/trip-history', authenticate, authorize(['passenger']), async (req, res) => {
+  try {
+    // Get user's trip history
+    const tripHistory = [
+      {
+        bookingId: 'BK2025HD003',
+        from: 'Hanoi',
+        to: 'Da Nang',
+        date: '2025-10-10',
+        time: '09:00',
+        seats: ['C1', 'C2'],
+        status: 'completed',
+        price: 400000
+      },
+      {
+        bookingId: 'BK2025HN004',
+        from: 'HCM',
+        to: 'Nha Trang',
+        date: '2025-09-05',
+        time: '07:30',
+        seats: ['D5'],
+        status: 'completed',
+        price: 300000
+      }
+    ];
+    return res.json({
+      success: true,
+      data: tripHistory,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('⚠️ Dashboard trip history error:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/dashboard/payment-history', authenticate, authorize(['passenger']), async (req, res) => {
+  try {
+    // Get user's payment history
+    const paymentHistory = [
+      {
+        paymentId: 'PAY001',
+        bookingId: 'BK2025HS001',
+        amount: 500000,
+        currency: 'VND',
+        date: '2025-11-01',
+        status: 'completed',
+        method: 'credit_card'
+      },
+      {
+        paymentId: 'PAY002',
+        bookingId: 'BK2025HH002',
+        amount: 350000,
+        currency: 'VND',
+        date: '2025-10-15',
+        status: 'completed',
+        method: 'bank_transfer'
+      }
+    ];
+    return res.json({
+      success: true,
+      data: paymentHistory,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('⚠️ Dashboard payment history error:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/dashboard/notifications', authenticate, authorize(['passenger']), async (req, res) => {
+  try {
+    // Get user's notifications
+    const notifications = [
+      {
+        id: 1,
+        type: 'trip_reminder',
+        title: 'Trip Reminder',
+        message: 'Your trip to Hanoi is scheduled for tomorrow at 08:00',
+        timestamp: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
+        read: false
+      },
+      {
+        id: 2,
+        type: 'booking_confirmed',
+        title: 'Booking Confirmed',
+        message: 'Your booking BK2025HH002 has been confirmed',
+        timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+        read: true
+      },
+      {
+        id: 3,
+        type: 'new_route',
+        title: 'New Route Available',
+        message: 'Check out our new express route from HCM to Hanoi',
+        timestamp: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
+        read: true
+      }
+    ];
+    return res.json({
+      success: true,
+      data: notifications,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('⚠️ Dashboard notifications error:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/dashboard/admin/stats', authenticate, authorize(['admin']), async (req, res) => {
+  try {
+    // Admin dashboard statistics
+    const statsData = {
+      totalBookings: 1234,
+      activeUsers: 856,
+      revenueToday: 45200000,
+      totalRevenue: 125000000,
+      totalUsers: 2500,
+      activeTrips: 45
+    };
+    return res.json({
+      success: true,
+      data: statsData,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('⚠️ Dashboard admin stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/dashboard/admin/bookings-trend', authenticate, authorize(['admin']), async (req, res) => {
+  try {
+    // Bookings trend data for the last 7 days
+    const bookingsTrend = [
+      { day: 'Mon', bookings: 45, date: '2025-11-18' },
+      { day: 'Tue', bookings: 52, date: '2025-11-19' },
+      { day: 'Wed', bookings: 61, date: '2025-11-20' },
+      { day: 'Thu', bookings: 55, date: '2025-11-21' },
+      { day: 'Fri', bookings: 70, date: '2025-11-22' },
+      { day: 'Sat', bookings: 85, date: '2025-11-23' },
+      { day: 'Sun', bookings: 78, date: '2025-11-24' }
+    ];
+    return res.json({
+      success: true,
+      data: bookingsTrend,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('⚠️ Dashboard bookings trend error:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/dashboard/admin/top-routes', authenticate, authorize(['admin']), async (req, res) => {
+  try {
+    // Top performing routes
+    const topRoutes = [
+      { route: 'HCM → Hanoi', bookings: 234, revenue: 8200000 },
+      { route: 'HCM → Dalat', bookings: 189, revenue: 3400000 },
+      { route: 'Hanoi → Haiphong', bookings: 156, revenue: 2800000 },
+      { route: 'Danang → Hue', bookings: 142, revenue: 2100000 }
+    ];
+    return res.json({
+      success: true,
+      data: topRoutes,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('⚠️ Dashboard top routes error:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/dashboard/admin/recent-bookings', authenticate, authorize(['admin']), async (req, res) => {
+  try {
+    // Recent bookings for admin overview
+    const recentBookings = [
+      {
+        id: 'BK-2045',
+        customer: 'Nguyen Van A',
+        route: 'HCM → Hanoi',
+        date: '2025-11-21',
+        amount: 450000,
+        status: 'confirmed'
+      },
+      {
+        id: 'BK-2044',
+        customer: 'Tran Thi B',
+        route: 'HCM → Dalat',
+        date: '2025-11-21',
+        amount: 280000,
+        status: 'confirmed'
+      },
+      {
+        id: 'BK-2043',
+        customer: 'Le Van C',
+        route: 'Hanoi → Haiphong',
+        date: '2025-11-21',
+        amount: 320000,
+        status: 'pending'
+      },
+      {
+        id: 'BK-2042',
+        customer: 'Pham Thi D',
+        route: 'Danang → Hue',
+        date: '2025-11-20',
+        amount: 250000,
+        status: 'confirmed'
+      },
+      {
+        id: 'BK-2041',
+        customer: 'Hoang Van E',
+        route: 'HCM → Hanoi',
+        date: '2025-11-20',
+        amount: 450000,
+        status: 'confirmed'
+      }
+    ];
+    return res.json({
+      success: true,
+      data: recentBookings,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('⚠️ Dashboard recent bookings error:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Error handling

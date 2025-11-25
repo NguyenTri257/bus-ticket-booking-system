@@ -55,8 +55,6 @@ services:
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-default-refresh-secret}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-default-google-client-id}
       - NOTIFICATION_SERVICE_URL=http://notification-service:3003
-    ports:
-      - "3001:3001"
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,9 +77,7 @@ services:
       - PORT=3003
       - SENDGRID_API_KEY=${SENDGRID_API_KEY:-default-sendgrid-api-key}
       - EMAIL_FROM=${EMAIL_FROM:-default@email.com}
-      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
-    ports:
-      - "3003:3003"
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
     networks:
       - bus-ticket-network
     volumes:

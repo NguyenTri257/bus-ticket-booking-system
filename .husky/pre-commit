@@ -1,2 +1,6 @@
-npm test
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
 npx lint-staged
+cd backend/services/auth-service && npm test
+cd backend/api-gateway && npm test

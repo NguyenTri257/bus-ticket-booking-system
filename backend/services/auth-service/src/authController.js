@@ -838,6 +838,51 @@ class AuthController {
       });
     }
   }
+
+  async verifyToken(req, res) {
+    try {
+      const { token } = req.body;
+      if (!token) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'VAL_001', message: 'Token is required' },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      const decoded = authService.verifyAccessToken(token);
+      if (!decoded) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_002', message: 'Token expired or invalid' },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Check if token is blacklisted
+      const isBlacklisted = await authService.isTokenBlacklisted(token);
+      if (isBlacklisted) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_004', message: 'Token has been revoked' },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      res.json({
+        success: true,
+        data: { valid: true, user: decoded },
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('⚠️', error);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_001', message: 'Internal server error' },
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
 }
 
 module.exports = new AuthController();

@@ -10,7 +10,6 @@ var usersRouter = require('./routes/users');
 
 // Import microservice proxy routes
 const authRouter = require('./routes/authRoutes');
-const dashboardRouter = require('./routes/dashboardRoutes');
 
 var app = express();
 
@@ -49,7 +48,6 @@ app.get('/health', (req, res) => {
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
 app.use('/auth', authRouter);
-app.use('/dashboard', dashboardRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

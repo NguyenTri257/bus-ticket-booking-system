@@ -35,6 +35,7 @@ app.post('/login', authController.login);
 app.post('/oauth/google', authController.googleAuth);
 app.post('/refresh', authenticate, authController.refresh);
 app.post('/logout', authenticate, authController.logout);
+app.post('/verify', authController.verifyToken);
 app.get('/verify-email', authController.verifyEmail);
 app.post('/resend-verification', authController.resendVerificationEmail);
 app.post('/forgot-password', authController.forgotPassword);

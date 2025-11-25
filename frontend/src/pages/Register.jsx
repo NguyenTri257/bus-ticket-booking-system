@@ -14,7 +14,6 @@ import GoogleIcon from '@/components/GoogleIcon'
 import { getGoogleIdToken } from '@/lib/google'
 import { hasErrors, validateRegister } from '@/lib/validation'
 import { loginWithGoogle, registerAccount, storeTokens } from '@/api/auth'
-import { useGoogleOAuthReady } from '@/hooks/useGoogleOAuthReady'
 
 const initialState = {
   email: '',
@@ -31,7 +30,6 @@ export default function Register() {
   const [status, setStatus] = useState({ type: 'idle', message: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const isGoogleReady = useGoogleOAuthReady()
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -197,12 +195,10 @@ export default function Register() {
             variant="outline"
             className="w-full"
             onClick={handleGoogleSignup}
-            disabled={isGoogleLoading || !isGoogleReady}
+            disabled={isGoogleLoading}
           >
             {isGoogleLoading ? (
               'Contacting Google…'
-            ) : !isGoogleReady ? (
-              'Preparing Google sign-in…'
             ) : (
               <span className="flex w-full items-center justify-center gap-2">
                 <GoogleIcon className="h-5 w-5" />

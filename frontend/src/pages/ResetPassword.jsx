@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { resetPassword } from '@/api/auth'
 import { strongPasswordPattern } from '@/lib/validation'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 const initialForm = { password: '', confirmPassword: '' }
 
@@ -27,7 +28,7 @@ export default function ResetPassword() {
 
   const handleChange = (event) => {
     const { name, value } = event.target
-    setForm(prev => ({ ...prev, [name]: value }))
+    setForm((prev) => ({ ...prev, [name]: value }))
     if (error) setError('')
   }
 
@@ -40,7 +41,9 @@ export default function ResetPassword() {
     }
 
     if (!strongPasswordPattern.test(form.password)) {
-      setError('Password must include upper, lower, number, special char, min 8 chars.')
+      setError(
+        'Password must include upper, lower, number, special char, min 8 chars.'
+      )
       return
     }
 
@@ -53,10 +56,15 @@ export default function ResetPassword() {
     setStatus({ type: 'idle', message: '' })
 
     try {
-      await resetPassword({ token, newPassword: form.password, confirmPassword: form.confirmPassword })
+      await resetPassword({
+        token,
+        newPassword: form.password,
+        confirmPassword: form.confirmPassword,
+      })
       setStatus({
         type: 'success',
-        message: 'Password reset successfully. You can now log in with your new password.',
+        message:
+          'Password reset successfully. You can now log in with your new password.',
       })
       setForm(initialForm)
     } catch (err) {
@@ -74,92 +82,104 @@ export default function ResetPassword() {
   const isSuccess = status.type === 'success'
 
   return (
-    <section className="flex min-h-screen items-center justify-center bg-gradient-to-br from-white via-slate-50 to-indigo-50 px-4 py-12">
-      <Card className="w-full max-w-lg border-none shadow-2xl shadow-indigo-100">
-        <CardHeader className="space-y-3 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">
-            Bus Ticket Booking System
-          </p>
-          <CardTitle className="text-3xl font-semibold">
-            Reset your password
-          </CardTitle>
-          <CardDescription>
-            Enter your new password below.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!isSuccess ? (
-            <form className="space-y-4" onSubmit={handleSubmit} noValidate>
-              <div className="space-y-2">
-                <Label htmlFor="password">New Password</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  placeholder="Enter new password"
-                  autoComplete="new-password"
-                  value={form.password}
-                  onChange={handleChange}
-                />
-              </div>
+    <>
+      <div className="absolute top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  placeholder="Confirm new password"
-                  autoComplete="new-password"
-                  value={form.confirmPassword}
-                  onChange={handleChange}
-                />
-                {error && (
-                  <p className="text-sm font-medium text-destructive">{error}</p>
+      <section
+        className="flex min-h-screen items-center justify-center px-4 py-12 
+      bg-gradient-to-br from-background via-background to-primary/10 
+      dark:to-primary/20"
+      >
+        <Card className="w-full max-w-lg border-none shadow-2xl shadow-indigo-100">
+          <CardHeader className="space-y-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">
+              Bus Ticket Booking System
+            </p>
+            <CardTitle className="text-3xl font-semibold">
+              Reset your password
+            </CardTitle>
+            <CardDescription>Enter your new password below.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!isSuccess ? (
+              <form className="space-y-4" onSubmit={handleSubmit} noValidate>
+                <div className="space-y-2">
+                  <Label htmlFor="password">New Password</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="Enter new password"
+                    autoComplete="new-password"
+                    value={form.password}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="Confirm new password"
+                    autoComplete="new-password"
+                    value={form.confirmPassword}
+                    onChange={handleChange}
+                  />
+                  {error && (
+                    <p className="text-sm font-medium text-destructive">
+                      {error}
+                    </p>
+                  )}
+                </div>
+
+                {status.message && (
+                  <div
+                    className={`rounded-lg border px-4 py-3 text-sm ${
+                      status.type === 'error'
+                        ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                        : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    }`}
+                  >
+                    {status.message}
+                  </div>
                 )}
-              </div>
 
-              {status.message && (
-                <div
-                  className={`rounded-lg border px-4 py-3 text-sm ${
-                    status.type === 'error'
-                      ? 'border-destructive/40 bg-destructive/10 text-destructive'
-                      : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                  }`}
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isSubmitting}
                 >
+                  {isSubmitting ? 'Resetting…' : 'Reset password'}
+                </Button>
+              </form>
+            ) : (
+              <div className="space-y-4 text-center">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
                   {status.message}
                 </div>
-              )}
-
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? 'Resetting…' : 'Reset password'}
-              </Button>
-            </form>
-          ) : (
-            <div className="space-y-4 text-center">
-              <div
-                className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
-              >
-                {status.message}
+                <Button className="w-full" onClick={handleBackToLogin}>
+                  Go to login
+                </Button>
               </div>
-              <Button className="w-full" onClick={handleBackToLogin}>
-                Go to login
-              </Button>
-            </div>
-          )}
+            )}
 
-          <p className="mt-8 text-center text-sm text-muted-foreground">
-            Remembered your password?{' '}
-            <button
-              type="button"
-              className="font-semibold text-primary hover:underline"
-              onClick={handleBackToLogin}
-            >
-              Back to login
-            </button>
-          </p>
-        </CardContent>
-      </Card>
-    </section>
+            <p className="mt-8 text-center text-sm text-muted-foreground">
+              Remembered your password?{' '}
+              <button
+                type="button"
+                className="font-semibold text-primary hover:underline"
+                onClick={handleBackToLogin}
+              >
+                Back to login
+              </button>
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+    </>
   )
 }

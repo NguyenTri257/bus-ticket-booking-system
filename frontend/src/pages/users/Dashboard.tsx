@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Search } from 'lucide-react'
 import { useToast } from '../../hooks/use-toast'
 import '@/styles/admin.css'
+import { DashboardLayout } from '@/components/users/DashboardLayout'
 
 const upcomingTrips = [
   {
@@ -48,42 +49,44 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          Upcoming Trips
-        </h1>
-        <p className="text-muted-foreground">
-          Manage your upcoming travel bookings
-        </p>
-      </div>
+    <DashboardLayout>
+      <div className="max-w-4xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-foreground mb-2">
+            Upcoming Trips
+          </h1>
+          <p className="text-muted-foreground">
+            Manage your upcoming travel bookings
+          </p>
+        </div>
 
-      <div className="space-y-4">
-        {upcomingTrips.map((trip) => (
-          <TripCard
-            key={trip.bookingId}
-            {...trip}
-            status="upcoming"
-            onCancel={() => handleCancel(trip.bookingId)}
-            onModify={() => handleModify(trip.bookingId)}
-            onViewTicket={() => handleViewTicket(trip.bookingId)}
-          />
-        ))}
-      </div>
+        <div className="space-y-4">
+          {upcomingTrips.map((trip) => (
+            <TripCard
+              key={trip.bookingId}
+              {...trip}
+              status="upcoming"
+              onCancel={() => handleCancel(trip.bookingId)}
+              onModify={() => handleModify(trip.bookingId)}
+              onViewTicket={() => handleViewTicket(trip.bookingId)}
+            />
+          ))}
+        </div>
 
-      <div className="mt-12 text-center py-12">
-        <p className="text-muted-foreground mb-6 text-sm uppercase tracking-wide">
-          No more upcoming trips
-        </p>
-        <Button
-          size="lg"
-          className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
-        >
-          <Search className="w-5 h-5" />
-          Search New Trip
-        </Button>
+        <div className="mt-12 text-center py-12">
+          <p className="text-muted-foreground mb-6 text-sm uppercase tracking-wide">
+            No more upcoming trips
+          </p>
+          <Button
+            size="lg"
+            className="gap-2 bg-blue-500 text-white hover:bg-blue-600"
+          >
+            <Search className="w-5 h-5" />
+            Search New Trip
+          </Button>
+        </div>
       </div>
-    </div>
+    </DashboardLayout>
   )
 }
 

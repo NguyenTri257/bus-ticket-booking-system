@@ -1,45 +1,74 @@
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { DashboardLayout } from "@/components/admin/DashboardLayout";
-import Dashboard from "./pages/admin/Dashboard";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
-import VerifyEmail from "./pages/VerifyEmail";
-import AuthGoogleCallback from "./pages/AuthGoogleCallback";
+import { Toaster as Sonner } from '@/components/ui/sonner'
+import { Toaster } from '@/components/ui/sonner'
+import { TooltipProvider } from '@/components/ui/tooltip'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import Dashboard from './pages/users/Dashboard'
+// import { DashboardLayout } from '@/components/users/DashboardLayout'
+// import Dashboard from './pages/users/Dashboard'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
+import VerifyEmail from './pages/VerifyEmail'
+import AuthGoogleCallback from './pages/AuthGoogleCallback'
+import { ThemeProvider } from 'next-themes'
+import History from './pages/users/History'
+import Profile from './pages/users/Profile'
+import Payments from './pages/users/Payments'
+import Notifications from './pages/users/Notifications'
 
 const queryClient = new QueryClient()
 
+function ThemeProviderWithSuppress({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system" // mặc định theo hệ thống
+      enableSystem // bật hệ thống
+      disableTransitionOnChange // cái này loại bỏ animation flash cực mượt
+    >
+      {children}
+    </ThemeProvider>
+  )
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/auth/google/callback" element={<AuthGoogleCallback />} />
-          <Route
-            path="/dashboard"
-            element={
-              <DashboardLayout>
-                <Dashboard />
-              </DashboardLayout>
-            }
-          />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <ThemeProviderWithSuppress>
+      {' '}
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route
+              path="/auth/google/callback"
+              element={<AuthGoogleCallback />}
+            />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/dashboard/history" element={<History />} />
+            <Route path="/dashboard/profile" element={<Profile />} />
+            <Route path="/dashboard/payments" element={<Payments />} />
+            <Route
+              path="/dashboard/notifications"
+              element={<Notifications />}
+            />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProviderWithSuppress>
   </QueryClientProvider>
 )
 

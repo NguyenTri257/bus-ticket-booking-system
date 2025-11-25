@@ -2,7 +2,8 @@ const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const MESSAGE_TYPE = 'bus-ticket/google-oauth-code'
 const STATE_KEY = 'bus-ticket-google-oauth-state'
-const POPUP_FEATURES = 'width=500,height=650,left=100,top=100,resizable=yes,scrollbars=yes,status=yes'
+const POPUP_FEATURES =
+  'width=500,height=650,left=100,top=100,resizable=yes,scrollbars=yes,status=yes'
 const SCOPES = ['openid', 'email', 'profile']
 const CANCELLED_MESSAGE = 'Google sign-in was cancelled.'
 
@@ -28,10 +29,14 @@ const getRedirectUri = () => {
 
 const assertClientConfig = () => {
   if (!googleClientId) {
-    throw new Error('Missing Google client ID. Please set VITE_GOOGLE_CLIENT_ID.')
+    throw new Error(
+      'Missing Google client ID. Please set VITE_GOOGLE_CLIENT_ID.'
+    )
   }
   if (!googleClientSecret) {
-    throw new Error('Missing Google client secret. Please set VITE_GOOGLE_CLIENT_SECRET.')
+    throw new Error(
+      'Missing Google client secret. Please set VITE_GOOGLE_CLIENT_SECRET.'
+    )
   }
 }
 
@@ -40,9 +45,13 @@ const randomState = (length = 32) => {
   if (window.crypto?.getRandomValues) {
     const bytes = new Uint8Array(length)
     window.crypto.getRandomValues(bytes)
-    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, length)
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0'))
+      .join('')
+      .slice(0, length)
   }
-  return Math.random().toString(36).slice(2, 2 + length)
+  return Math.random()
+    .toString(36)
+    .slice(2, 2 + length)
 }
 
 const buildAuthUrl = (state: string) => {
@@ -112,7 +121,9 @@ export async function requestGoogleIdToken() {
   const popup = window.open(authUrl, 'google-oauth', POPUP_FEATURES)
 
   if (!popup) {
-    throw new Error('Popup blocked. Please allow popups from this site and try again.')
+    throw new Error(
+      'Popup blocked. Please allow popups from this site and try again.'
+    )
   }
 
   popup.focus()
@@ -149,7 +160,9 @@ export async function requestGoogleIdToken() {
       }
 
       if (!data.state || data.state !== expectedState) {
-        reject(new Error('Google sign-in could not be verified. Please try again.'))
+        reject(
+          new Error('Google sign-in could not be verified. Please try again.')
+        )
         return
       }
 
@@ -162,7 +175,11 @@ export async function requestGoogleIdToken() {
         const idToken = await exchangeCodeForIdToken(data.code as string)
         resolve(idToken)
       } catch (error) {
-        reject(error instanceof Error ? error : new Error('Unable to complete Google sign-in.'))
+        reject(
+          error instanceof Error
+            ? error
+            : new Error('Unable to complete Google sign-in.')
+        )
       }
     }
 

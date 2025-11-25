@@ -23,7 +23,10 @@ function buildHeaders(extraHeaders = {}, token) {
   }
 }
 
-async function request(path, { body, token, method = 'POST', headers, ...options } = {}) {
+async function request(
+  path,
+  { body, token, method = 'POST', headers, ...options } = {}
+) {
   let response
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
@@ -99,9 +102,12 @@ export async function verifyEmail({ token }) {
     throw new Error('Missing verification token.')
   }
 
-  const response = await request(`/auth/verify-email?token=${encodeURIComponent(token)}`, {
-    method: 'GET',
-  })
+  const response = await request(
+    `/auth/verify-email?token=${encodeURIComponent(token)}`,
+    {
+      method: 'GET',
+    }
+  )
   return response?.data
 }
 

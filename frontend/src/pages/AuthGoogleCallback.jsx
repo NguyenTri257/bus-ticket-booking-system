@@ -15,7 +15,9 @@ export default function AuthGoogleCallback() {
       type: GOOGLE_OAUTH_MESSAGE_TYPE,
       state: state ?? undefined,
       ...(error
-        ? { error: errorDescription || error || 'Google sign-in was cancelled.' }
+        ? {
+            error: errorDescription || error || 'Google sign-in was cancelled.',
+          }
         : { code: code ?? undefined }),
     }
 
@@ -26,11 +28,17 @@ export default function AuthGoogleCallback() {
     }
 
     if (error) {
-      setMessage(`Unable to complete Google sign-in: ${errorDescription || error}`)
+      setMessage(
+        `Unable to complete Google sign-in: ${errorDescription || error}`
+      )
     } else if (!code) {
-      setMessage('Google did not provide an authorization code. You can close this tab.')
+      setMessage(
+        'Google did not provide an authorization code. You can close this tab.'
+      )
     } else {
-      setMessage('Unable to reach the original window. Please return and try again.')
+      setMessage(
+        'Unable to reach the original window. Please return and try again.'
+      )
     }
   }, [])
 

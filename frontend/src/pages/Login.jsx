@@ -14,6 +14,7 @@ import GoogleIcon from '@/components/GoogleIcon'
 import { requestGoogleIdToken } from '@/lib/googleAuth'
 import { login, loginWithGoogle, storeTokens } from '@/api/auth'
 import { hasErrors, validateLogin } from '@/lib/validation'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 const initialState = { identifier: '', password: '' }
 
@@ -92,108 +93,120 @@ export default function Login() {
   }
 
   return (
-    <section className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-indigo-50 px-4 py-12">
-      <Card className="w-full max-w-lg border-none shadow-2xl shadow-indigo-100">
-        <CardHeader className="space-y-3 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">
-            Bus Ticket Booking System
-          </p>
-          <CardTitle className="text-3xl font-semibold">Sign in</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="space-y-6" onSubmit={handleSubmit} noValidate>
-            <div className="space-y-2">
-              <Label htmlFor="identifier">Email</Label>
-              <Input
-                id="identifier"
-                name="identifier"
-                placeholder="you@example.com"
-                autoComplete="username"
-                value={form.identifier}
-                onChange={handleChange}
-              />
-              {errors.identifier && (
-                <p className="text-sm font-medium text-destructive">
-                  {errors.identifier}
-                </p>
-              )}
-            </div>
+    <>
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      <section
+        className="flex min-h-screen items-center justify-center px-4 py-12 
+  bg-gradient-to-br 
+  from-background 
+  via-background 
+  to-primary/10 
+  dark:to-primary/20"
+      >
+        <Card className="w-full max-w-lg border-none shadow-2xl shadow-indigo-100">
+          <CardHeader className="space-y-3 text-center">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">
+              Bus Ticket Booking System
+            </p>
+            <CardTitle className="text-3xl font-semibold">Sign in</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-6" onSubmit={handleSubmit} noValidate>
+              <div className="space-y-2">
+                <Label htmlFor="identifier">Email</Label>
+                <Input
+                  id="identifier"
+                  name="identifier"
+                  placeholder="you@example.com"
+                  autoComplete="username"
+                  value={form.identifier}
+                  onChange={handleChange}
+                />
+                {errors.identifier && (
+                  <p className="text-sm font-medium text-destructive">
+                    {errors.identifier}
+                  </p>
+                )}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="Enter your password"
-                autoComplete="current-password"
-                value={form.password}
-                onChange={handleChange}
-              />
-              {errors.password && (
-                <p className="text-sm font-medium text-destructive">
-                  {errors.password}
-                </p>
-              )}
-              <div className="text-right">
-                <button
-                  type="button"
-                  onClick={goToForgotPassword}
-                  className="text-sm font-medium text-primary hover:underline"
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  value={form.password}
+                  onChange={handleChange}
+                />
+                {errors.password && (
+                  <p className="text-sm font-medium text-destructive">
+                    {errors.password}
+                  </p>
+                )}
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={goToForgotPassword}
+                    className="text-sm font-medium text-primary hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+              </div>
+
+              {status.message && (
+                <div
+                  className={`rounded-lg border px-4 py-3 text-sm ${
+                    status.type === 'error'
+                      ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  }`}
                 >
-                  Forgot password?
-                </button>
-              </div>
+                  {status.message}
+                </div>
+              )}
+
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Signing in…' : 'Sign in'}
+              </Button>
+            </form>
+
+            <div className="my-8 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              or
+              <span className="h-px flex-1 bg-border" />
             </div>
 
-            {status.message && (
-              <div
-                className={`rounded-lg border px-4 py-3 text-sm ${
-                  status.type === 'error'
-                    ? 'border-destructive/40 bg-destructive/10 text-destructive'
-                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                }`}
-              >
-                {status.message}
-              </div>
-            )}
-
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? 'Signing in…' : 'Sign in'}
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleGoogleSignIn}
+              disabled={isGoogleLoading}
+            >
+              {isGoogleLoading ? (
+                'Contacting Google…'
+              ) : (
+                <span className="flex w-full items-center justify-center gap-2">
+                  <GoogleIcon className="h-5 w-5" />
+                  Continue with Google
+                </span>
+              )}
             </Button>
-          </form>
 
-          <div className="my-8 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />
-            or
-            <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleGoogleSignIn}
-            disabled={isGoogleLoading}
-          >
-            {isGoogleLoading ? (
-              'Contacting Google…'
-            ) : (
-              <span className="flex w-full items-center justify-center gap-2">
-                <GoogleIcon className="h-5 w-5" />
-                Continue with Google
-              </span>
-            )}
-          </Button>
-
-          <p className="mt-8 text-center text-sm text-muted-foreground">
-            Don&apos;t have an account?{' '}
-            <Link to="/register" className="font-semibold text-primary">
-              Register now
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
-    </section>
+            <p className="mt-8 text-center text-sm text-muted-foreground">
+              Don&apos;t have an account?{' '}
+              <Link to="/register" className="font-semibold text-primary">
+                Register now
+              </Link>
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+    </>
   )
 }

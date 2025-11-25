@@ -53,7 +53,9 @@ const ensureGoogleSdk = () => {
 
   if (!googleSdkPromise) {
     googleSdkPromise = new Promise<void>((resolve, reject) => {
-      const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${GOOGLE_SCRIPT_SRC}"]`)
+      const existingScript = document.querySelector<HTMLScriptElement>(
+        `script[src="${GOOGLE_SCRIPT_SRC}"]`
+      )
       if (existingScript && existingScript.dataset.loaded === 'true') {
         resolve()
         return
@@ -86,7 +88,11 @@ const ensureGoogleSdk = () => {
 }
 
 export const isGoogleOAuthReady = () =>
-  Boolean(googleClientId && typeof window !== 'undefined' && window.google?.accounts?.id)
+  Boolean(
+    googleClientId &&
+      typeof window !== 'undefined' &&
+      window.google?.accounts?.id
+  )
 
 type GoogleSignInOptions = {
   onCredential: (idToken: string) => Promise<void> | void
@@ -98,7 +104,9 @@ export async function startGoogleSignIn({
   uxMode = 'popup',
 }: GoogleSignInOptions) {
   if (!googleClientId) {
-    throw new Error('Missing Google client ID. Please set VITE_GOOGLE_CLIENT_ID.')
+    throw new Error(
+      'Missing Google client ID. Please set VITE_GOOGLE_CLIENT_ID.'
+    )
   }
 
   if (typeof onCredential !== 'function') {
@@ -140,7 +148,8 @@ export async function startGoogleSignIn({
           await onCredential(response.credential)
           succeed()
         } catch (error) {
-          const message = error instanceof Error ? error.message : 'Google sign-in failed.'
+          const message =
+            error instanceof Error ? error.message : 'Google sign-in failed.'
           fail(message)
         }
       },
@@ -169,7 +178,11 @@ export async function startGoogleSignIn({
         notification.getDismissedReason?.()
 
       const message = (() => {
-        if (reason === 'user_cancel' || reason === 'tap_outside' || reason === 'cancel_called') {
+        if (
+          reason === 'user_cancel' ||
+          reason === 'tap_outside' ||
+          reason === 'cancel_called'
+        ) {
           return CANCELLED_MESSAGE
         }
         if (reason === 'credential_returned') {

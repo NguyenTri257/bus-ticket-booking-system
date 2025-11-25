@@ -117,7 +117,7 @@ class AuthService {
       await this.redisClient.set(`otp:${email}`, otp, { EX: expiresIn });
     } catch (error) {
       console.error('⚠️ Failed to store OTP in Redis:', error.message);
-      throw new Error('OTP storage unavailable');
+      throw new Error(`Failed to store OTP: ${error.message}`);
     }
   }
 

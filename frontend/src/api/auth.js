@@ -23,11 +23,23 @@ function buildHeaders(extraHeaders = {}, token) {
   }
 }
 
-async function request(path, { body, token, ...options } = {}) {
+function buildUrl(path, query) {
+  const url = new URL(path, API_BASE_URL)
+  if (query) {
+    Object.entries(query).forEach(([key, value]) => {
+      if (value === undefined || value === null) return
+      url.searchParams.set(key, `${value}`)
+    })
+  }
+  return url.toString()
+}
+
+async function request(path, { body, token, method = 'POST', query, ...options } = {}) {
   let response
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      method: 'POST',
+    const url = buildUrl(path, query)
+    response = await fetch(url, {
+      method,
       credentials: 'include',
       headers: buildHeaders(options.headers, token),
       body: body ? JSON.stringify(body) : undefined,
@@ -77,8 +89,22 @@ export async function loginWithGoogle({ idToken }) {
 
 export async function requestPasswordReset({ email }) {
   const payload = { email }
-  const response = await request('/auth/password/forgot', { body: payload })
+  const response = await request('/auth/forgot-password', { body: payload })
   return response?.data
+}
+
+export async function verifyEmailToken({ token }) {
+  const response = await request('/auth/verify-email', {
+    method: 'GET',
+    query: { token },
+  })
+  return response
+}
+
+export async function resendVerificationEmail({ email }) {
+  const payload = { email }
+  const response = await request('/auth/resend-verification', { body: payload })
+  return response
 }
 
 export function storeTokens({ accessToken, refreshToken }) {

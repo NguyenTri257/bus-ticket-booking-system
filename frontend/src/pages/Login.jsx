@@ -14,6 +14,7 @@ import GoogleIcon from '@/components/GoogleIcon'
 import { getGoogleIdToken } from '@/lib/google'
 import { login, loginWithGoogle, storeTokens } from '@/api/auth'
 import { hasErrors, validateLogin } from '@/lib/validation'
+import { useGoogleOAuthReady } from '@/hooks/useGoogleOAuthReady'
 
 const initialState = { identifier: '', password: '' }
 
@@ -24,6 +25,7 @@ export default function Login() {
   const [status, setStatus] = useState({ type: 'idle', message: '' })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const isGoogleReady = useGoogleOAuthReady()
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -162,10 +164,12 @@ export default function Login() {
             variant="outline"
             className="w-full"
             onClick={handleGoogleSignIn}
-            disabled={isGoogleLoading}
+            disabled={isGoogleLoading || !isGoogleReady}
           >
             {isGoogleLoading ? (
               'Contacting Google…'
+            ) : !isGoogleReady ? (
+              'Preparing Google sign-in…'
             ) : (
               <span className="flex w-full items-center justify-center gap-2">
                 <GoogleIcon className="h-5 w-5" />

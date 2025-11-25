@@ -28,7 +28,6 @@ async function request(path, { body, token, ...options } = {}) {
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method: 'POST',
-      credentials: 'include',
       headers: buildHeaders(options.headers, token),
       body: body ? JSON.stringify(body) : undefined,
       ...options,
@@ -78,6 +77,16 @@ export async function loginWithGoogle({ idToken }) {
 export async function requestPasswordReset({ email }) {
   const payload = { email }
   const response = await request('/auth/password/forgot', { body: payload })
+  return response?.data
+}
+
+export async function verifyEmail({ token }) {
+  if (!token) {
+    throw new Error('Missing verification token.')
+  }
+
+  const payload = { token }
+  const response = await request('/auth/verify-email', { body: payload })
   return response?.data
 }
 

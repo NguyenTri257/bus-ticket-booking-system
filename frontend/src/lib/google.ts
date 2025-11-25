@@ -30,17 +30,56 @@ const googleClientId =
   import.meta.env.REACT_APP_GOOGLE_CLIENT_ID ??
   ''
 
-export const isGoogleOAuthReady = () => Boolean(window.google?.accounts?.id && googleClientId)
+const GOOGLE_SCRIPT_SRC = 'https://accounts.google.com/gsi/client'
+let googleSdkPromise: Promise<void> | null = null
 
-export function getGoogleIdToken() {
+const ensureGoogleSdk = () => {
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('Google OAuth is not available.'))
+  }
+
+  if (window.google?.accounts?.id) {
+    return Promise.resolve()
+  }
+
+  if (!googleSdkPromise) {
+    googleSdkPromise = new Promise<void>((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = GOOGLE_SCRIPT_SRC
+      script.async = true
+      script.defer = true
+      script.onload = () => {
+        if (window.google?.accounts?.id) {
+          resolve()
+        } else {
+          googleSdkPromise = null
+          reject(new Error('Google OAuth SDK loaded without the accounts API.'))
+        }
+      }
+      script.onerror = () => {
+        googleSdkPromise = null
+        reject(new Error('Failed to load Google OAuth SDK.'))
+      }
+      document.head.appendChild(script)
+    })
+  }
+
+  return googleSdkPromise
+}
+
+export const isGoogleOAuthReady = () =>
+  Boolean(googleClientId && typeof window !== 'undefined' && window.google?.accounts?.id)
+
+export async function getGoogleIdToken() {
+  if (!googleClientId) {
+    throw new Error('Missing Google client ID.')
+  }
+
+  await ensureGoogleSdk()
+
   return new Promise<string>((resolve, reject) => {
     if (!window.google?.accounts?.id) {
       reject(new Error('Google OAuth is not available.'))
-      return
-    }
-
-    if (!googleClientId) {
-      reject(new Error('Missing Google client ID.'))
       return
     }
 

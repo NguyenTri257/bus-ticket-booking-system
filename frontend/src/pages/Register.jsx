@@ -82,12 +82,15 @@ export default function Register() {
     try {
       const idToken = await requestGoogleIdToken()
       const authData = await loginWithGoogle({ idToken })
-      storeTokens(authData ?? {})
-      setStatus({
-        type: 'success',
-        message: 'Google sign-in successful. Redirecting now…',
-      })
-      setTimeout(() => navigate('/dashboard', { replace: true }), 600)
+      
+      if (authData) {
+        storeTokens(authData)
+        setStatus({
+          type: 'success',
+          message: 'Google sign-in successful. Redirecting now…',
+        })
+        setTimeout(() => navigate('/dashboard', { replace: true }), 600)
+      }
     } catch (error) {
       setStatus({
         type: 'error',

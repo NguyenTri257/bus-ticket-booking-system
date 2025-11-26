@@ -54,7 +54,6 @@ export default function Login() {
         type: 'success',
         message: 'Login successful. Redirecting...',
       })
-      setTimeout(() => navigate('/dashboard', { replace: true }), 600)
     } catch (error) {
       setStatus({
         type: 'error',
@@ -73,17 +72,15 @@ export default function Login() {
   const handleGoogleSignIn = async () => {
     setStatus({ type: 'idle', message: '' })
     setIsGoogleLoading(true)
-    authLogin(authData)
     try {
       const idToken = await requestGoogleIdToken()
       const authData = await loginWithGoogle({ idToken })
-
+      authLogin(authData) // Dùng context để lưu và redirect dựa trên role
       storeTokens(authData ?? {})
       setStatus({
         type: 'success',
         message: 'Google sign-in successful. Redirecting...',
       })
-      setTimeout(() => navigate('/dashboard', { replace: true }), 600)
     } catch (error) {
       setStatus({
         type: 'error',

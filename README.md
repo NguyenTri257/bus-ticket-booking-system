@@ -84,6 +84,7 @@ frontend/
    - Access API at `http://localhost:3000`
 
 3. Start frontend:
+
    ```
    cd frontend
    npm run dev
@@ -124,6 +125,7 @@ For frontend tests: `cd frontend && npm test`
    ```
 
 2. Frontend:
+
    ```
    cd frontend
    npm run build
@@ -187,3 +189,13 @@ No other externals required for core functionality.
 - **No Additional Packages**: Relied on built-in libs where possible (e.g., no extra ORM like Prisma; raw SQL in repositories). Tradeoff: More code, but lightweight.
 - **Error Handling**: Custom error codes (e.g., AUTH_001). Tradeoff: Verbose logs, but aids debugging.
 - **Testing/Deployment**: Leverages Docker Compose for efficient local development setups and DigitalOcean for production deployment. This strategy offers quick environment initialization but demands diligent handling of environment variables to prevent configuration discrepancies.
+
+## Deployment
+
+### Frontend
+
+The frontend application is deployed on Vercel and accessible at: [https://bus-ticket-booking-system.vercel.app](https://bus-ticket-booking-system.vercel.app)
+
+### Backend
+
+The backend microservices (API Gateway, Auth Service, Notification Service) are deployed on DigitalOcean using Docker containers and are accessible at: https://api.quad-n.me

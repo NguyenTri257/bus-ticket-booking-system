@@ -79,8 +79,12 @@ describe('Login Component', () => {
       expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
 
       // Check buttons
-      expect(screen.getByRole('button', { name: /^sign in$/i })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /continue with google/i })).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /^sign in$/i })
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('button', { name: /continue with google/i })
+      ).toBeInTheDocument()
 
       // Check forgot password link
       expect(screen.getByText(/forgot password/i)).toBeInTheDocument()
@@ -102,7 +106,9 @@ describe('Login Component', () => {
     it('should render Google sign-in button', () => {
       renderLogin()
 
-      const googleButton = screen.getByRole('button', { name: /continue with google/i })
+      const googleButton = screen.getByRole('button', {
+        name: /continue with google/i,
+      })
       expect(googleButton).toBeInTheDocument()
     })
   })
@@ -119,7 +125,9 @@ describe('Login Component', () => {
       fireEvent.click(submitButton)
 
       await waitFor(() => {
-        expect(screen.getByText(/enter a valid email address/i)).toBeInTheDocument()
+        expect(
+          screen.getByText(/enter a valid email address/i)
+        ).toBeInTheDocument()
       })
 
       expect(authApi.login).not.toHaveBeenCalled()
@@ -151,7 +159,9 @@ describe('Login Component', () => {
       fireEvent.click(submitButton)
 
       await waitFor(() => {
-        expect(screen.getByText(/enter a valid email address/i)).toBeInTheDocument()
+        expect(
+          screen.getByText(/enter a valid email address/i)
+        ).toBeInTheDocument()
         expect(screen.getByText(/password is required/i)).toBeInTheDocument()
       })
 
@@ -169,14 +179,18 @@ describe('Login Component', () => {
       fireEvent.click(submitButton)
 
       await waitFor(() => {
-        expect(screen.getByText(/enter a valid email address/i)).toBeInTheDocument()
+        expect(
+          screen.getByText(/enter a valid email address/i)
+        ).toBeInTheDocument()
       })
 
       // Start typing
       fireEvent.change(emailInput, { target: { value: 't' } })
 
       await waitFor(() => {
-        expect(screen.queryByText(/enter a valid email address/i)).not.toBeInTheDocument()
+        expect(
+          screen.queryByText(/enter a valid email address/i)
+        ).not.toBeInTheDocument()
       })
     })
   })
@@ -186,13 +200,13 @@ describe('Login Component', () => {
       const mockAuthData = {
         accessToken: 'mock-access-token',
         refreshToken: 'mock-refresh-token',
-        user: { 
-          userId: 1, 
+        user: {
+          userId: 1,
           email: 'test@example.com',
           phone: '+84123456789',
           fullName: 'Test User',
           role: 'passenger',
-          emailVerified: true
+          emailVerified: true,
         },
       }
 
@@ -234,9 +248,10 @@ describe('Login Component', () => {
       // Create a promise that never resolves during the test
       let resolveLogin
       vi.mocked(authApi.login).mockImplementation(
-        () => new Promise((resolve) => {
-          resolveLogin = resolve
-        })
+        () =>
+          new Promise((resolve) => {
+            resolveLogin = resolve
+          })
       )
 
       renderLogin()
@@ -254,7 +269,7 @@ describe('Login Component', () => {
         expect(submitButton).toBeDisabled()
         expect(screen.getByText(/signing in/i)).toBeInTheDocument()
       })
-      
+
       // Clean up: resolve the promise to avoid hanging (wrapped in act)
       await act(async () => {
         resolveLogin?.({ accessToken: 'test', refreshToken: 'test', user: {} })
@@ -307,7 +322,9 @@ describe('Login Component', () => {
       fireEvent.click(submitButton)
 
       await waitFor(() => {
-        expect(screen.getByText(/unable to sign in right now/i)).toBeInTheDocument()
+        expect(
+          screen.getByText(/unable to sign in right now/i)
+        ).toBeInTheDocument()
       })
     })
   })
@@ -318,22 +335,26 @@ describe('Login Component', () => {
       const mockAuthData = {
         accessToken: 'mock-access-token',
         refreshToken: 'mock-refresh-token',
-        user: { 
-          userId: 1, 
+        user: {
+          userId: 1,
           email: 'google@example.com',
           phone: '+84987654321',
           fullName: 'Google User',
           role: 'passenger',
-          emailVerified: true
+          emailVerified: true,
         },
       }
 
-      vi.mocked(googleAuthLib.requestGoogleIdToken).mockResolvedValueOnce(mockIdToken)
+      vi.mocked(googleAuthLib.requestGoogleIdToken).mockResolvedValueOnce(
+        mockIdToken
+      )
       vi.mocked(authApi.loginWithGoogle).mockResolvedValueOnce(mockAuthData)
 
       renderLogin()
 
-      const googleButton = screen.getByRole('button', { name: /continue with google/i })
+      const googleButton = screen.getByRole('button', {
+        name: /continue with google/i,
+      })
       fireEvent.click(googleButton)
 
       // Wait for requestGoogleIdToken to be called
@@ -343,28 +364,34 @@ describe('Login Component', () => {
 
       // Verify loginWithGoogle was called with the ID token
       await waitFor(() => {
-        expect(authApi.loginWithGoogle).toHaveBeenCalledWith({ idToken: mockIdToken })
+        expect(authApi.loginWithGoogle).toHaveBeenCalledWith({
+          idToken: mockIdToken,
+        })
       })
 
-      // Verify storeTokens was called (current code calls storeTokens)
+      // Verify AuthContext login was called
       await waitFor(() => {
-        expect(authApi.storeTokens).toHaveBeenCalled()
+        expect(mockAuthLogin).toHaveBeenCalledWith(mockAuthData)
       })
 
       // Verify success message
       await waitFor(() => {
-        expect(screen.getByText(/google sign-in successful/i)).toBeInTheDocument()
+        expect(
+          screen.getByText(/google sign-in successful/i)
+        ).toBeInTheDocument()
       })
     })
 
     it('should disable Google button during sign-in', async () => {
       vi.mocked(googleAuthLib.requestGoogleIdToken).mockImplementation(
-        () => new Promise(resolve => setTimeout(resolve, 100))
+        () => new Promise((resolve) => setTimeout(resolve, 100))
       )
 
       renderLogin()
 
-      const googleButton = screen.getByRole('button', { name: /continue with google/i })
+      const googleButton = screen.getByRole('button', {
+        name: /continue with google/i,
+      })
       fireEvent.click(googleButton)
 
       // Button should be disabled
@@ -377,12 +404,16 @@ describe('Login Component', () => {
     it('should display error when Google sign-in fails at requestGoogleIdToken', async () => {
       const errorMessage = 'Google sign-in was cancelled.'
       // Make the function throw to simulate error
-      vi.mocked(googleAuthLib.requestGoogleIdToken).mockRejectedValueOnce(new Error(errorMessage))
+      vi.mocked(googleAuthLib.requestGoogleIdToken).mockRejectedValueOnce(
+        new Error(errorMessage)
+      )
       // Ensure loginWithGoogle is not called by having no mock setup
 
       renderLogin()
 
-      const googleButton = screen.getByRole('button', { name: /continue with google/i })
+      const googleButton = screen.getByRole('button', {
+        name: /continue with google/i,
+      })
       fireEvent.click(googleButton)
 
       await waitFor(() => {
@@ -390,7 +421,7 @@ describe('Login Component', () => {
       })
 
       // Note: Due to the way the code is written (authLogin(authData) before checking),
-      // some functions may still be called with undefined. 
+      // some functions may still be called with undefined.
       // The important thing is that error message is displayed.
     })
 
@@ -398,12 +429,18 @@ describe('Login Component', () => {
       const mockIdToken = 'mock-google-id-token'
       const errorMessage = 'Account not found'
 
-      vi.mocked(googleAuthLib.requestGoogleIdToken).mockResolvedValue(mockIdToken)
-      vi.mocked(authApi.loginWithGoogle).mockRejectedValue(new Error(errorMessage))
+      vi.mocked(googleAuthLib.requestGoogleIdToken).mockResolvedValue(
+        mockIdToken
+      )
+      vi.mocked(authApi.loginWithGoogle).mockRejectedValue(
+        new Error(errorMessage)
+      )
 
       renderLogin()
 
-      const googleButton = screen.getByRole('button', { name: /continue with google/i })
+      const googleButton = screen.getByRole('button', {
+        name: /continue with google/i,
+      })
       fireEvent.click(googleButton)
 
       await waitFor(() => {

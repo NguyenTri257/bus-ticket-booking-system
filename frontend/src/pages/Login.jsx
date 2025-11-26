@@ -72,16 +72,17 @@ export default function Login() {
   const handleGoogleSignIn = async () => {
     setStatus({ type: 'idle', message: '' })
     setIsGoogleLoading(true)
-    authLogin(authData)
     try {
       const idToken = await requestGoogleIdToken()
       const authData = await loginWithGoogle({ idToken })
 
-      storeTokens(authData ?? {})
-      setStatus({
-        type: 'success',
-        message: 'Google sign-in successful. Redirecting...',
-      })
+      if (authData) {
+        storeTokens(authData)
+        setStatus({
+          type: 'success',
+          message: 'Google sign-in successful. Redirecting...',
+        })
+      }
     } catch (error) {
       setStatus({
         type: 'error',

@@ -232,7 +232,7 @@ export function SearchForm() {
                 <div className="relative">
                   <div
                     id="datepicker-portal"
-                    className="absolute top-full left-0 z-9999 mt-2"
+                    className="absolute top-full left-0 z-50mt-2"
                   ></div>
                   <DatePicker
                     selected={formData.date}
@@ -260,7 +260,7 @@ export function SearchForm() {
                       }
                       return 'hover:bg-accent hover:text-accent-foreground cursor-pointer'
                     }}
-                    popperClassName="!z-9999"
+                    popperClassName="!z-50"
                     popperPlacement="bottom-start"
                     portalId="datepicker-portal"
                   />

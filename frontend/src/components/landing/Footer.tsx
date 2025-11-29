@@ -50,7 +50,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="hover:text-gray-900 dark:hover:text-white transition text-gray-600 dark:text-gray-400"
+                  className="hover:text-foreground transition text-muted-foreground"
                 >
                   Contact
                 </a>
@@ -60,14 +60,14 @@ export function Footer() {
 
           {/* Support */}
           <div>
-            <h4 className="text-sm font-bold mb-4 uppercase tracking-wide text-gray-900 dark:text-white">
+            <h4 className="text-sm font-bold mb-4 uppercase tracking-wide text-foreground">
               Support
             </h4>
-            <ul className="space-y-2 text-gray-600 dark:text-gray-400 text-sm">
+            <ul className="space-y-2 text-muted-foreground text-sm">
               <li>
                 <a
                   href="#"
-                  className="hover:text-gray-900 dark:hover:text-white transition text-gray-600 dark:text-gray-400"
+                  className="hover:text-foreground transition text-muted-foreground"
                 >
                   Help Center
                 </a>
@@ -75,7 +75,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="hover:text-gray-900 dark:hover:text-white transition text-gray-600 dark:text-gray-400"
+                  className="hover:text-foreground transition text-muted-foreground"
                 >
                   FAQ
                 </a>
@@ -83,7 +83,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="hover:text-gray-900 dark:hover:text-white transition text-gray-600 dark:text-gray-400"
+                  className="hover:text-foreground transition text-muted-foreground"
                 >
                   Contact Us
                 </a>
@@ -91,7 +91,7 @@ export function Footer() {
               <li>
                 <a
                   href="#"
-                  className="hover:text-gray-900 dark:hover:text-white transition text-gray-600 dark:text-gray-400"
+                  className="hover:text-foreground transition text-muted-foreground"
                 >
                   Terms & Privacy
                 </a>

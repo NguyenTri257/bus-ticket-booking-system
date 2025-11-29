@@ -148,3 +148,54 @@ button:focus-visible {
     min-height: 100vh;
   }
 }
+
+/* Dual Range Slider Styles */
+.slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+}
+
+.slider-thumb::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #000;
+  cursor: pointer;
+  border: none;
+  box-shadow: none;
+  margin-top: -9px;
+}
+
+.slider-thumb::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #000;
+  cursor: pointer;
+  border: none;
+  box-shadow: none;
+  margin-top: -9px;
+}
+
+.dark .slider-thumb::-webkit-slider-thumb {
+  background: #fff;
+}
+
+.dark .slider-thumb::-moz-range-thumb {
+  background: #fff;
+}
+
+.slider-thumb::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 2px;
+  border: none;
+}
+
+.slider-thumb::-moz-range-track {
+  background: transparent;
+  height: 2px;
+  border: none;
+}

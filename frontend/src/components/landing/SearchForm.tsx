@@ -112,7 +112,7 @@ export function SearchForm() {
         passengers: passengerCount.toString(),
       })
 
-      navigate(`/search-results?${searchParams.toString()}`)
+      navigate(`/trip-search-results?${searchParams.toString()}`)
       setIsLoading(false)
     }, 500)
   }
@@ -232,7 +232,7 @@ export function SearchForm() {
                 <div className="relative">
                   <div
                     id="datepicker-portal"
-                    className="absolute top-full left-0 z-50mt-2"
+                    className="absolute top-full left-0 z-50 mt-2"
                   ></div>
                   <DatePicker
                     selected={formData.date}

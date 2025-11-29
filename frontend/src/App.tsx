@@ -21,6 +21,7 @@ import { AuthProvider } from '@/context/AuthContext'
 import { PassengerRoute, AdminRoute } from '@/components/ProtectedRoute'
 import AdminDashboard from '@/pages/admin/Dashboard'
 import Landing from './pages/Landing'
+import TripSearchResults from './pages/TripSearchResults'
 
 const queryClient = new QueryClient()
 
@@ -32,7 +33,7 @@ function ThemeProviderWithSuppress({
   return (
     <ThemeProvider
       attribute="class"
-      defaultTheme="system" // mặc định theo hệ thống
+      defaultTheme="system" // default to system theme
       enableSystem // bật hệ thống
       disableTransitionOnChange // cái này loại bỏ animation flash cực mượt
     >
@@ -54,6 +55,10 @@ const App = () => (
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<Landing />} />
+              <Route
+                path="/trip-search-results"
+                element={<TripSearchResults />}
+              />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />

@@ -15,6 +15,13 @@ import type { Trip } from '@/components/landing/TripResultsCard'
 import '@/styles/admin.css'
 
 // Filter constants
+const seatAvailabilityOptions = [
+  { value: 0, label: 'All trips' },
+  { value: 1, label: '1+ seats available' },
+  { value: 5, label: '5+ seats available' },
+  { value: 10, label: '10+ seats available' },
+]
+
 const timeSlots = [
   {
     id: 'early-morning',
@@ -169,6 +176,326 @@ const mockTrips: Trip[] = [
     amenities: [{ id: 'ac', name: 'Air Conditioning' }],
     isBestPrice: true,
   },
+  {
+    id: '7',
+    operatorName: 'Sapaco Tourist',
+    rating: 4.3,
+    reviewCount: 1250,
+    departureTime: '06:00',
+    departureLocation: 'Pham Ngu Lao Office',
+    arrivalTime: '08:30',
+    arrivalLocation: 'Vung Tau Center',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 135000,
+    seatType: 'standard',
+    availableSeats: 15,
+    totalSeats: 20,
+    amenities: [
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'toilet', name: 'Restroom' },
+    ],
+  },
+  {
+    id: '8',
+    operatorName: 'The Sinh Tourist',
+    rating: 4.9,
+    reviewCount: 8920,
+    departureTime: '08:15',
+    departureLocation: 'Tan Son Nhat Airport',
+    arrivalTime: '10:45',
+    arrivalLocation: 'Vung Tau Office',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 210000,
+    originalPrice: 230000,
+    discount: 20000,
+    seatType: 'limousine',
+    availableSeats: 5,
+    totalSeats: 9,
+    amenities: [
+      { id: 'wifi', name: 'WiFi' },
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'usb', name: 'USB' },
+      { id: 'entertainment', name: 'Entertainment' },
+    ],
+    isLimitedOffer: true,
+  },
+  {
+    id: '9',
+    operatorName: 'Giant I',
+    rating: 4.2,
+    reviewCount: 3400,
+    departureTime: '10:30',
+    departureLocation: 'Ben Xe Mien Tay',
+    arrivalTime: '13:00',
+    arrivalLocation: 'Vung Tau Office',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 125000,
+    seatType: 'standard',
+    availableSeats: 22,
+    totalSeats: 25,
+    amenities: [
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'toilet', name: 'Restroom' },
+      { id: 'blanket', name: 'Blanket & Pillow' },
+    ],
+  },
+  {
+    id: '10',
+    operatorName: 'Kumho Samco',
+    rating: 4.7,
+    reviewCount: 5670,
+    departureTime: '11:45',
+    departureLocation: 'District 1 Office',
+    arrivalTime: '14:15',
+    arrivalLocation: 'Vung Tau Center',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 180000,
+    seatType: 'limousine',
+    availableSeats: 8,
+    totalSeats: 9,
+    amenities: [
+      { id: 'wifi', name: 'WiFi' },
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'usb', name: 'USB' },
+    ],
+  },
+  {
+    id: '11',
+    operatorName: 'Sao Việt',
+    rating: 4.1,
+    reviewCount: 890,
+    departureTime: '13:20',
+    departureLocation: 'Pham Ngu Lao Office',
+    arrivalTime: '15:50',
+    arrivalLocation: 'Vung Tau Office',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 110000,
+    seatType: 'standard',
+    availableSeats: 28,
+    totalSeats: 30,
+    amenities: [{ id: 'ac', name: 'Air Conditioning' }],
+  },
+  {
+    id: '12',
+    operatorName: 'Long Phuong',
+    rating: 4.6,
+    reviewCount: 2150,
+    departureTime: '15:45',
+    departureLocation: 'Tan Son Nhat Airport',
+    arrivalTime: '18:15',
+    arrivalLocation: 'Vung Tau Center',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 165000,
+    originalPrice: 185000,
+    discount: 20000,
+    seatType: 'limousine',
+    availableSeats: 6,
+    totalSeats: 9,
+    amenities: [
+      { id: 'wifi', name: 'WiFi' },
+      { id: 'ac', name: 'Air Conditioning' },
+    ],
+  },
+  {
+    id: '13',
+    operatorName: 'Phuong Trang',
+    rating: 4.8,
+    reviewCount: 12450,
+    departureTime: '16:30',
+    departureLocation: 'Ben Xe Mien Dong Moi',
+    arrivalTime: '19:00',
+    arrivalLocation: 'Vung Tau Office',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 195000,
+    seatType: 'sleeper',
+    availableSeats: 12,
+    totalSeats: 16,
+    amenities: [
+      { id: 'wifi', name: 'WiFi' },
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'usb', name: 'USB' },
+      { id: 'blanket', name: 'Blanket & Pillow' },
+    ],
+  },
+  {
+    id: '14',
+    operatorName: 'Sapaco Tourist',
+    rating: 4.3,
+    reviewCount: 1250,
+    departureTime: '18:00',
+    departureLocation: 'District 1 Office',
+    arrivalTime: '20:30',
+    arrivalLocation: 'Vung Tau Center',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 145000,
+    seatType: 'standard',
+    availableSeats: 18,
+    totalSeats: 20,
+    amenities: [
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'toilet', name: 'Restroom' },
+    ],
+  },
+  {
+    id: '15',
+    operatorName: 'Futabus',
+    rating: 4.4,
+    reviewCount: 3200,
+    departureTime: '20:15',
+    departureLocation: 'Pham Ngu Lao Office',
+    arrivalTime: '22:45',
+    arrivalLocation: 'Vung Tau Office',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 155000,
+    originalPrice: 175000,
+    discount: 20000,
+    seatType: 'limousine',
+    availableSeats: 4,
+    totalSeats: 9,
+    amenities: [
+      { id: 'wifi', name: 'WiFi' },
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'usb', name: 'USB' },
+    ],
+  },
+  {
+    id: '16',
+    operatorName: 'Hoa Mai',
+    rating: 4.5,
+    reviewCount: 4384,
+    departureTime: '21:30',
+    departureLocation: 'Ben Xe Mien Dong Moi',
+    arrivalTime: '00:00',
+    arrivalLocation: 'Vung Tau Office',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 140000,
+    seatType: 'standard',
+    availableSeats: 14,
+    totalSeats: 15,
+    amenities: [
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'toilet', name: 'Restroom' },
+    ],
+  },
+  {
+    id: '17',
+    operatorName: 'The Sinh Tourist',
+    rating: 4.9,
+    reviewCount: 8920,
+    departureTime: '22:45',
+    departureLocation: 'Tan Son Nhat Airport',
+    arrivalTime: '01:15',
+    arrivalLocation: 'Vung Tau Center',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 220000,
+    seatType: 'sleeper',
+    availableSeats: 8,
+    totalSeats: 12,
+    amenities: [
+      { id: 'wifi', name: 'WiFi' },
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'usb', name: 'USB' },
+      { id: 'entertainment', name: 'Entertainment' },
+      { id: 'blanket', name: 'Blanket & Pillow' },
+    ],
+  },
+  {
+    id: '18',
+    operatorName: 'Bến Thành Travel',
+    rating: 4.6,
+    reviewCount: 617,
+    departureTime: '23:30',
+    departureLocation: 'District 1 Office',
+    arrivalTime: '02:00',
+    arrivalLocation: 'Vung Tau Office',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 130000,
+    seatType: 'standard',
+    availableSeats: 0,
+    totalSeats: 20,
+    amenities: [
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'toilet', name: 'Restroom' },
+    ],
+  },
+  {
+    id: '19',
+    operatorName: 'Kumho Samco',
+    rating: 4.7,
+    reviewCount: 5670,
+    departureTime: '00:30',
+    departureLocation: 'Airport Office',
+    arrivalTime: '03:00',
+    arrivalLocation: 'Vung Tau Center',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 175000,
+    originalPrice: 195000,
+    discount: 20000,
+    seatType: 'limousine',
+    availableSeats: 3,
+    totalSeats: 9,
+    amenities: [
+      { id: 'wifi', name: 'WiFi' },
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'usb', name: 'USB' },
+    ],
+  },
+  {
+    id: '20',
+    operatorName: 'Long Phuong',
+    rating: 4.6,
+    reviewCount: 2150,
+    departureTime: '02:15',
+    departureLocation: 'Pham Ngu Lao Office',
+    arrivalTime: '04:45',
+    arrivalLocation: 'Vung Tau Office',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 120000,
+    seatType: 'standard',
+    availableSeats: 25,
+    totalSeats: 28,
+    amenities: [
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'blanket', name: 'Blanket & Pillow' },
+    ],
+  },
+  {
+    id: '21',
+    operatorName: 'Phuong Trang',
+    rating: 4.8,
+    reviewCount: 12450,
+    departureTime: '04:00',
+    departureLocation: 'Ben Xe Mien Tay',
+    arrivalTime: '06:30',
+    arrivalLocation: 'Vung Tau Center',
+    duration: '2h30m',
+    distance: '116 km',
+    price: 200000,
+    seatType: 'sleeper',
+    availableSeats: 10,
+    totalSeats: 16,
+    amenities: [
+      { id: 'wifi', name: 'WiFi' },
+      { id: 'ac', name: 'Air Conditioning' },
+      { id: 'usb', name: 'USB' },
+      { id: 'entertainment', name: 'Entertainment' },
+      { id: 'blanket', name: 'Blanket & Pillow' },
+    ],
+  },
 ]
 
 export function TripSearchResults() {
@@ -190,7 +517,7 @@ export function TripSearchResults() {
     amenities: [],
     seatLocations: [],
     minRating: 0,
-    showOnlyAvailable: false,
+    minSeatsAvailable: 0,
   })
 
   const [sortBy, setSortBy] = useState<SortOption>('default')
@@ -317,14 +644,18 @@ export function TripSearchResults() {
       })
     }
 
-    // Show only available
-    if (filters.showOnlyAvailable) {
+    // Seat availability
+    if (filters.minSeatsAvailable > 0) {
+      const option = seatAvailabilityOptions.find(
+        (opt: { value: number; label: string }) =>
+          opt.value === filters.minSeatsAvailable
+      )
       activeFilters.push({
-        label: 'Available seats only',
+        label: option?.label || `${filters.minSeatsAvailable}+ seats available`,
         remove: () =>
           setFilters({
             ...filters,
-            showOnlyAvailable: false,
+            minSeatsAvailable: 0,
           }),
       })
     }
@@ -374,7 +705,10 @@ export function TripSearchResults() {
       }
 
       // Seat availability filter
-      if (filters.showOnlyAvailable && trip.availableSeats <= 0) {
+      if (
+        filters.minSeatsAvailable > 0 &&
+        trip.availableSeats < filters.minSeatsAvailable
+      ) {
         return false
       }
 
@@ -455,7 +789,7 @@ export function TripSearchResults() {
       amenities: [],
       seatLocations: [],
       minRating: 0,
-      showOnlyAvailable: false,
+      minSeatsAvailable: 0,
     })
     setCurrentPage(1)
     setLoadedItemsCount(10) // Reset load more count
@@ -550,7 +884,7 @@ export function TripSearchResults() {
               filters.priceRange[0] > 0 ||
               filters.priceRange[1] < 5000000 ||
               filters.minRating > 0 ||
-              filters.showOnlyAvailable) && (
+              filters.minSeatsAvailable > 0) && (
               <Button
                 variant="ghost"
                 size="sm"

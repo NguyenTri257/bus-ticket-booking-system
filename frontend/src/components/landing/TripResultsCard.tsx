@@ -1,4 +1,14 @@
-import { Star, Wifi, AirVent, Usb, Armchair, Ticket, Bus } from 'lucide-react'
+import {
+  Star,
+  Wifi,
+  AirVent,
+  Usb,
+  Armchair,
+  Ticket,
+  Bus,
+  MapPin,
+} from 'lucide-react'
+import { FaDotCircle } from 'react-icons/fa'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
@@ -111,7 +121,7 @@ export function TripResultsCard({ trip, onSelectTrip }: TripResultsCardProps) {
                 {trip.departureTime}
               </div>
               <div className="flex items-center gap-1 mt-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <FaDotCircle className="w-3 h-3 text-primary" />
                 <span className="text-xs text-muted-foreground">
                   {trip.departureLocation}
                 </span>
@@ -136,7 +146,7 @@ export function TripResultsCard({ trip, onSelectTrip }: TripResultsCardProps) {
                 {trip.arrivalTime}
               </div>
               <div className="flex items-center gap-1 mt-1">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <MapPin className="w-3 h-3 text-primary" />
                 <span className="text-xs text-muted-foreground">
                   {trip.arrivalLocation}
                 </span>

@@ -12,7 +12,7 @@ export interface Filters {
   amenities: string[]
   seatLocations: string[]
   minRating: number
-  showOnlyAvailable: boolean
+  minSeatsAvailable: number
 }
 
 interface FilterPanelProps {
@@ -24,11 +24,18 @@ interface FilterPanelProps {
   resultsCount: number
 }
 
+const seatAvailabilityOptions = [
+  { value: 0, label: 'All trips' },
+  { value: 1, label: '1+ seats available' },
+  { value: 5, label: '5+ seats available' },
+  { value: 10, label: '10+ seats available' },
+]
+
 const timeSlots = [
   {
-    id: 'early-morning',
-    label: '00:00 - 06:00 (Early Morning)',
-    value: 'early-morning',
+    id: 'night',
+    label: '00:00 - 06:00 (Night)',
+    value: 'night',
   },
   { id: 'morning', label: '06:00 - 12:00 (Morning)', value: 'morning' },
   { id: 'afternoon', label: '12:00 - 18:00 (Afternoon)', value: 'afternoon' },
@@ -213,7 +220,7 @@ export function FilterPanel({
     filters.amenities.length > 0 ||
     filters.seatLocations.length > 0 ||
     filters.minRating > 0 ||
-    filters.showOnlyAvailable
+    filters.minSeatsAvailable > 0
 
   // Calculate rating counts
   const getRatingCount = (minRating: number) => {
@@ -343,14 +350,20 @@ export function FilterPanel({
         {/* Seat Availability */}
         <CollapsibleSection title="Seat Availability" defaultOpen={false}>
           <div className="space-y-2">
-            <Checkbox
-              id="show-only-available"
-              label="Show only trips with available seats"
-              checked={filters.showOnlyAvailable}
-              onChange={(checked) => {
-                onFiltersChange({ ...filters, showOnlyAvailable: checked })
-              }}
-            />
+            {seatAvailabilityOptions.map((option) => (
+              <Checkbox
+                key={option.value}
+                id={`seats-${option.value}`}
+                label={option.label}
+                checked={filters.minSeatsAvailable === option.value}
+                onChange={(checked) => {
+                  onFiltersChange({
+                    ...filters,
+                    minSeatsAvailable: checked ? option.value : 0,
+                  })
+                }}
+              />
+            ))}
           </div>
         </CollapsibleSection>
 

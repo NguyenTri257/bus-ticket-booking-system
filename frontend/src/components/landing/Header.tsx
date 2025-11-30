@@ -61,6 +61,7 @@ export function Header() {
 
         {/* Auth Buttons */}
         <div className="hidden md:flex items-center gap-4">
+          <ThemeToggle />
           {user ? (
             <>
               <div className="text-sm text-gray-600 dark:text-gray-300">
@@ -84,16 +85,13 @@ export function Header() {
               </Button>
             </>
           ) : (
-            <>
-              <ThemeToggle />
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => navigate('/login')}
-              >
-                Login
-              </Button>
-            </>
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => navigate('/login')}
+            >
+              Login
+            </Button>
           )}
         </div>
 
@@ -139,6 +137,9 @@ export function Header() {
               Support
             </a>
             <div className="pt-4 border-t space-y-2">
+              <div className="py-2">
+                <ThemeToggle />
+              </div>
               {user ? (
                 <>
                   <div className="text-sm text-gray-600 dark:text-gray-300 py-2">
@@ -163,19 +164,14 @@ export function Header() {
                   </Button>
                 </>
               ) : (
-                <>
-                  <div className="py-2">
-                    <ThemeToggle />
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => navigate('/login')}
-                  >
-                    Login
-                  </Button>
-                </>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => navigate('/login')}
+                >
+                  Login
+                </Button>
               )}
             </div>
           </div>

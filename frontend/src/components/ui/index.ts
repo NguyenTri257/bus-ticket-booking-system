@@ -7,7 +7,6 @@ export {
   CardHeader,
   CardTitle,
 } from './card'
-export { Calendar, type CalendarEvent, type CalendarProps } from './calendar'
 export { Combobox } from './combobox'
 export { Input } from './input'
 export { Label } from './label'

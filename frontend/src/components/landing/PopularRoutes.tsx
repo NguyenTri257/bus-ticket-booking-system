@@ -131,7 +131,7 @@ export function PopularRoutes() {
                     date: new Date().toISOString().split('T')[0],
                     passengers: '1',
                   })
-                  window.location.href = `/search-results?${searchParams.toString()}`
+                  window.location.href = `/trip-search-results?${searchParams.toString()}`
                 }}
               />
             ))}
@@ -170,7 +170,7 @@ export function PopularRoutes() {
                   date: new Date().toISOString().split('T')[0],
                   passengers: '1',
                 })
-                window.location.href = `/search-results?${searchParams.toString()}`
+                window.location.href = `/trip-search-results?${searchParams.toString()}`
               }}
             />
           ))}

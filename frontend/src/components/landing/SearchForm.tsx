@@ -245,20 +245,26 @@ export function SearchForm() {
                     placeholderText="Select departure date"
                     className="w-full h-12 px-3 py-2 text-base bg-background border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50"
                     wrapperClassName="w-full"
-                    calendarClassName="!bg-background !border !border-border !rounded-md !shadow-xl !w-80"
+                    calendarClassName="!bg-card !border !border-border !rounded-md !shadow-xl !w-80"
                     dayClassName={(date) => {
                       const today = new Date()
                       today.setHours(0, 0, 0, 0)
                       const isToday = date.getTime() === today.getTime()
-                      const isPast = date < today
+                      const isSelected =
+                        formData.date &&
+                        date.getTime() === formData.date.getTime()
 
-                      if (isPast) {
-                        return 'text-muted-foreground/50 cursor-not-allowed opacity-30'
+                      let classes =
+                        'cursor-pointer hover:bg-muted hover:text-foreground transition-colors'
+
+                      if (isSelected) {
+                        classes +=
+                          ' bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground'
+                      } else if (isToday) {
+                        classes += ' font-bold ring-2 ring-primary/50'
                       }
-                      if (isToday) {
-                        return 'bg-primary text-primary-foreground font-bold ring-2 ring-primary/50'
-                      }
-                      return 'hover:bg-accent hover:text-accent-foreground cursor-pointer'
+
+                      return classes
                     }}
                     popperClassName="!z-50"
                     popperPlacement="bottom-start"

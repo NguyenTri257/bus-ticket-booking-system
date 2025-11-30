@@ -64,8 +64,8 @@
 }
 
 .react-datepicker__day:hover {
-  background-color: hsl(var(--accent));
-  color: hsl(var(--accent-foreground));
+  background-color: var(--muted) !important;
+  color: var(--foreground) !important;
 }
 
 .react-datepicker__day--selected {
@@ -97,6 +97,7 @@
 .react-datepicker__day--disabled:hover {
   background-color: transparent !important;
   color: hsl(var(--muted-foreground)) !important;
+  cursor: not-allowed !important;
 }
 
 .react-datepicker__navigation {

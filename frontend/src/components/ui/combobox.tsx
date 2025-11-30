@@ -87,7 +87,12 @@ export function Combobox({
             <X className="w-4 h-4" />
           </button>
         )}
-        <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <ChevronDown
+          className={cn(
+            'absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground transition-transform duration-200',
+            isOpen && 'rotate-180'
+          )}
+        />
       </div>
 
       {isOpen && (

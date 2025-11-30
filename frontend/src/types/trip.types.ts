@@ -55,17 +55,68 @@ export interface Operator {
   }
 }
 
+export interface PickupPoint {
+  pointId: string
+  name: string
+  address: string
+  time: string // ISO 8601 format
+}
+
+export interface DropoffPoint {
+  pointId: string
+  name: string
+  address: string
+  time: string // ISO 8601 format
+}
+
+export interface Policies {
+  cancellationPolicy: string
+  modificationPolicy: string
+  refundPolicy: string
+}
+
 export interface Trip {
-  id: string
-  routeId: string
-  routeLabel: string
-  busId: string
-  busLabel: string
-  date: string // ISO format YYYY-MM-DD
-  departureTime: string // HH:MM format
-  arrivalTime: string // HH:MM format
-  basePrice: number
-  status: 'ACTIVE' | 'INACTIVE'
+  tripId: string
+  route: {
+    routeId: string
+    origin: string
+    destination: string
+    distanceKm: number
+    estimatedMinutes: number
+  }
+  operator: {
+    operatorId: string
+    name: string
+    rating: number
+    logo?: string
+  }
+  bus: {
+    busId: string
+    model: string
+    plateNumber: string
+    seatCapacity: number
+    busType: 'STANDARD' | 'LIMOUSINE' | 'SLEEPER'
+    amenities: string[]
+  }
+  schedule: {
+    departureTime: string // ISO 8601 format
+    arrivalTime: string // ISO 8601 format
+    duration: number // in minutes
+  }
+  pricing: {
+    basePrice: number
+    currency: string
+    serviceFee?: number
+  }
+  availability: {
+    totalSeats: number
+    availableSeats: number
+    occupancyRate: number
+  }
+  policies: Policies
+  pickupPoints: PickupPoint[]
+  dropoffPoints: DropoffPoint[]
+  status: 'active' | 'inactive'
 }
 
 export interface TripFormData {

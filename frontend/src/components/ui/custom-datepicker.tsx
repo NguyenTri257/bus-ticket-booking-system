@@ -42,7 +42,7 @@ export const CustomDatePicker: React.FC<CustomDatePickerProps> = ({
 
           if (isSelected) {
             classes +=
-              ' bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground'
+              ' bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground font-bold'
           } else if (isToday) {
             classes += ' font-bold ring-2 ring-primary/50'
           }

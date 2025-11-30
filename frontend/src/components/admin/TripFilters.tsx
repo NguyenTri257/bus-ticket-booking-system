@@ -1,5 +1,5 @@
 import type { Route, Bus } from '../../types/trip.types'
-import { ChevronDown } from 'lucide-react'
+import { CustomDropdown } from '../ui/custom-dropdown'
 
 export interface TripFiltersData {
   routeId: string
@@ -48,60 +48,52 @@ export const TripFilters: React.FC<TripFiltersProps> = ({
           <label className="block text-sm font-medium text-foreground mb-2">
             Route
           </label>
-          <div className="relative">
-            <select
-              value={filters.routeId}
-              onChange={(e) => handleFilterChange('routeId', e.target.value)}
-              className="w-full appearance-none rounded-lg border border-border bg-card px-3 py-2 pr-8 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="">All routes</option>
-              {routes.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.from} → {r.to}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          </div>
+          <CustomDropdown
+            options={[
+              { id: '', label: 'All routes' },
+              ...routes.map((r) => ({
+                id: r.id,
+                label: `${r.from} → ${r.to}`,
+              })),
+            ]}
+            value={filters.routeId}
+            onChange={(value) => handleFilterChange('routeId', value)}
+            placeholder="All routes"
+          />
         </div>
 
         <div className="mr-2">
           <label className="block text-sm font-medium text-foreground mb-2">
             Bus
           </label>
-          <div className="relative">
-            <select
-              value={filters.busId}
-              onChange={(e) => handleFilterChange('busId', e.target.value)}
-              className="w-full appearance-none rounded-lg border border-border bg-card px-3 py-2 pr-8 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="">All buses</option>
-              {buses.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          </div>
+          <CustomDropdown
+            options={[
+              { id: '', label: 'All buses' },
+              ...buses.map((b) => ({
+                id: b.id,
+                label: b.name,
+              })),
+            ]}
+            value={filters.busId}
+            onChange={(value) => handleFilterChange('busId', value)}
+            placeholder="All buses"
+          />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">
             Status
           </label>
-          <div className="relative">
-            <select
-              value={filters.status}
-              onChange={(e) => handleFilterChange('status', e.target.value)}
-              className="w-full appearance-none rounded-lg border border-border bg-card px-3 py-2 pr-8 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="">All statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          </div>
+          <CustomDropdown
+            options={[
+              { id: '', label: 'All statuses' },
+              { id: 'ACTIVE', label: 'Active' },
+              { id: 'INACTIVE', label: 'Inactive' },
+            ]}
+            value={filters.status}
+            onChange={(value) => handleFilterChange('status', value)}
+            placeholder="All statuses"
+          />
         </div>
       </div>
 

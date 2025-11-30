@@ -880,15 +880,17 @@ const AdminTripSchedulingPage: React.FC = () => {
                 onClick={handleBulkDelete}
                 className="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium shadow-sm transition focus:outline-none focus:ring-2 focus:ring-offset-2 min-w-0"
                 style={{
-                  backgroundColor: 'var(--destructive)',
-                  color: 'var(--destructive-foreground)',
+                  backgroundColor: 'var(--muted)',
+                  color: 'var(--muted-foreground)',
+                  border: '1px solid var(--border)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor =
-                    'color-mix(in srgb, var(--destructive) 90%, black)'
+                  e.currentTarget.style.backgroundColor = 'var(--accent)'
+                  e.currentTarget.style.color = 'var(--accent-foreground)'
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--destructive)'
+                  e.currentTarget.style.backgroundColor = 'var(--muted)'
+                  e.currentTarget.style.color = 'var(--muted-foreground)'
                 }}
               >
                 Delete
@@ -980,6 +982,7 @@ const AdminTripSchedulingPage: React.FC = () => {
                 selectedTripIds={selectedTripIds}
                 onSelectTrip={handleSelectTrip}
                 onSelectAll={handleSelectAllTrips}
+                onEditTrip={handleEditTrip}
               />
             )}
           </div>

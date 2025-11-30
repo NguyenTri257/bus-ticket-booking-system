@@ -7,6 +7,7 @@ interface TripTableViewProps {
   selectedTripIds: string[]
   onSelectTrip: (tripId: string, selected: boolean) => void
   onSelectAll: (selected: boolean) => void
+  onEditTrip?: (trip: Trip) => void
 }
 
 export const TripTableView: React.FC<TripTableViewProps> = ({
@@ -14,6 +15,7 @@ export const TripTableView: React.FC<TripTableViewProps> = ({
   selectedTripIds,
   onSelectTrip,
   onSelectAll,
+  onEditTrip,
 }) => {
   const allSelected =
     trips.length > 0 && selectedTripIds.length === trips.length
@@ -100,6 +102,14 @@ export const TripTableView: React.FC<TripTableViewProps> = ({
             >
               Status
             </th>
+            {onEditTrip && (
+              <th
+                className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--muted-foreground)' }}
+              >
+                Actions
+              </th>
+            )}
           </tr>
         </thead>
         <tbody
@@ -189,6 +199,30 @@ export const TripTableView: React.FC<TripTableViewProps> = ({
                   {trip.status === 'active' ? 'Active' : 'Inactive'}
                 </span>
               </td>
+              {onEditTrip && (
+                <td className="whitespace-nowrap px-4 py-2 text-xs">
+                  <button
+                    className="text-sm font-medium focus:outline-none rounded px-2 py-1"
+                    style={{ color: 'var(--primary)' }}
+                    onClick={() => onEditTrip(trip)}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.textDecoration = 'underline'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.textDecoration = 'none'
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.boxShadow =
+                        '0 0 0 2px color-mix(in srgb, var(--primary) 20%, transparent)'
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.boxShadow = 'none'
+                    }}
+                  >
+                    Edit
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

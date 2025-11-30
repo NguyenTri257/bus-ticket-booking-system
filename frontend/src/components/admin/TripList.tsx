@@ -155,11 +155,12 @@ export const TripList: React.FC<TripListProps> = ({
                     trip.status === 'active'
                       ? {
                           backgroundColor:
-                            'color-mix(in srgb, var(--primary) 10%, var(--card))',
-                          color: 'var(--primary)',
+                            'color-mix(in srgb, var(--success) 20%, transparent)',
+                          color: 'var(--success)',
                         }
                       : {
-                          backgroundColor: 'var(--muted)',
+                          backgroundColor:
+                            'color-mix(in srgb, var(--muted) 20%, transparent)',
                           color: 'var(--muted-foreground)',
                         }
                   }

@@ -61,6 +61,38 @@ export function PopularRoutes() {
           toCode: 'NT',
           price: 150000,
         },
+        {
+          id: '5',
+          from: 'Ho Chi Minh City',
+          to: 'Nha Trang',
+          fromCode: 'HCM',
+          toCode: 'NT',
+          price: 200000,
+        },
+        {
+          id: '6',
+          from: 'Hanoi',
+          to: 'Hue',
+          fromCode: 'HN',
+          toCode: 'HUE',
+          price: 280000,
+        },
+        {
+          id: '7',
+          from: 'Da Lat',
+          to: 'Nha Trang',
+          fromCode: 'DL',
+          toCode: 'NT',
+          price: 160000,
+        },
+        {
+          id: '8',
+          from: 'Ho Chi Minh City',
+          to: 'Phu Quoc',
+          fromCode: 'HCM',
+          toCode: 'PQ',
+          price: 220000,
+        },
       ]
       setRoutes(fallbackRoutes)
     } finally {
@@ -70,6 +102,13 @@ export function PopularRoutes() {
 
   useEffect(() => {
     fetchPopularRoutes()
+
+    // Set up periodic refresh every 5 minutes (300000ms)
+    const interval = setInterval(() => {
+      fetchPopularRoutes()
+    }, 300000)
+
+    return () => clearInterval(interval)
   }, [])
 
   if (loading) {
@@ -84,7 +123,7 @@ export function PopularRoutes() {
               Loading popular routes...
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[...Array(4)].map((_, i) => (
               <div
                 key={i}
@@ -114,7 +153,7 @@ export function PopularRoutes() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {routes.map((route) => (
               <RouteCard
                 key={route.id}
@@ -153,7 +192,7 @@ export function PopularRoutes() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {routes.map((route) => (
             <RouteCard
               key={route.id}

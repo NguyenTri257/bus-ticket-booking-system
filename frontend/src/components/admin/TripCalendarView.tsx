@@ -381,8 +381,8 @@ export const TripCalendarView: React.FC<TripCalendarViewProps> = ({
                             trip.status === 'active'
                               ? {
                                   backgroundColor:
-                                    'color-mix(in srgb, var(--primary) 10%, var(--card))',
-                                  color: 'var(--primary)',
+                                    'color-mix(in srgb, var(--success) 20%, transparent)',
+                                  color: 'var(--success)',
                                 }
                               : {
                                   backgroundColor: 'var(--muted)',

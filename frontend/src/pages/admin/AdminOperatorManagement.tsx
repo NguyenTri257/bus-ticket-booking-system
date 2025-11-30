@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { DashboardLayout } from '@/components/admin/DashboardLayout'
 import {
   Search,
@@ -8,122 +8,89 @@ import {
   UserCheck,
   UserX,
   BarChart3,
+  Loader,
 } from 'lucide-react'
-
-interface Operator {
-  id: string
-  name: string
-  email: string
-  phone: string
-  status: 'APPROVED' | 'PENDING' | 'REJECTED' | 'SUSPENDED'
-  createdAt: string
-  performanceMetrics?: {
-    totalTrips: number
-    averageRating: number
-    cancellationRate: number
-  }
-}
-
-// Mock data - replace with API calls
-const initialOperators: Operator[] = [
-  {
-    id: '1',
-    name: 'Sapaco Tourist Company',
-    email: 'contact@sapaco.vn',
-    phone: '+84 28 1234 5678',
-    status: 'APPROVED',
-    createdAt: '2024-01-15',
-    performanceMetrics: {
-      totalTrips: 1250,
-      averageRating: 4.2,
-      cancellationRate: 2.1,
-    },
-  },
-  {
-    id: '2',
-    name: 'The Sinh Tourist',
-    email: 'info@thesinh.vn',
-    phone: '+84 24 8765 4321',
-    status: 'PENDING',
-    createdAt: '2024-11-20',
-    performanceMetrics: undefined,
-  },
-  {
-    id: '3',
-    name: 'Futa Bus Lines',
-    email: 'admin@futa.vn',
-    phone: '+84 28 9876 5432',
-    status: 'SUSPENDED',
-    createdAt: '2024-03-10',
-    performanceMetrics: {
-      totalTrips: 890,
-      averageRating: 3.8,
-      cancellationRate: 5.2,
-    },
-  },
-]
+import {
+  useAdminOperators,
+  type OperatorData,
+} from '@/hooks/admin/useAdminOperators'
 
 const AdminOperatorManagement: React.FC = () => {
-  const [operators, setOperators] = useState(initialOperators)
+  const {
+    operators,
+    isLoading,
+    fetchOperators,
+    approveOperator,
+    rejectOperator,
+    suspendOperator,
+    activateOperator,
+  } = useAdminOperators()
+
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [showDetails, setShowDetails] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Fetch operators on component mount
+    fetchOperators(statusFilter !== 'ALL' ? statusFilter : undefined)
+  }, [statusFilter, fetchOperators])
 
   const filteredOperators = operators.filter((operator) => {
     const matchesSearch =
       operator.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      operator.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus =
-      statusFilter === 'ALL' || operator.status === statusFilter
-    return matchesSearch && matchesStatus
+      operator.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())
+    return matchesSearch
   })
 
-  const handleApproveOperator = (operatorId: string) => {
-    setOperators(
-      operators.map((op) =>
-        op.id === operatorId ? { ...op, status: 'APPROVED' } : op
-      )
-    )
-    // In real app, send notification to operator
-    alert('Operator approved successfully!')
+  const handleApproveOperator = async (operatorId: string) => {
+    const notes = prompt('Add notes (optional):')
+    if (notes !== null) {
+      setActionLoading(operatorId)
+      try {
+        await approveOperator(operatorId, notes || undefined)
+      } finally {
+        setActionLoading(null)
+      }
+    }
   }
 
-  const handleRejectOperator = (operatorId: string) => {
+  const handleRejectOperator = async (operatorId: string) => {
     const reason = prompt('Please provide a reason for rejection:')
     if (reason) {
-      setOperators(
-        operators.map((op) =>
-          op.id === operatorId ? { ...op, status: 'REJECTED' } : op
-        )
-      )
-      // In real app, send rejection notification with reason
-      alert('Operator rejected. Notification sent.')
+      setActionLoading(operatorId)
+      try {
+        await rejectOperator(operatorId, reason)
+      } finally {
+        setActionLoading(null)
+      }
     }
   }
 
-  const handleSuspendOperator = (operatorId: string) => {
+  const handleSuspendOperator = async (operatorId: string) => {
     const reason = prompt('Please provide a reason for suspension:')
     if (reason) {
-      setOperators(
-        operators.map((op) =>
-          op.id === operatorId ? { ...op, status: 'SUSPENDED' } : op
-        )
-      )
-      alert('Operator suspended.')
+      setActionLoading(operatorId)
+      try {
+        await suspendOperator(operatorId, reason)
+      } finally {
+        setActionLoading(null)
+      }
     }
   }
 
-  const handleActivateOperator = (operatorId: string) => {
-    setOperators(
-      operators.map((op) =>
-        op.id === operatorId ? { ...op, status: 'APPROVED' } : op
-      )
-    )
-    alert('Operator activated.')
+  const handleActivateOperator = async (operatorId: string) => {
+    setActionLoading(operatorId)
+    try {
+      await activateOperator(operatorId)
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    const upperStatus = status.toUpperCase()
+    switch (upperStatus) {
       case 'APPROVED':
         return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
       case 'PENDING':
@@ -135,6 +102,16 @@ const AdminOperatorManagement: React.FC = () => {
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
     }
+  }
+
+  if (isLoading && operators.length === 0) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center p-12">
+          <Loader className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </DashboardLayout>
+    )
   }
 
   return (
@@ -205,23 +182,23 @@ const AdminOperatorManagement: React.FC = () => {
               </thead>
               <tbody className="bg-card divide-y divide-border">
                 {filteredOperators.map((operator) => (
-                  <tr key={operator.id} className="hover:bg-muted/50">
+                  <tr key={operator.operatorId} className="hover:bg-muted/50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-foreground">
                           {operator.name}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          ID: {operator.id}
+                          ID: {operator.operatorId}
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-muted-foreground">
-                        {operator.email}
+                        {operator.contactEmail}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        {operator.phone}
+                        {operator.contactPhone}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -232,77 +209,100 @@ const AdminOperatorManagement: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {operator.performanceMetrics ? (
-                        <div className="flex items-center gap-2">
-                          <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                          <div className="text-sm">
-                            <div>
-                              ⭐ {operator.performanceMetrics.averageRating}
-                            </div>
-                            <div className="text-muted-foreground">
-                              {operator.performanceMetrics.totalTrips} trips
-                            </div>
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                        <div className="text-sm">
+                          <div>⭐ {operator.rating.toFixed(1)}</div>
+                          <div className="text-muted-foreground">
+                            {operator.totalRoutes} routes
                           </div>
                         </div>
-                      ) : (
-                        <span className="text-sm text-muted-foreground">
-                          No data
-                        </span>
-                      )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                      {new Date(operator.createdAt).toLocaleDateString()}
+                      {new Date(operator.createdAt || '').toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() =>
                             setShowDetails(
-                              showDetails === operator.id ? null : operator.id
+                              showDetails === operator.operatorId
+                                ? null
+                                : operator.operatorId
                             )
                           }
-                          className="text-primary hover:text-primary/80"
+                          className="text-primary hover:text-primary/80 disabled:opacity-50"
                           title="View Details"
+                          disabled={actionLoading === operator.operatorId}
                         >
                           <Eye className="h-4 w-4" />
                         </button>
 
-                        {operator.status === 'PENDING' && (
+                        {operator.status === 'pending' && (
                           <>
                             <button
-                              onClick={() => handleApproveOperator(operator.id)}
-                              className="text-green-600 hover:text-green-800"
+                              onClick={() =>
+                                handleApproveOperator(operator.operatorId)
+                              }
+                              className="text-green-600 hover:text-green-800 disabled:opacity-50"
                               title="Approve"
+                              disabled={actionLoading === operator.operatorId}
                             >
-                              <Check className="h-4 w-4" />
+                              {actionLoading === operator.operatorId ? (
+                                <Loader className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Check className="h-4 w-4" />
+                              )}
                             </button>
                             <button
-                              onClick={() => handleRejectOperator(operator.id)}
-                              className="text-red-600 hover:text-red-800"
+                              onClick={() =>
+                                handleRejectOperator(operator.operatorId)
+                              }
+                              className="text-red-600 hover:text-red-800 disabled:opacity-50"
                               title="Reject"
+                              disabled={actionLoading === operator.operatorId}
                             >
-                              <X className="h-4 w-4" />
+                              {actionLoading === operator.operatorId ? (
+                                <Loader className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <X className="h-4 w-4" />
+                              )}
                             </button>
                           </>
                         )}
 
-                        {operator.status === 'APPROVED' && (
+                        {operator.status === 'approved' && (
                           <button
-                            onClick={() => handleSuspendOperator(operator.id)}
-                            className="text-orange-600 hover:text-orange-800"
+                            onClick={() =>
+                              handleSuspendOperator(operator.operatorId)
+                            }
+                            className="text-orange-600 hover:text-orange-800 disabled:opacity-50"
                             title="Suspend"
+                            disabled={actionLoading === operator.operatorId}
                           >
-                            <UserX className="h-4 w-4" />
+                            {actionLoading === operator.operatorId ? (
+                              <Loader className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <UserX className="h-4 w-4" />
+                            )}
                           </button>
                         )}
 
-                        {operator.status === 'SUSPENDED' && (
+                        {operator.status === 'suspended' && (
                           <button
-                            onClick={() => handleActivateOperator(operator.id)}
-                            className="text-green-600 hover:text-green-800"
+                            onClick={() =>
+                              handleActivateOperator(operator.operatorId)
+                            }
+                            className="text-green-600 hover:text-green-800 disabled:opacity-50"
                             title="Activate"
+                            disabled={actionLoading === operator.operatorId}
                           >
-                            <UserCheck className="h-4 w-4" />
+                            {actionLoading === operator.operatorId ? (
+                              <Loader className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <UserCheck className="h-4 w-4" />
+                            )}
                           </button>
                         )}
                       </div>
@@ -312,12 +312,17 @@ const AdminOperatorManagement: React.FC = () => {
               </tbody>
             </table>
           </div>
+          {filteredOperators.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No operators found</p>
+            </div>
+          )}
         </div>
 
         {/* Operator Details Modal */}
         {showDetails && (
           <OperatorDetailsModal
-            operator={operators.find((op) => op.id === showDetails)!}
+            operator={operators.find((op) => op.operatorId === showDetails)!}
             onClose={() => setShowDetails(null)}
           />
         )}
@@ -330,7 +335,7 @@ export default AdminOperatorManagement
 
 // Operator Details Modal Component
 interface OperatorDetailsModalProps {
-  operator: Operator
+  operator: OperatorData
   onClose: () => void
 }
 
@@ -357,11 +362,11 @@ const OperatorDetailsModal: React.FC<OperatorDetailsModalProps> = ({
               </label>
               <span
                 className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                  operator.status === 'APPROVED'
+                  operator.status === 'approved'
                     ? 'bg-green-100 text-green-800'
-                    : operator.status === 'PENDING'
+                    : operator.status === 'pending'
                       ? 'bg-yellow-100 text-yellow-800'
-                      : operator.status === 'SUSPENDED'
+                      : operator.status === 'suspended'
                         ? 'bg-orange-100 text-orange-800'
                         : 'bg-red-100 text-red-800'
                 }`}
@@ -376,13 +381,13 @@ const OperatorDetailsModal: React.FC<OperatorDetailsModalProps> = ({
               <label className="block text-sm font-medium text-muted-foreground">
                 Email
               </label>
-              <p className="text-foreground">{operator.email}</p>
+              <p className="text-foreground">{operator.contactEmail}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-muted-foreground">
                 Phone
               </label>
-              <p className="text-foreground">{operator.phone}</p>
+              <p className="text-foreground">{operator.contactPhone}</p>
             </div>
           </div>
 
@@ -395,39 +400,31 @@ const OperatorDetailsModal: React.FC<OperatorDetailsModalProps> = ({
             </p>
           </div>
 
-          {operator.performanceMetrics && (
-            <div className="border-t pt-4">
-              <h3 className="text-md font-semibold mb-3">
-                Performance Metrics
-              </h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">
-                    {operator.performanceMetrics.totalTrips}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Total Trips
-                  </div>
+          <div className="border-t pt-4">
+            <h3 className="text-md font-semibold mb-3">Performance Metrics</h3>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">
+                  {operator.totalRoutes}
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">
-                    {operator.performanceMetrics.averageRating}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Avg Rating
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary">
-                    {operator.performanceMetrics.cancellationRate}%
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    Cancellation Rate
-                  </div>
+                <div className="text-sm text-muted-foreground">
+                  Total Routes
                 </div>
               </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">
+                  {operator.rating?.toFixed(1) || 'N/A'}
+                </div>
+                <div className="text-sm text-muted-foreground">Rating</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary">
+                  {operator.totalBuses || 0}
+                </div>
+                <div className="text-sm text-muted-foreground">Total Buses</div>
+              </div>
             </div>
-          )}
+          </div>
         </div>
 
         <div className="flex justify-end mt-6">

@@ -1,16 +1,17 @@
 import React, { useState } from 'react'
 import { DashboardLayout } from '@/components/admin/DashboardLayout'
 import { Plus, Search, Edit, Trash2, Bus } from 'lucide-react'
+import { CustomDropdown } from '@/components/ui/custom-dropdown'
 
 interface Bus {
   id: string
   name: string
   model: string
   plateNumber: string
-  type: 'STANDARD' | 'LIMOUSINE' | 'SLEEPER'
+  type: 'standard' | 'limousine' | 'sleeper'
   capacity: number
   amenities: string[]
-  status: 'ACTIVE' | 'INACTIVE' | 'MAINTENANCE'
+  status: 'active' | 'inactive' | 'maintenance'
   imageUrl?: string
 }
 
@@ -31,10 +32,10 @@ const initialBuses: Bus[] = [
     name: 'Sapaco Tourist 001',
     model: 'Mercedes-Benz Sprinter',
     plateNumber: '51A-12345',
-    type: 'STANDARD',
+    type: 'standard',
     capacity: 45,
     amenities: ['WiFi', 'AC', 'Toilet'],
-    status: 'ACTIVE',
+    status: 'active',
     imageUrl: undefined,
   },
   {
@@ -42,10 +43,10 @@ const initialBuses: Bus[] = [
     name: 'The Sinh Tourist VIP',
     model: 'Hyundai Universe',
     plateNumber: '30A-67890',
-    type: 'LIMOUSINE',
+    type: 'limousine',
     capacity: 40,
     amenities: ['WiFi', 'AC', 'Toilet', 'Entertainment'],
-    status: 'ACTIVE',
+    status: 'active',
     imageUrl: undefined,
   },
 ]
@@ -174,13 +175,12 @@ const AdminBusManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          bus.type === 'STANDARD'
-                            ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
-                            : bus.type === 'LIMOUSINE'
-                              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
-                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                        }`}
+                        className="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                        style={{
+                          backgroundColor:
+                            'color-mix(in srgb, var(--primary) 20%, transparent)',
+                          color: 'var(--primary)',
+                        }}
                       >
                         {bus.type}
                       </span>
@@ -202,13 +202,27 @@ const AdminBusManagement: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
-                        className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          bus.status === 'ACTIVE'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
-                            : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
-                        }`}
+                        className="inline-flex px-2 py-1 text-xs font-semibold rounded-full"
+                        style={{
+                          backgroundColor:
+                            bus.status === 'active'
+                              ? 'color-mix(in srgb, var(--success) 20%, transparent)'
+                              : bus.status === 'inactive'
+                                ? 'color-mix(in srgb, var(--muted) 20%, transparent)'
+                                : 'color-mix(in srgb, var(--warning) 20%, transparent)',
+                          color:
+                            bus.status === 'active'
+                              ? 'var(--success)'
+                              : bus.status === 'inactive'
+                                ? 'var(--muted-foreground)'
+                                : 'var(--warning)',
+                        }}
                       >
-                        {bus.status}
+                        {bus.status === 'active'
+                          ? 'Active'
+                          : bus.status === 'inactive'
+                            ? 'Inactive'
+                            : 'Maintenance'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -263,7 +277,7 @@ const BusFormModal: React.FC<BusFormModalProps> = ({
     plateNumber: bus?.plateNumber || '',
     type: bus?.type || 'STANDARD',
     capacity: bus?.capacity?.toString() || '',
-    status: bus?.status || 'ACTIVE',
+    status: bus?.status || 'active',
     imageUrl: bus?.imageUrl || '',
   })
 
@@ -384,17 +398,18 @@ const BusFormModal: React.FC<BusFormModalProps> = ({
 
           <div>
             <label className="block text-sm font-medium mb-1">Bus Type</label>
-            <select
+            <CustomDropdown
+              options={[
+                { id: 'STANDARD', label: 'Standard' },
+                { id: 'LIMOUSINE', label: 'Limousine' },
+                { id: 'SLEEPER', label: 'Sleeper' },
+              ]}
               value={formData.type}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, type: e.target.value }))
+              onChange={(value) =>
+                setFormData((prev) => ({ ...prev, type: value }))
               }
-              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="STANDARD">Standard</option>
-              <option value="LIMOUSINE">Limousine</option>
-              <option value="SLEEPER">Sleeper</option>
-            </select>
+              placeholder="Select bus type"
+            />
           </div>
 
           <div>
@@ -416,16 +431,18 @@ const BusFormModal: React.FC<BusFormModalProps> = ({
 
           <div>
             <label className="block text-sm font-medium mb-1">Status</label>
-            <select
+            <CustomDropdown
+              options={[
+                { id: 'ACTIVE', label: 'Active' },
+                { id: 'INACTIVE', label: 'Inactive' },
+                { id: 'MAINTENANCE', label: 'Maintenance' },
+              ]}
               value={formData.status}
-              onChange={(e) =>
-                setFormData((prev) => ({ ...prev, status: e.target.value }))
+              onChange={(value) =>
+                setFormData((prev) => ({ ...prev, status: value }))
               }
-              className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
+              placeholder="Select status"
+            />
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

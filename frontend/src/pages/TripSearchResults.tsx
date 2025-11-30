@@ -10,6 +10,7 @@ import {
 } from '@/components/landing/SortDropdown'
 import { Pagination } from '@/components/landing/Pagination'
 import { TripResultsCard } from '@/components/landing/TripResultsCard'
+import { SearchHistoryPanel } from '@/components/landing/SearchHistoryPanel'
 import { Header } from '@/components/landing/Header'
 import type { Trip } from '@/components/landing/TripResultsCard'
 import {
@@ -18,6 +19,8 @@ import {
   busTypes,
   amenities,
 } from '@/constants/filterConstants'
+import { useSearchHistory } from '@/hooks/useSearchHistory'
+import { useAuth } from '@/context/AuthContext'
 import '@/styles/admin.css'
 
 // Mock data - in production, this would come from the API
@@ -642,6 +645,14 @@ const mockTrips: Trip[] = [
 export function TripSearchResults() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const {
+    searches,
+    removeSearch,
+    clearHistory,
+    isLoaded: historyLoaded,
+  } = useSearchHistory()
+
   const searchParams = new URLSearchParams(location.search)
 
   const from = searchParams.get('from') || 'TPHCM'
@@ -967,6 +978,28 @@ export function TripSearchResults() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <Header />
+
+      {/* Search History Panel */}
+      {user?.userId && historyLoaded && searches.length > 0 && (
+        <div className="bg-muted/30 border-b border-border py-6 md:py-8">
+          <div className="max-w-7xl mx-auto px-4">
+            <SearchHistoryPanel
+              searches={searches}
+              onSelectSearch={(search) => {
+                const newParams = new URLSearchParams({
+                  from: search.origin,
+                  to: search.destination,
+                  date: search.date,
+                  passengers: search.passengers.toString(),
+                })
+                navigate(`/trip-search-results?${newParams.toString()}`)
+              }}
+              onRemoveSearch={removeSearch}
+              onClearHistory={clearHistory}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Search summary bar */}
       <div className="sticky top-16 z-40 bg-card border-b border-border py-4 md:py-3">

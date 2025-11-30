@@ -527,7 +527,10 @@ const AdminTripSchedulingPage: React.FC = () => {
       return false
     if (appliedFilters.busId && trip.bus.busId !== appliedFilters.busId)
       return false
-    if (appliedFilters.status && trip.status !== appliedFilters.status)
+    if (
+      appliedFilters.status &&
+      trip.status !== appliedFilters.status.toLowerCase()
+    )
       return false
 
     return true
@@ -944,7 +947,7 @@ const AdminTripSchedulingPage: React.FC = () => {
                 style={{
                   backgroundColor:
                     viewMode === 'CALENDAR' ? 'var(--card)' : 'transparent',
-                  // eslint-disable-next-line prettier/prettier
+
                   color:
                     viewMode === 'CALENDAR'
                       ? 'var(--foreground)'

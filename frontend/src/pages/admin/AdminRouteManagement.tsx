@@ -14,6 +14,7 @@ import {
 import type { RouteAdminData } from '@/types/trip.types'
 import { useAdminRoutes } from '@/hooks/admin/useAdminRoutes'
 import { useToast } from '@/hooks/use-toast'
+import { RouteFormDrawer } from '@/components/admin/RouteFormDrawer'
 import { CustomDropdown } from '@/components/ui/custom-dropdown'
 
 // Fallback mock data when API is unavailable
@@ -92,87 +93,6 @@ const MOCK_ROUTES: RouteAdminData[] = [
     ],
     createdAt: '2025-01-16T14:20:00Z',
   },
-  {
-    routeId: '3',
-    operatorId: 'op-002',
-    origin: 'Can Tho',
-    destination: 'Ho Chi Minh City',
-    distanceKm: 180,
-    estimatedMinutes: 240,
-    pickupPoints: [
-      {
-        pointId: 'p5',
-        name: 'Can Tho Station',
-        address: 'Ninh Kieu District',
-        time: '07:00',
-      },
-    ],
-    dropoffPoints: [
-      {
-        pointId: 'd5',
-        name: 'Ben Thanh Station',
-        address: 'Ben Thanh, District 1',
-        time: '11:00',
-      },
-    ],
-    createdAt: '2025-01-17T09:15:00Z',
-  },
-  {
-    routeId: '4',
-    operatorId: 'op-002',
-    origin: 'Da Lat',
-    destination: 'Ho Chi Minh City',
-    distanceKm: 305,
-    estimatedMinutes: 480,
-    pickupPoints: [
-      {
-        pointId: 'p6',
-        name: 'Da Lat Center',
-        address: 'District 1',
-        time: '08:00',
-      },
-      {
-        pointId: 'p7',
-        name: 'Da Lat Airport',
-        address: 'Lam Dong Province',
-        time: '08:30',
-      },
-    ],
-    dropoffPoints: [
-      {
-        pointId: 'd6',
-        name: 'Ben Thanh Station',
-        address: 'Ben Thanh, District 1',
-        time: '16:00',
-      },
-    ],
-    createdAt: '2025-01-18T11:45:00Z',
-  },
-  {
-    routeId: '5',
-    operatorId: 'op-001',
-    origin: 'Nha Trang',
-    destination: 'Da Nang',
-    distanceKm: 520,
-    estimatedMinutes: 600,
-    pickupPoints: [
-      {
-        pointId: 'p8',
-        name: 'Nha Trang Station',
-        address: 'Nha Trang City',
-        time: '09:00',
-      },
-    ],
-    dropoffPoints: [
-      {
-        pointId: 'd7',
-        name: 'Da Nang Station',
-        address: 'Hai Chau District',
-        time: '19:00',
-      },
-    ],
-    createdAt: '2025-01-19T16:00:00Z',
-  },
 ]
 
 const AdminRouteManagement: React.FC = () => {
@@ -187,9 +107,6 @@ const AdminRouteManagement: React.FC = () => {
   const { toast } = useToast()
 
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<
-    'all' | 'active' | 'inactive'
-  >('all')
   const [distanceFilter, setDistanceFilter] = useState<
     'ALL' | 'SHORT' | 'MEDIUM' | 'LONG'
   >('ALL')
@@ -303,7 +220,6 @@ const AdminRouteManagement: React.FC = () => {
 
   const resetFilters = () => {
     setSearchTerm('')
-    setStatusFilter('all')
     setDistanceFilter('ALL')
     setCurrentPage(1)
   }
@@ -348,27 +264,7 @@ const AdminRouteManagement: React.FC = () => {
           </div>
 
           {/* Filter Controls */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Status Filter */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Status
-              </label>
-              <CustomDropdown
-                options={[
-                  { id: 'all', label: 'All Status' },
-                  { id: 'active', label: 'Active' },
-                  { id: 'inactive', label: 'Inactive' },
-                ]}
-                value={statusFilter}
-                onChange={(value) => {
-                  setStatusFilter(value as 'all' | 'active' | 'inactive')
-                  setCurrentPage(1)
-                }}
-                placeholder="Select Status"
-              />
-            </div>
-
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Distance Filter */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
@@ -396,29 +292,13 @@ const AdminRouteManagement: React.FC = () => {
             <div className="flex items-end">
               <button
                 onClick={resetFilters}
-                disabled={
-                  !searchTerm &&
-                  statusFilter === 'all' &&
-                  distanceFilter === 'ALL'
-                }
+                disabled={!searchTerm && distanceFilter === 'ALL'}
                 className="w-full px-4 py-2 border border-border rounded-lg text-sm font-medium text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 Reset Filters
               </button>
             </div>
           </div>
-
-          {/* Active Filters Info */}
-          {(searchTerm ||
-            statusFilter !== 'all' ||
-            distanceFilter !== 'ALL') && (
-            <div className="text-sm text-muted-foreground">
-              Showing {filteredRoutes.length} of {routes.length} routes
-              {searchTerm && ` • Search: "${searchTerm}"`}
-              {statusFilter !== 'all' && ` • Status: ${statusFilter}`}
-              {distanceFilter !== 'ALL' && ` • Distance: ${distanceFilter}`}
-            </div>
-          )}
         </div>
 
         {/* Loading State */}
@@ -433,20 +313,10 @@ const AdminRouteManagement: React.FC = () => {
               No routes found
             </h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              {searchTerm || statusFilter !== 'all' || distanceFilter !== 'ALL'
+              {searchTerm || distanceFilter !== 'ALL'
                 ? 'Try adjusting your search or filter criteria'
                 : 'Create your first route to get started'}
             </p>
-            {(searchTerm ||
-              statusFilter !== 'all' ||
-              distanceFilter !== 'ALL') && (
-              <button
-                onClick={resetFilters}
-                className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90"
-              >
-                Reset Filters
-              </button>
-            )}
           </div>
         ) : (
           <>
@@ -589,365 +459,15 @@ const AdminRouteManagement: React.FC = () => {
           </>
         )}
 
-        {/* Route Form Modal */}
-        {showForm && (
-          <RouteFormModal
-            route={editingRoute}
-            onSave={handleSaveRoute}
-            onClose={() => setShowForm(false)}
-          />
-        )}
+        {/* Route Form Drawer */}
+        <RouteFormDrawer
+          open={showForm}
+          onClose={() => setShowForm(false)}
+          initialRoute={editingRoute}
+          onSave={handleSaveRoute}
+        />
       </div>
     </DashboardLayout>
-  )
-}
-
-// Route Form Modal Component
-interface RouteFormModalProps {
-  route?: RouteAdminData | null
-  onSave: (route: Omit<RouteAdminData, 'routeId' | 'createdAt'>) => void
-  onClose: () => void
-}
-
-const RouteFormModal: React.FC<RouteFormModalProps> = ({
-  route,
-  onSave,
-  onClose,
-}) => {
-  const { toast } = useToast()
-  const [formData, setFormData] = useState({
-    origin: route?.origin || '',
-    destination: route?.destination || '',
-    distanceKm: route?.distanceKm || 0,
-    estimatedMinutes: route?.estimatedMinutes || 0,
-    pickupPoints: route?.pickupPoints || [
-      { pointId: '', name: '', address: '', time: '' },
-    ],
-    dropoffPoints: route?.dropoffPoints || [
-      { pointId: '', name: '', address: '', time: '' },
-    ],
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    // Basic validation
-    if (
-      !formData.origin ||
-      !formData.destination ||
-      !formData.distanceKm ||
-      !formData.estimatedMinutes
-    ) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please fill in all required fields',
-      })
-      return
-    }
-
-    const pickupPointsFiltered = formData.pickupPoints.filter((p) =>
-      p.name.trim()
-    )
-    const dropoffPointsFiltered = formData.dropoffPoints.filter((p) =>
-      p.name.trim()
-    )
-
-    if (pickupPointsFiltered.length === 0) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please add at least one pickup point',
-      })
-      return
-    }
-
-    if (dropoffPointsFiltered.length === 0) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please add at least one dropoff point',
-      })
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      const pickupPointsWithIds = pickupPointsFiltered.map((p) => ({
-        ...p,
-        pointId: p.pointId || `pickup-${Date.now()}-${Math.random()}`,
-      }))
-      const dropoffPointsWithIds = dropoffPointsFiltered.map((p) => ({
-        ...p,
-        pointId: p.pointId || `dropoff-${Date.now()}-${Math.random()}`,
-      }))
-
-      await onSave({
-        operatorId: 'default-operator',
-        origin: formData.origin,
-        destination: formData.destination,
-        distanceKm: Number(formData.distanceKm),
-        estimatedMinutes: Number(formData.estimatedMinutes),
-        pickupPoints: pickupPointsWithIds,
-        dropoffPoints: dropoffPointsWithIds,
-      })
-    } catch (err) {
-      // Error already handled by parent component
-      console.error('Form submission error:', err)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const addPoint = (type: 'pickup' | 'dropoff') => {
-    setFormData((prev) => ({
-      ...prev,
-      [type === 'pickup' ? 'pickupPoints' : 'dropoffPoints']: [
-        ...prev[type === 'pickup' ? 'pickupPoints' : 'dropoffPoints'],
-        { pointId: '', name: '', address: '', time: '' },
-      ],
-    }))
-  }
-
-  const updatePointField = (
-    type: 'pickup' | 'dropoff',
-    index: number,
-    field: 'name' | 'address' | 'time',
-    value: string
-  ) => {
-    setFormData((prev) => {
-      const key = type === 'pickup' ? 'pickupPoints' : 'dropoffPoints'
-      const points = [...prev[key]]
-      points[index] = { ...points[index], [field]: value }
-      return { ...prev, [key]: points }
-    })
-  }
-
-  const removePoint = (type: 'pickup' | 'dropoff', index: number) => {
-    setFormData((prev) => {
-      const key = type === 'pickup' ? 'pickupPoints' : 'dropoffPoints'
-      const points = [...prev[key]]
-      points.splice(index, 1)
-      return { ...prev, [key]: points }
-    })
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-card rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg font-semibold mb-4 text-foreground">
-          {route ? 'Edit Route' : 'Add New Route'}
-        </h2>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                From *
-              </label>
-              <input
-                type="text"
-                value={formData.origin}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, origin: e.target.value }))
-                }
-                className="w-full px-3 py-2 border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Origin city"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                To *
-              </label>
-              <input
-                type="text"
-                value={formData.destination}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    destination: e.target.value,
-                  }))
-                }
-                className="w-full px-3 py-2 border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Destination city"
-                required
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Distance (km) *
-              </label>
-              <input
-                type="number"
-                value={formData.distanceKm}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    distanceKm: Number(e.target.value),
-                  }))
-                }
-                className="w-full px-3 py-2 border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="e.g., 850"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Duration (minutes) *
-              </label>
-              <input
-                type="number"
-                value={formData.estimatedMinutes}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    estimatedMinutes: Number(e.target.value),
-                  }))
-                }
-                className="w-full px-3 py-2 border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="e.g., 720"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Pickup Points *
-            </label>
-            {formData.pickupPoints.map((point, index) => (
-              <div
-                key={index}
-                className="space-y-2 mb-3 p-3 border border-border rounded-md"
-              >
-                <input
-                  type="text"
-                  value={point.name}
-                  onChange={(e) =>
-                    updatePointField('pickup', index, 'name', e.target.value)
-                  }
-                  placeholder="Location name (e.g., Ben Thanh Station)"
-                  className="w-full px-3 py-2 border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <input
-                  type="text"
-                  value={point.address}
-                  onChange={(e) =>
-                    updatePointField('pickup', index, 'address', e.target.value)
-                  }
-                  placeholder="Address (e.g., Ben Thanh, District 1)"
-                  className="w-full px-3 py-2 border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <input
-                  type="time"
-                  value={point.time}
-                  onChange={(e) =>
-                    updatePointField('pickup', index, 'time', e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                {formData.pickupPoints.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removePoint('pickup', index)}
-                    className="w-full px-3 py-2 text-destructive hover:bg-destructive/10 rounded-md transition"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => addPoint('pickup')}
-              className="text-primary hover:text-primary/80 text-sm font-medium"
-            >
-              + Add pickup point
-            </button>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Dropoff Points *
-            </label>
-            {formData.dropoffPoints.map((point, index) => (
-              <div
-                key={index}
-                className="space-y-2 mb-3 p-3 border border-border rounded-md"
-              >
-                <input
-                  type="text"
-                  value={point.name}
-                  onChange={(e) =>
-                    updatePointField('dropoff', index, 'name', e.target.value)
-                  }
-                  placeholder="Location name (e.g., Da Nang Station)"
-                  className="w-full px-3 py-2 border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <input
-                  type="text"
-                  value={point.address}
-                  onChange={(e) =>
-                    updatePointField(
-                      'dropoff',
-                      index,
-                      'address',
-                      e.target.value
-                    )
-                  }
-                  placeholder="Address (e.g., Hai Chau District)"
-                  className="w-full px-3 py-2 border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                <input
-                  type="time"
-                  value={point.time}
-                  onChange={(e) =>
-                    updatePointField('dropoff', index, 'time', e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-                {formData.dropoffPoints.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removePoint('dropoff', index)}
-                    className="w-full px-3 py-2 text-destructive hover:bg-destructive/10 rounded-md transition"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={() => addPoint('dropoff')}
-              className="text-primary hover:text-primary/80 text-sm font-medium"
-            >
-              + Add dropoff point
-            </button>
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-border">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
-            >
-              {isSubmitting && <Loader className="h-4 w-4 animate-spin" />}
-              {route ? 'Update Route' : 'Create Route'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
   )
 }
 

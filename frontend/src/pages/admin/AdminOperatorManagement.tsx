@@ -12,6 +12,8 @@ import {
 } from 'lucide-react'
 import type { OperatorAdminData } from '@/types/trip.types'
 import { useAdminOperators } from '@/hooks/admin/useAdminOperators'
+import { OperatorDetailsDrawer } from '@/components/admin/OperatorDetailsDrawer'
+import { OperatorFormDrawer } from '@/components/admin/OperatorFormDrawer'
 
 const AdminOperatorManagement: React.FC = () => {
   const {
@@ -27,6 +29,9 @@ const AdminOperatorManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [showDetails, setShowDetails] = useState<string | null>(null)
+  const [editingOperator, setEditingOperator] =
+    useState<OperatorAdminData | null>(null)
+  const [showFormDrawer, setShowFormDrawer] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   useEffect(() => {
@@ -65,6 +70,28 @@ const AdminOperatorManagement: React.FC = () => {
       } finally {
         setActionLoading(null)
       }
+    }
+  }
+
+  const handleStatusChange = async (operatorId: string, newStatus: string) => {
+    const operator = operators.find((op) => op.operatorId === operatorId)
+    if (!operator) return
+
+    setActionLoading(operatorId)
+    try {
+      if (newStatus === 'approved' && operator.status !== 'approved') {
+        await approveOperator(operatorId, 'Status updated via admin panel')
+      } else if (newStatus === 'rejected' && operator.status !== 'rejected') {
+        await rejectOperator(operatorId, 'Status updated via admin panel')
+      } else if (newStatus === 'suspended' && operator.status !== 'suspended') {
+        await suspendOperator(operatorId, 'Status updated via admin panel')
+      } else if (newStatus === 'pending' && operator.status !== 'pending') {
+        await activateOperator(operatorId)
+      }
+      setShowFormDrawer(false)
+      setEditingOperator(null)
+    } finally {
+      setActionLoading(null)
     }
   }
 
@@ -321,132 +348,29 @@ const AdminOperatorManagement: React.FC = () => {
         </div>
 
         {/* Operator Details Modal */}
-        {showDetails && (
-          <OperatorDetailsModal
-            operator={operators.find((op) => op.operatorId === showDetails)!}
-            onClose={() => setShowDetails(null)}
-          />
-        )}
+        {/* Operator Details Drawer */}
+        <OperatorDetailsDrawer
+          open={showDetails !== null}
+          onClose={() => setShowDetails(null)}
+          operator={
+            operators.find((op) => op.operatorId === showDetails) || null
+          }
+        />
+
+        {/* Operator Status Update Drawer */}
+        <OperatorFormDrawer
+          open={showFormDrawer}
+          onClose={() => {
+            setShowFormDrawer(false)
+            setEditingOperator(null)
+          }}
+          operator={editingOperator}
+          onSubmit={handleStatusChange}
+          isLoading={actionLoading === editingOperator?.operatorId}
+        />
       </div>
     </DashboardLayout>
   )
 }
 
 export default AdminOperatorManagement
-
-// Operator Details Modal Component
-interface OperatorDetailsModalProps {
-  operator: OperatorAdminData
-  onClose: () => void
-}
-
-const OperatorDetailsModal: React.FC<OperatorDetailsModalProps> = ({
-  operator,
-  onClose,
-}) => {
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-card rounded-lg p-6 w-full max-w-2xl">
-        <h2 className="text-lg font-semibold mb-4">Operator Details</h2>
-
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground">
-                Name
-              </label>
-              <p className="text-foreground">{operator.name}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground">
-                Status
-              </label>
-              <span
-                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                  operator.status === 'approved'
-                    ? 'bg-green-100 text-green-800'
-                    : operator.status === 'pending'
-                      ? 'bg-yellow-100 text-yellow-800'
-                      : operator.status === 'suspended'
-                        ? 'bg-orange-100 text-orange-800'
-                        : 'bg-red-100 text-red-800'
-                }`}
-              >
-                {operator.status}
-              </span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground">
-                Email
-              </label>
-              <p className="text-foreground">{operator.contactEmail}</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground">
-                Phone
-              </label>
-              <p className="text-foreground">{operator.contactPhone}</p>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground">
-              Created
-            </label>
-            <p className="text-foreground">
-              {new Date(operator.createdAt).toLocaleDateString()}
-            </p>
-          </div>
-          {operator.approvedAt && (
-            <div>
-              <label className="block text-sm font-medium text-muted-foreground">
-                Approved
-              </label>
-              <p className="text-foreground">
-                {new Date(operator.approvedAt).toLocaleDateString()}
-              </p>
-            </div>
-          )}
-
-          <div className="border-t pt-4">
-            <h3 className="text-md font-semibold mb-3">Performance Metrics</h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">
-                  {operator.totalRoutes}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  Total Routes
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">
-                  {operator.rating?.toFixed(1) || 'N/A'}
-                </div>
-                <div className="text-sm text-muted-foreground">Rating</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary">
-                  {operator.totalBuses || 0}
-                </div>
-                <div className="text-sm text-muted-foreground">Total Buses</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end mt-6">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}

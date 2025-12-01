@@ -32,22 +32,25 @@ class RouteController {
   }
 
   async getById(req, res) {
-    try {
-      const route = await routeService.getRouteWithStops(req.params.id);
-      if (!route) {
-        return res.status(404).json({
-          success: false,
-          error: { code: 'ROUTE_002', message: 'Route not found' }
-        });
-      }
-      res.json({ success: true, data: route });
-    } catch (err) {
-      res.status(500).json({
+  try {
+    const route = await routeService.getRouteWithStops(req.params.id);
+    if (!route) {
+      return res.status(404).json({
         success: false,
-        error: { code: 'SYS_001', message: 'Internal server error' }
+        error: { code: 'ROUTE_002', message: 'Route not found' }
       });
     }
+    res.json({ 
+      success: true, 
+      data: route 
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'SYS_001', message: err.message }
+    });
   }
+}
 
   async update(req, res) {
     try {

@@ -2,117 +2,148 @@
 const pool = require('../database');
 
 class RouteRepository {
-  // Tạo tuyến đường mới
   async create(routeData) {
-    const { name, origin, destination } = routeData;
+    const { operator_id, origin, destination, distance_km, estimated_minutes } = routeData;
     const query = `
-      INSERT INTO routes (name, origin, destination)
-      VALUES ($1, $2, $3)
+      INSERT INTO routes (operator_id, origin, destination, distance_km, estimated_minutes)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING *;
     `;
-    const result = await pool.query(query, [name, origin, destination]);
+    const result = await pool.query(query, [operator_id, origin, destination, distance_km, estimated_minutes]);
     return result.rows[0];
   }
 
-  // Tìm theo ID
   async findById(id) {
     const query = 'SELECT * FROM routes WHERE route_id = $1;';
     const result = await pool.query(query, [id]);
     return result.rows[0] || null;
   }
 
-  // Tìm tất cả tuyến đường (có phân trang)
-  async findAll({ limit = 50, offset = 0 } = {}) {
-    const query = `
-      SELECT * FROM routes
-      ORDER BY origin, destination, name
-      LIMIT $1 OFFSET $2;
-    `;
-    const result = await pool.query(query, [limit, offset]);
+  async findAll() {
+    const query = `SELECT * FROM routes ORDER BY created_at DESC`;
+    const result = await pool.query(query);
     return result.rows;
   }
 
-  // Cập nhật tuyến đường
   async update(id, routeData) {
-    const allowedFields = ['name', 'origin', 'destination'];
     const fields = [];
     const values = [];
-    let index = 1;
+    let idx = 1;
 
-    for (const [key, value] of Object.entries(routeData)) {
-      if (allowedFields.includes(key) && value !== undefined) {
-        fields.push(`${key} = $${index++}`);
-        values.push(value);
+    const allowed = ['origin', 'destination', 'distance_km', 'estimated_minutes'];
+    for (const key of allowed) {
+      if (routeData[key] !== undefined) {
+        fields.push(`${key} = $${idx++}`);
+        values.push(routeData[key]);
       }
     }
-
     if (fields.length === 0) return null;
 
     values.push(id);
     const query = `
-      UPDATE routes
-        routes
-      SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
-      WHERE route_id = $${index}
-      RETURNING *;
+      UPDATE routes SET ${fields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE route_id = $${idx} RETURNING *;
     `;
-
     const result = await pool.query(query, values);
     return result.rows[0] || null;
   }
 
-  // Xóa tuyến đường (soft delete hoặc hard delete tùy chiến lược)
   async delete(id) {
-    const query = 'DELETE FROM routes WHERE route_id = $1 RETURNING *;';
-    const result = await pool.query(query, [id]);
-    return result.rows[0] || null;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM route_stops WHERE route_id = $1', [id]);
+      const res = await client.query('DELETE FROM routes WHERE route_id = $1 RETURNING *', [id]);
+      await client.query('COMMIT');
+      return res.rows[0] || null;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
-  // Thêm điểm dừng cho tuyến
-  async addStop(route_id, stopData) {
-    const { stop_name, sequence, arrival_offset_minutes, departure_offset_minutes } = stopData;
+  // MỚI: Lấy stops + phân loại pickup/dropoff
+  async getStopsWithTypes(routeId) {
     const query = `
-      INSERT INTO route_stops (route_id, stop_name, sequence, arrival_offset_minutes, departure_offset_minutes)
-      VALUES ($1, $2, $3, $4, $5)
+      SELECT 
+        stop_id,
+        route_id,
+        stop_name,
+        address,
+        sequence,
+        arrival_offset_minutes,
+        departure_offset_minutes,
+        COALESCE(is_pickup, true) AS is_pickup,
+        COALESCE(is_dropoff, true) AS is_dropoff,
+        created_at,
+        updated_at
+      FROM route_stops
+      WHERE route_id = $1
+      ORDER BY sequence ASC;
+    `;
+    const result = await pool.query(query, [routeId]);
+    return result.rows;
+  }
+
+  // MỚI: Upsert stop theo cấu trúc DB mới (dùng stop_name + 2 offset)
+  async upsertStop(routeId, stopData) {
+    const {
+      stop_name,
+      address = '',
+      sequence,
+      arrival_offset_minutes = 0,
+      departure_offset_minutes = 0,
+      is_pickup = true,
+      is_dropoff = true
+    } = stopData;
+
+    const query = `
+      INSERT INTO route_stops (
+        route_id, 
+        stop_name, 
+        address, 
+        sequence, 
+        arrival_offset_minutes, 
+        departure_offset_minutes,
+        is_pickup, 
+        is_dropoff
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (route_id, sequence) DO UPDATE SET
+        stop_name = EXCLUDED.stop_name,
+        address = EXCLUDED.address,
+        arrival_offset_minutes = EXCLUDED.arrival_offset_minutes,
+        departure_offset_minutes = EXCLUDED.departure_offset_minutes,
+        is_pickup = EXCLUDED.is_pickup,
+        is_dropoff = EXCLUDED.is_dropoff,
+        updated_at = CURRENT_TIMESTAMP
       RETURNING *;
     `;
+
     const result = await pool.query(query, [
-      route_id,
+      routeId,
       stop_name,
+      address,
       sequence,
-      arrival_offset_minutes || null,
-      departure_offset_minutes || null
+      arrival_offset_minutes,
+      departure_offset_minutes,
+      is_pickup,
+      is_dropoff
     ]);
     return result.rows[0];
   }
 
-  // Lấy danh sách điểm dừng theo thứ tự
-  async getStops(route_id) {
-    const query = `
-      SELECT * FROM route_stops
-      WHERE route_id = $1
-      ORDER BY sequence ASC;
-    `;
-    const result = await pool.query(query, [route_id]);
-    return result.rows;
-  }
+  // Cập nhật origin/destination từ điểm đầu và cuối (dùng stop_name)
+  async updateOriginDestinationFromStops(routeId) {
+    const stops = await this.getStopsWithTypes(routeId);
+    if (stops.length < 2) return;
 
-  // Xóa điểm dừng
-  async removeStop(stop_id) {
-    const query = 'DELETE FROM route_stops WHERE route_stop_id = $1 RETURNING *;';
-    const result = await pool.query(query, [stop_id]);
-    return result.rows[0] || null;
-  }
+    const sorted = stops.sort((a, b) => a.sequence - b.sequence);
+    const origin = sorted[0].stop_name;
+    const destination = sorted[sorted.length - 1].stop_name;
 
-  // Tìm tuyến theo origin + destination (dùng cho tìm kiếm chuyến)
-  async findByOriginAndDestination(origin, destination) {
-    const query = `
-      SELECT * FROM routes
-      WHERE LOWER(origin) = LOWER($1)
-        AND LOWER(destination) = LOWER($2);
-    `;
-    const result = await pool.query(query, [origin, destination]);
-    return result.rows[0] || null;
+    await this.update(routeId, { origin, destination });
   }
 }
 

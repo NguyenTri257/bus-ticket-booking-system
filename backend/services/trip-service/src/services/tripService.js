@@ -1,24 +1,23 @@
 // services/tripService.js
 const tripRepository = require('../repositories/tripRepository');
-const routeRepository = require('../repositories/routeRepository');
+const routeRepository = require('../repositories/routeRepository'); 
 const busRepository = require('../repositories/busRepository');
 
 class TripService {
   async createTrip(tripData) {
-    // Validate departure < arrival
+    // 1. Validate logic thời gian
     if (new Date(tripData.departure_time) >= new Date(tripData.arrival_time)) {
       throw new Error('Departure time must be before arrival time');
     }
 
-    // Check route exists
+    // 2. Validate Route & Bus tồn tại (Nếu không có constraint FK trong DB thì bắt buộc phải check)
     const route = await routeRepository.findById(tripData.route_id);
     if (!route) throw new Error('Route not found');
 
-    // Check bus exists
     const bus = await busRepository.findById(tripData.bus_id);
     if (!bus) throw new Error('Bus not found');
 
-    // Check overlap
+    // 3. Check trùng lịch xe (Overlap)
     const hasOverlap = await tripRepository.checkOverlap(
       tripData.bus_id,
       tripData.departure_time,
@@ -26,6 +25,7 @@ class TripService {
     );
     if (hasOverlap) throw new Error('Bus schedule overlap');
 
+    // 4. Create & Return
     return await tripRepository.create(tripData);
   }
 
@@ -33,18 +33,18 @@ class TripService {
     const existing = await tripRepository.findById(id);
     if (!existing) throw new Error('Trip not found');
 
-    // Validate times if updated
+    // Nếu update thời gian, check tính hợp lệ
     if (tripData.departure_time || tripData.arrival_time) {
-      const dep = tripData.departure_time || existing.departure_time;
-      const arr = tripData.arrival_time || existing.arrival_time;
-      if (new Date(dep) >= new Date(arr)) throw new Error('Invalid times');
+      const dep = tripData.departure_time || existing.schedule.departure_time;
+      const arr = tripData.arrival_time || existing.schedule.arrival_time;
+      if (new Date(dep) >= new Date(arr)) throw new Error('Invalid times: Departure must be before Arrival');
     }
 
-    // Check overlap if bus/time changed
+    // Nếu update Bus hoặc Thời gian, check overlap
     if (tripData.bus_id || tripData.departure_time || tripData.arrival_time) {
-      const busId = tripData.bus_id || existing.bus_id;
-      const dep = tripData.departure_time || existing.departure_time;
-      const arr = tripData.arrival_time || existing.arrival_time;
+      const busId = tripData.bus_id || existing.bus.bus_id;
+      const dep = tripData.departure_time || existing.schedule.departure_time;
+      const arr = tripData.arrival_time || existing.schedule.arrival_time;
 
       const hasOverlap = await tripRepository.checkOverlap(busId, dep, arr, id);
       if (hasOverlap) throw new Error('Bus schedule overlap');
@@ -53,50 +53,25 @@ class TripService {
     return await tripRepository.update(id, tripData);
   }
 
+  async getTripWithDetails(id) {
+    return await tripRepository.findById(id);
+  }
+
   async searchTrips(filters) {
+    // Có thể thêm logic business ở đây nếu cần (ví dụ filter khuyến mãi)
     return await tripRepository.search(filters);
   }
 
-  async getTripWithAvailableSeats(id) {
-    const trip = await tripRepository.findById(id);
-    if (!trip) return null;
-
-    // TODO: thêm logic tính available seats nếu bạn muốn
-    return trip;
+  async deleteTrip(id) {
+    // Check xem có booking active không
+    // (Giả sử logic này nằm trong repo hoặc gọi bookingService)
+    /* 
+    const hasBookings = await bookingRepository.hasActiveBookingsForTrip(id);
+    if (hasBookings) throw new Error('Cannot delete trip with active bookings');
+    */
+    
+    return await tripRepository.softDelete(id);
   }
-
-  async getTripWithDetails(id) {
-  const trip = await tripRepository.findById(id);
-  if (!trip) return null;
-
-  // Lấy thêm thông tin chi tiết
-  const route = await routeRepository.findById(trip.route_id);
-  const stops = await routeRepository.getStops(trip.route_id);
-
-  // // Tính ghế trống (giả sử bạn đã có bảng bookings)
-  // const bookedSeats = await tripRepository.countBookedSeats(id);
-  // const bus = await busRepository.findById(trip.bus_id);
-  // const totalSeats = bus?.total_seats || 45;
-
-  return {
-    ...trip,
-    route_name: route.name,
-    origin: route.origin,
-    destination: route.destination,
-    stops,
-    remaining_seats: totalSeats - bookedSeats,
-    bus_plate: bus?.license_plate
-  };
-}
-
-async deleteTrip(id) {
-  // Kiểm tra có booking confirmed không
-  const hasConfirmedBooking = await tripRepository.hasConfirmedBooking(id);
-  if (hasConfirmedBooking) {
-    throw new Error('Không thể xóa chuyến có vé đã xác nhận');
-  }
-  return await tripRepository.softDelete(id); // hoặc hard delete tùy bạn
-}
 }
 
 module.exports = new TripService();

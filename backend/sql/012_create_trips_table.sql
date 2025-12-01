@@ -5,16 +5,17 @@ CREATE TABLE IF NOT EXISTS trips (
     departure_time TIMESTAMP NOT NULL,
     arrival_time TIMESTAMP NOT NULL,
     base_price DECIMAL(12,2) NOT NULL CHECK (base_price > 0),
-    status VARCHAR(20) DEFAULT 'scheduled', -- scheduled, departed, arrived, cancelled
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    policies JSONB DEFAULT '{}'::jsonb,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tạo index đúng cách (dùng bảng routes)
+-- Tạo index đúng cách
 CREATE INDEX IF NOT EXISTS idx_trips_search 
 ON trips (departure_time)
-WHERE status = 'scheduled';
+WHERE status = 'active';
 
--- Hoặc tốt hơn nữa: tạo index bao phủ để search nhanh
 CREATE INDEX IF NOT EXISTS idx_trips_active_route_time 
 ON trips (route_id, departure_time)
-WHERE status = 'scheduled';
+WHERE status = 'active';

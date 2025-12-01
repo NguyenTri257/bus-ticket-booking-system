@@ -6,9 +6,12 @@ CREATE TABLE IF NOT EXISTS buses (
     license_plate VARCHAR(20) UNIQUE NOT NULL,
     plate_number VARCHAR(20),                    -- phần số cuối biển số
     amenities JSONB DEFAULT '[]'::jsonb,         -- ["wifi", "toilet", "charging", ...]
+    type VARCHAR(20) DEFAULT 'standard' CHECK (type IN ('standard', 'limousine', 'sleeper')),
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'maintenance', 'retired')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+ALTER TABLE buses
+ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 CREATE INDEX IF NOT EXISTS idx_buses_operator_id ON buses(operator_id);
 CREATE INDEX IF NOT EXISTS idx_buses_model_id ON buses(bus_model_id);

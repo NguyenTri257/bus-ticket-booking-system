@@ -194,7 +194,6 @@ export const BusFormDrawer: React.FC<BusFormDrawerProps> = ({
                 value={form.model}
                 onChange={(value) => handleChange('model', value)}
                 placeholder="Select a bus model"
-                required
               />
             </div>
 

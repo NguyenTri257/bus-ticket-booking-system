@@ -83,7 +83,7 @@ export function AppSidebar() {
                     isActive={isActive(item.url)}
                     className="hover:bg-sidebar-accent"
                   >
-                    <NavLink to={item.url} end={item.url === '/'}>
+                    <NavLink to={item.url} end={item.url === '/admin'}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </NavLink>

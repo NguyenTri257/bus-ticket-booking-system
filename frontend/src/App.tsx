@@ -4,8 +4,6 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Dashboard from './pages/users/Dashboard'
-// import { DashboardLayout } from '@/components/users/DashboardLayout'
-// import Dashboard from './pages/users/Dashboard'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
@@ -116,7 +114,6 @@ const App = () => (
                   element={<AdminOperatorManagement />}
                 />{' '}
                 {/* Operator Management */}
-                {/* Add thêm admin sub-routes nếu có, e.g. /admin/users, /admin/bookings */}
               </Route>
 
               <Route path="*" element={<Navigate to="/login" replace />} />

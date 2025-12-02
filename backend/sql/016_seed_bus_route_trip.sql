@@ -1,21 +1,23 @@
 -- =====================================================
--- SEED DATA HOÀN CHỈNH – GIỮ LẠI bus_models + seat_layouts
--- Chạy 1 lần duy nhất sau khi tất cả migration xong
+-- FULL SEED DATA – KEEP bus_models + seat_layouts
+-- Run once after all migrations are complete
 -- =====================================================
 
--- 1. bus_models + seat_layouts (rất quan trọng cho chọn ghế)
+-- 1. bus_models + seat_layouts (important for seat selection)
 INSERT INTO bus_models (name, total_seats) VALUES
-('Hyundai Universe 45 chỗ ghế ngồi', 45),
-('Thaco Mobihome 34 giường nằm đôi', 34),
-('Samco Isuzu Limousine 29 chỗ', 29),
-('Tracomeco Highlander 38 giường nằm', 38),
-('Fuso Rosa 22 chỗ ghế ngồi', 22)
+('Hyundai Universe 45 seated', 45),
+('Thaco Mobihome 34 double sleepers', 34),
+('Samco Isuzu Limousine 29 seats', 29),
+('Tracomeco Highlander 38 sleepers', 38),
+('Fuso Rosa 22 seated', 22),
+('Mercedes Sprinter 16 seats', 16),
+('Volvo 50 seated', 50)
 ON CONFLICT (name) DO NOTHING;
 
--- Layout mẫu cho 3 loại phổ biến nhất
+-- Sample layouts for common models
 INSERT INTO seat_layouts (bus_model_id, layout_json) VALUES
--- Hyundai Universe 45 chỗ (2-2 + hàng cuối 5)
-((SELECT bus_model_id FROM bus_models WHERE name LIKE '%45 chỗ%'),
+-- Hyundai Universe 45 (2-2 + last row 5)
+((SELECT bus_model_id FROM bus_models WHERE name LIKE '%45 seated%'),
  '{
    "type": "seated",
    "floors": 1,
@@ -33,8 +35,8 @@ INSERT INTO seat_layouts (bus_model_id, layout_json) VALUES
    ]
  }'),
 
--- Thaco Mobihome 34 giường nằm (2 tầng)
-((SELECT bus_model_id FROM bus_models WHERE name LIKE '%34 giường%'),
+-- Thaco Mobihome 34 double sleepers (2 floors)
+((SELECT bus_model_id FROM bus_models WHERE name LIKE '%34 double sleepers%'),
  '{
    "type": "sleeper",
    "floors": 2,
@@ -56,7 +58,7 @@ INSERT INTO seat_layouts (bus_model_id, layout_json) VALUES
    ]
  }'),
 
--- Samco Isuzu Limousine 29 chỗ (2-1 VIP)
+-- Samco Isuzu Limousine 29 (2-1 VIP)
 ((SELECT bus_model_id FROM bus_models WHERE name LIKE '%Limousine 29%'),
  '{
    "type": "limousine",
@@ -76,56 +78,138 @@ INSERT INTO seat_layouts (bus_model_id, layout_json) VALUES
  }')
 ON CONFLICT DO NOTHING;
 
--- 2. operators (thêm logo_url)
+-- 2. operators (add logo_url)
 INSERT INTO operators (name, contact_email, contact_phone, status, rating, logo_url) VALUES
-('Mai Linh Express', 'mailinh@bus.vn', '19001234', 'approved', 4.5, 'https://example.com/mailinh-logo.png'),
-('Phuong Trang FUTA Bus', 'futa@bus.vn', '19005678', 'approved', 4.2, 'https://example.com/futa-logo.png'),
-('Kumho Samco Buslines', 'kumho@bus.vn', '19009876', 'approved', 4.0, 'https://example.com/kumho-logo.png')
+('GreenLine Express', 'greenline@bus.com', '19001001', 'approved', 4.6, 'https://example.com/greenline-logo.png'),
+('Future Travel Bus Co', 'futuretravel@bus.com', '19002002', 'approved', 4.3, 'https://example.com/future-logo.png'),
+('Kumho Samco Buslines', 'kumho@bus.com', '19003003', 'approved', 4.1, 'https://example.com/kumho-logo.png'),
+('Sunrise Coaches', 'sunrise@bus.com', '19004004', 'approved', 4.0, 'https://example.com/sunrise-logo.png')
 ON CONFLICT (contact_email) DO NOTHING;
 
 -- 3. buses
 INSERT INTO buses (operator_id, bus_model_id, license_plate, plate_number, amenities, status) VALUES
-((SELECT operator_id FROM operators WHERE name = 'Mai Linh Express'),
- (SELECT bus_model_id FROM bus_models WHERE name LIKE '%45 chỗ%'), '51B-123.45', '123.45', '["wifi","tv","blanket"]', 'active'),
+((SELECT operator_id FROM operators WHERE name = 'GreenLine Express'),
+ (SELECT bus_model_id FROM bus_models WHERE name LIKE '%45 seated%'), '51G-123.45', '123.45', '["wifi","tv","blanket"]', 'active'),
 
-((SELECT operator_id FROM operators WHERE name = 'Phuong Trang FUTA Bus'),
- (SELECT bus_model_id FROM bus_models WHERE name LIKE '%34 giường%'), '51B-999.99', '999.99', '["wifi","toilet","snack"]', 'active'),
+((SELECT operator_id FROM operators WHERE name = 'Future Travel Bus Co'),
+ (SELECT bus_model_id FROM bus_models WHERE name LIKE '%34 double sleepers%'), '51F-999.99', '999.99', '["wifi","toilet","snack"]', 'active'),
 
 ((SELECT operator_id FROM operators WHERE name = 'Kumho Samco Buslines'),
- (SELECT bus_model_id FROM bus_models WHERE name LIKE '%Limousine 29%'), '51B-777.77', '777.77', '["wifi","tv","snack","leather","massage"]', 'active')
+ (SELECT bus_model_id FROM bus_models WHERE name LIKE '%Limousine 29%'), '51K-777.77', '777.77', '["wifi","tv","snack","leather","massage"]', 'active'),
+
+((SELECT operator_id FROM operators WHERE name = 'Sunrise Coaches'),
+ (SELECT bus_model_id FROM bus_models WHERE name LIKE '%16 seats%'), '51S-555.55', '555.55', '["aircon","usb"]', 'active'),
+
+((SELECT operator_id FROM operators WHERE name = 'GreenLine Express'),
+ (SELECT bus_model_id FROM bus_models WHERE name LIKE '%50 seated%'), '51G-050.50', '050.50', '["wifi","tv","recliner"]', 'active')
 ON CONFLICT (license_plate) DO NOTHING;
 
--- 4. routes
+-- 4. routes (city names in English)
 INSERT INTO routes (origin, destination, distance_km, estimated_minutes) VALUES
-('TP. Hồ Chí Minh', 'Đà Lạt', 300, 420),
-('TP. Hồ Chí Minh', 'Nha Trang', 450, 540),
-('TP. Hồ Chí Minh', 'Cần Thơ', 170, 240),
-('Hà Nội', 'Sa Pa', 320, 360)
+('Ho Chi Minh City', 'Da Lat', 300, 420),
+('Ho Chi Minh City', 'Nha Trang', 450, 540),
+('Ho Chi Minh City', 'Can Tho', 170, 240),
+('Hanoi', 'Sapa', 320, 360),
+('Ho Chi Minh City', 'Bao Loc', 200, 270),
+('Da Nang', 'Hue', 100, 120),
+('Hanoi', 'Ha Long', 170, 210)
 ON CONFLICT DO NOTHING;
 
--- 5. route_stops (mẫu cho tuyến SG - Đà Lạt, thêm address và offset)
-INSERT INTO route_stops (route_id, name, address, estimated_time_offset, sequence) VALUES
-((SELECT route_id FROM routes WHERE origin = 'TP. Hồ Chí Minh' AND destination = 'Đà Lạt'), 'Bến xe Miền Đông', '292 Đinh Bộ Lĩnh, Bình Thạnh', 0, 1),
-((SELECT route_id FROM routes WHERE origin = 'TP. Hồ Chí Minh' AND destination = 'Đà Lạt'), 'Ngã 3 Thái Phiên (Bảo Lộc)', 'Bảo Lộc, Lâm Đồng', 180, 2),
-((SELECT route_id FROM routes WHERE origin = 'TP. Hồ Chí Minh' AND destination = 'Đà Lạt'), 'Bến xe Liên tỉnh Đà Lạt', '1 Tô Hiến Thành, Đà Lạt', 420, 3);
+-- 5. route_stops (sample for Ho Chi Minh City -> Da Lat)
+INSERT INTO route_stops (
+    route_id,
+    stop_name,
+    address,
+    arrival_offset_minutes,
+    departure_offset_minutes,
+    sequence
+) VALUES
+-- Ho Chi Minh City → Da Lat
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Lat'),
+    'Mien Dong Bus Station', '292 Dinh Bo Linh, Binh Thanh', 0, 0, 1),
 
--- 6. trips mẫu (thêm policies, status 'active')
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Lat'),
+    'Thai Phien Junction (Bao Loc)', 'Bao Loc, Lam Dong', 180, 180, 2),
+
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Lat'),
+    'Da Lat Interprovincial Station', '1 To Hien Thanh, Da Lat', 420, 420, 3),
+
+-- Ho Chi Minh City → Nha Trang
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Nha Trang'),
+    'Mien Tay Bus Station', 'Ho Chi Minh City', 0, 0, 1),
+
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Nha Trang'),
+    'Nha Trang Central Station', 'Nha Trang City Center', 450, 450, 2),
+
+-- Hanoi → Sapa
+((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Sapa'),
+    'My Dinh Bus Station', 'My Dinh, Hanoi', 0, 0, 1),
+
+((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Sapa'),
+    'Sapa Bus Terminal', 'Sapa Town', 360, 360, 2)
+ON CONFLICT DO NOTHING;
+
+-- 6. trips (with policies, status 'active') - expanded
 INSERT INTO trips (route_id, bus_id, departure_time, arrival_time, base_price, policies, status) VALUES
-((SELECT route_id FROM routes WHERE origin = 'TP. Hồ Chí Minh' AND destination = 'Đà Lạt'),
- (SELECT bus_id FROM buses WHERE license_plate = '51B-123.45'),
- '2025-12-10 08:00:00', '2025-12-10 15:00:00', 350000.00, '{"cancellation_policy": "24h free", "modification_policy": "Flexible", "refund_policy": "Full"}'::jsonb, 'active'),
+-- HCMC -> Da Lat daytime
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Lat'),
+ (SELECT bus_id FROM buses WHERE license_plate = '51G-123.45'),
+ '2026-01-10 08:00:00', '2026-01-10 15:00:00', 350000.00, '{"cancellation_policy": "24h free", "modification_policy": "Flexible", "refund_policy": "Full"}'::jsonb, 'active'),
 
-((SELECT route_id FROM routes WHERE origin = 'TP. Hồ Chí Minh' AND destination = 'Đà Lạt'),
- (SELECT bus_id FROM buses WHERE license_plate = '51B-999.99'),
- '2025-12-10 22:00:00', '2025-12-11 05:30:00', 520000.00, '{"cancellation_policy": "24h free", "modification_policy": "Flexible", "refund_policy": "Full"}'::jsonb, 'active'),
+-- HCMC -> Da Lat night sleeper
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Lat'),
+ (SELECT bus_id FROM buses WHERE license_plate = '51F-999.99'),
+ '2026-01-10 22:00:00', '2026-01-11 05:30:00', 520000.00, '{"cancellation_policy": "48h partial", "modification_policy": "Limited", "refund_policy": "Partial"}'::jsonb, 'active'),
 
-((SELECT route_id FROM routes WHERE origin = 'TP. Hồ Chí Minh' AND destination = 'Nha Trang'),
- (SELECT bus_id FROM buses WHERE license_plate = '51B-777.77'),
- '2025-12-11 20:30:00', '2025-12-12 05:00:00', 480000.00, '{"cancellation_policy": "24h free", "modification_policy": "Flexible", "refund_policy": "Full"}'::jsonb, 'active');
+-- HCMC -> Nha Trang
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Nha Trang'),
+ (SELECT bus_id FROM buses WHERE license_plate = '51K-777.77'),
+ '2026-01-11 20:30:00', '2026-01-12 05:00:00', 480000.00, '{"cancellation_policy": "24h free", "modification_policy": "Flexible", "refund_policy": "Full"}'::jsonb, 'active'),
 
--- 7. seats (ghế cố định cho từng xe – bắt buộc để đặt vé)
+-- HCMC -> Can Tho
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Can Tho'),
+ (SELECT bus_id FROM buses WHERE license_plate = '51S-555.55'),
+ '2026-01-12 07:00:00', '2026-01-12 11:00:00', 180000.00, '{"cancellation_policy": "12h free", "modification_policy": "Flexible", "refund_policy": "Full"}'::jsonb, 'active'),
+
+-- Da Nang -> Hue
+((SELECT route_id FROM routes WHERE origin = 'Da Nang' AND destination = 'Hue'),
+ (SELECT bus_id FROM buses WHERE license_plate = '51G-050.50'),
+ '2026-01-15 09:00:00', '2026-01-15 11:00:00', 120000.00, '{"cancellation_policy": "6h free", "modification_policy": "Flexible", "refund_policy": "Full"}'::jsonb, 'active')
+ON CONFLICT DO NOTHING;
+
+-- =========================================================
+-- 1. Insert trips for routes that previously had no trips / null base_price
+INSERT INTO trips (route_id, bus_id, departure_time, arrival_time, base_price, policies, status)
+VALUES
+-- Hanoi -> Ha Long (day trip)
+(
+  (SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Ha Long'),
+  (SELECT bus_id FROM buses WHERE license_plate = '51G-050.50' LIMIT 1),
+  '2026-02-01 07:00:00', '2026-02-01 11:00:00', 200000.00,
+  '{"cancellation_policy":"24h free","modification_policy":"Flexible","refund_policy":"Full"}'::jsonb,
+  'active'
+),
+-- Hanoi -> Sapa (overnight sleeper)
+(
+  (SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Sapa'),
+  (SELECT bus_id FROM buses WHERE license_plate = '51F-999.99' LIMIT 1),
+  '2026-02-02 20:00:00', '2026-02-03 04:00:00', 300000.00,
+  '{"cancellation_policy":"48h partial","modification_policy":"Limited","refund_policy":"Partial"}'::jsonb,
+  'active'
+),
+-- Ho Chi Minh City -> Bao Loc (day)
+(
+  (SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Bao Loc'),
+  (SELECT bus_id FROM buses WHERE license_plate = '51G-123.45' LIMIT 1),
+  '2026-02-05 08:00:00', '2026-02-05 12:30:00', 250000.00,
+  '{"cancellation_policy":"24h free","modification_policy":"Flexible","refund_policy":"Full"}'::jsonb,
+  'active'
+)
+ON CONFLICT DO NOTHING;
+
+-- 7. seats (fixed seats per bus – required for bookings)
 WITH buses_data AS (
-  SELECT bus_id, bus_model_id, 
+  SELECT b.bus_id, b.bus_model_id,
          (SELECT total_seats FROM bus_models m WHERE m.bus_model_id = b.bus_model_id) as total
   FROM buses b
 )
@@ -137,29 +221,40 @@ FROM buses_data, generate_series(1, total) g
 WHERE total >= g
 ON CONFLICT (bus_id, seat_code) DO NOTHING;
 
--- SEED DATA: BOOKINGS
+-- =========================================================
+-- SEED DATA: BOOKINGS (expanded)
 -- =========================================================
 
 WITH 
-  -- 1. Lấy Trip ID của chuyến SG -> Đà Lạt (xe 51B-123.45)
-  trip_dalat AS (
+  trip_dalat_day AS (
     SELECT t.trip_id, t.base_price
     FROM trips t
     JOIN buses b ON t.bus_id = b.bus_id
-    WHERE b.license_plate = '51B-123.45'
+    WHERE b.license_plate = '51G-123.45'
     LIMIT 1
   ),
-  
-  -- 2. Lấy Trip ID của chuyến SG -> Nha Trang (xe 51B-777.77)
+  trip_dalat_night AS (
+    SELECT t.trip_id, t.base_price
+    FROM trips t
+    JOIN buses b ON t.bus_id = b.bus_id
+    WHERE b.license_plate = '51F-999.99'
+    LIMIT 1
+  ),
   trip_nhatrang AS (
     SELECT t.trip_id, t.base_price
     FROM trips t
     JOIN buses b ON t.bus_id = b.bus_id
-    WHERE b.license_plate = '51B-777.77'
+    WHERE b.license_plate = '51K-777.77'
+    LIMIT 1
+  ),
+  trip_cantho AS (
+    SELECT t.trip_id, t.base_price
+    FROM trips t
+    JOIN buses b ON t.bus_id = b.bus_id
+    WHERE b.license_plate = '51S-555.55'
     LIMIT 1
   )
 
--- Insert vào bookings
 INSERT INTO bookings (
     booking_id, booking_reference, trip_id, 
     contact_email, contact_phone, status, 
@@ -167,54 +262,90 @@ INSERT INTO bookings (
     payment_method, payment_status, paid_at, ticket_url
 )
 VALUES 
--- Booking 1: Confirmed (Đi Đà Lạt)
+-- Booking 1: Confirmed (Da Lat daytime) - 2 seats
 (
-    uuid_generate_v4(), 'BK20251210001', (SELECT trip_id FROM trip_dalat),
-    'nguyenvana@gmail.com', '0901234567', 'confirmed',
-    (SELECT base_price * 2 FROM trip_dalat), 20000, (SELECT base_price * 2 + 20000 FROM trip_dalat),
-    'momo', 'paid', NOW(), 'https://cdn.example.com/tickets/bk1.pdf'
+    uuid_generate_v4(), 'EN20260110001', (SELECT trip_id FROM trip_dalat_day),
+    'john.doe@example.com', '+84901234567', 'confirmed',
+    (SELECT base_price * 2 FROM trip_dalat_day), 20000, (SELECT base_price * 2 + 20000 FROM trip_dalat_day),
+    'momo', 'paid', NOW(), 'https://cdn.example.com/tickets/en-bk1.pdf'
 ),
--- Booking 2: Pending (Đi Nha Trang)
+-- Booking 2: Pending (Nha Trang) - 1 seat
 (
-    uuid_generate_v4(), 'BK20251211002', (SELECT trip_id FROM trip_nhatrang),
-    'tranthib@gmail.com', '0909888777', 'pending',
+    uuid_generate_v4(), 'EN20260111002', (SELECT trip_id FROM trip_nhatrang),
+    'jane.smith@example.com', '+84909887777', 'pending',
     (SELECT base_price * 1 FROM trip_nhatrang), 10000, (SELECT base_price * 1 + 10000 FROM trip_nhatrang),
     NULL, 'unpaid', NULL, NULL
 ),
--- Booking 3: Cancelled (Đi Đà Lạt)
+-- Booking 3: Cancelled (Da Lat night) - 1 seat
 (
-    uuid_generate_v4(), 'BK20251210099', (SELECT trip_id FROM trip_dalat),
-    'lecancel@gmail.com', '0905555555', 'cancelled',
-    (SELECT base_price * 1 FROM trip_dalat), 10000, (SELECT base_price * 1 + 10000 FROM trip_dalat),
+    uuid_generate_v4(), 'EN20260110099', (SELECT trip_id FROM trip_dalat_night),
+    'canceled.user@example.com', '+84905555555', 'cancelled',
+    (SELECT base_price * 1 FROM trip_dalat_night), 10000, (SELECT base_price * 1 + 10000 FROM trip_dalat_night),
     'visa', 'refunded', NOW() - INTERVAL '1 day', NULL
+),
+-- Booking 4: Confirmed (Can Tho) - group booking 4 seats
+(
+    uuid_generate_v4(), 'EN20260112003', (SELECT trip_id FROM trip_cantho),
+    'group.leader@example.com', '+84901112233', 'confirmed',
+    (SELECT base_price * 4 FROM trip_cantho), 40000, (SELECT base_price * 4 + 40000 FROM trip_cantho),
+    'credit_card', 'paid', NOW(), 'https://cdn.example.com/tickets/en-bk4.pdf'
+),
+-- Booking 5: Confirmed (Da Lat daytime) - single VIP seat example
+(
+    uuid_generate_v4(), 'EN20260110005', (SELECT trip_id FROM trip_dalat_day),
+    'alice.wonder@example.com', '+84903334455', 'confirmed',
+    (SELECT base_price * 1 FROM trip_dalat_day), 15000, (SELECT base_price * 1 + 15000 FROM trip_dalat_day),
+    'paypal', 'paid', NOW(), 'https://cdn.example.com/tickets/en-bk5.pdf'
 );
 
 -- =========================================================
--- SEED DATA: BOOKING PASSENGERS
+-- SEED DATA: BOOKING PASSENGERS (expanded)
 -- =========================================================
 
 INSERT INTO booking_passengers (booking_id, seat_code, price, full_name, phone, document_id)
 VALUES
--- Khách cho Booking 1 (Đà Lạt - 2 ghế A1, A2)
+-- Booking 1 passengers (Da Lat daytime) - seats A1, A2
 (
-    (SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251210001'),
-    'A1', 350000, 'Nguyen Van A', '0901234567', '079012345678'
+    (SELECT booking_id FROM bookings WHERE booking_reference = 'EN20260110001'),
+    'A1', 350000, 'John Doe', '+84901234567', 'ID123456789'
 ),
 (
-    (SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251210001'),
-    'A2', 350000, 'Nguyen Van B', '0901234568', NULL
-),
-
--- Khách cho Booking 2 (Nha Trang - 1 ghế VIP1)
--- Lưu ý: Seat Code phải khớp với logic tạo ghế ở phần trước ('A'||g hoặc tên thực tế)
--- Ở phần trước bạn tạo ghế 'A1', 'A2'... nên ta dùng A1 cho Booking 2 (trip khác nhau nên không trùng)
-(
-    (SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251211002'),
-    'A1', 480000, 'Tran Thi B', '0909888777', '079088888888'
+    (SELECT booking_id FROM bookings WHERE booking_reference = 'EN20260110001'),
+    'A2', 350000, 'Mary Doe', '+84901234568', NULL
 ),
 
--- Khách cho Booking 3 (Đã hủy - ghế A5)
+-- Booking 2 passenger (Nha Trang) - seat A1 on that trip
 (
-    (SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251210099'),
-    'A5', 350000, 'Le Van Cancel', '0905555555', NULL
+    (SELECT booking_id FROM bookings WHERE booking_reference = 'EN20260111002'),
+    'A1', 480000, 'Jane Smith', '+84909887777', 'ID987654321'
+),
+
+-- Booking 3 passenger (Cancelled, Da Lat night) - seat A5
+(
+    (SELECT booking_id FROM bookings WHERE booking_reference = 'EN20260110099'),
+    'A5', 520000, 'Canceled User', '+84905555555', NULL
+),
+
+-- Booking 4 group (Can Tho) - seats A1..A4
+(
+    (SELECT booking_id FROM bookings WHERE booking_reference = 'EN20260112003'),
+    'A1', 180000, 'Group Member One', '+84901112234', 'ID111111111'
+),
+(
+    (SELECT booking_id FROM bookings WHERE booking_reference = 'EN20260112003'),
+    'A2', 180000, 'Group Member Two', '+84901112235', 'ID222222222'
+),
+(
+    (SELECT booking_id FROM bookings WHERE booking_reference = 'EN20260112003'),
+    'A3', 180000, 'Group Member Three', '+84901112236', 'ID333333333'
+),
+(
+    (SELECT booking_id FROM bookings WHERE booking_reference = 'EN20260112003'),
+    'A4', 180000, 'Group Member Four', '+84901112237', NULL
+),
+
+-- Booking 5 VIP passenger (Da Lat daytime) - seat A3
+(
+    (SELECT booking_id FROM bookings WHERE booking_reference = 'EN20260110005'),
+    'A3', 350000, 'Alice Wonder', '+84903334455', 'ID555666777'
 );

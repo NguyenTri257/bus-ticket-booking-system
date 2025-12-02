@@ -30,6 +30,7 @@ app.get('/search', tripController.search);
 app.get('/routes', routeController.getAll);
 app.get('/bus-models', busModelController.getAll);
 app.get('/buses', authenticate, authorize(['admin']), busController.getAll);
+app.get('/popular-routes', routeController.getPopularRoutes);
 
 // --- Dynamic trip route ---
 app.get('/:id', tripController.getById);

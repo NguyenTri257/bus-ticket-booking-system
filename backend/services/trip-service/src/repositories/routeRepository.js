@@ -145,6 +145,32 @@ class RouteRepository {
 
     await this.update(routeId, { origin, destination });
   }
+
+  // MỚI: Lấy các route phổ biến dựa trên số trip đã đặt
+  async getPopularRoutes(limit = 10) {
+  const query = `
+    SELECT 
+      r.route_id,
+      r.operator_id,
+      r.origin,
+      r.destination,
+      r.distance_km,
+      r.estimated_minutes,
+      r.created_at,
+      r.updated_at,
+      COUNT(t.trip_id) AS total_trips,
+      MIN(t.base_price) AS starting_price
+    FROM routes r
+    LEFT JOIN trips t ON t.route_id = r.route_id 
+      AND t.status = 'active' 
+    GROUP BY r.route_id
+    ORDER BY total_trips DESC, starting_price ASC NULLS LAST
+    LIMIT $1;
+  `;
+
+  const result = await pool.query(query, [limit]);
+  return result.rows;
+}
 }
 
 module.exports = new RouteRepository();

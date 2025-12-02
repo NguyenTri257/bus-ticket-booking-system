@@ -136,6 +136,35 @@ class RouteController {
       });
     }
   }
+
+  async getPopularRoutes(req, res) {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    if (limit < 1 || limit > 50) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VAL_002', message: 'Limit must be between 1 and 50' }
+      });
+    }
+
+    const routes = await routeService.getPopularRoutes(limit);
+
+    res.json({
+      success: true,
+      data: routes,
+      meta: {
+        count: routes.length,
+        limit
+      }
+    });
+  } catch (err) {
+    console.error('Error in getPopularRoutes:', err);
+    res.status(500).json({
+      success: false,
+      error: { code: 'SYS_001', message: 'Internal server error' }
+    });
+  }
+}
 }
 
 module.exports = new RouteController();

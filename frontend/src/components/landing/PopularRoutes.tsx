@@ -23,100 +23,119 @@ export function PopularRoutes() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchPopularRoutes = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const response = await fetch('/routes')
-      const data = await response.json()
-      setRoutes(data)
-    } catch (error) {
-      console.error('Failed to fetch popular routes:', error)
-      setError('Failed to load popular routes')
-
-      // Fallback to static data with realistic pricing
-      const fallbackRoutes: Route[] = [
-        {
-          route_id: '1',
-          origin: 'Ho Chi Minh',
-          destination: 'Ha Noi',
-          distance_km: 1700,
-          estimated_minutes: 1800,
-          starting_price: 350000,
-        },
-        {
-          route_id: '2',
-          origin: 'Ho Chi Minh',
-          destination: 'Da Nang',
-          distance_km: 300,
-          estimated_minutes: 360,
-          starting_price: 180000,
-        },
-        {
-          route_id: '3',
-          origin: 'Ha Noi',
-          destination: 'Hai Phong',
-          distance_km: 100,
-          estimated_minutes: 120,
-          starting_price: 120000,
-        },
-        {
-          route_id: '4',
-          origin: 'Da Nang',
-          destination: 'Hue',
-          distance_km: 500,
-          estimated_minutes: 600,
-          starting_price: 150000,
-        },
-        {
-          route_id: '5',
-          origin: 'Ho Chi Minh',
-          destination: 'Dak Lak',
-          distance_km: 400,
-          estimated_minutes: 480,
-          starting_price: 200000,
-        },
-        {
-          route_id: '6',
-          origin: 'Ha Noi',
-          destination: 'Hue',
-          distance_km: 600,
-          estimated_minutes: 720,
-          starting_price: 280000,
-        },
-        {
-          route_id: '7',
-          origin: 'Phu Tho',
-          destination: 'Bac Lieu',
-          distance_km: 200,
-          estimated_minutes: 240,
-          starting_price: 160000,
-        },
-        {
-          route_id: '8',
-          origin: 'Ho Chi Minh',
-          destination: 'Vinh Phuc',
-          distance_km: 200,
-          estimated_minutes: 240,
-          starting_price: 220000,
-        },
-      ]
-      setRoutes(fallbackRoutes)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
+    const fetchPopularRoutes = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Fetch từ API backend /popular-routes (default 10, hoặc ?limit=8 để 8 results)
+        const response = await fetch(
+          'http://localhost:3000/trips/popular-routes'
+        )
+        if (!response.ok) {
+          throw new Error('Failed to fetch')
+        }
+        const result = await response.json()
+        if (result.success) {
+          setRoutes(result.data)
+        } else {
+          throw new Error(result.error?.message || 'API error')
+        }
+      } catch (err) {
+        console.error('Failed to fetch popular routes:', err)
+        setError('Failed to load popular routes. Showing default routes.')
+
+        // Fallback to static data with realistic pricing and cities from cities.json
+        const fallbackRoutes: Route[] = [
+          {
+            route_id: '1',
+            origin: 'Ho Chi Minh',
+            destination: 'Ha Noi',
+            distance_km: 1700,
+            estimated_minutes: 1980,
+            starting_price: 800000,
+          },
+          {
+            route_id: '2',
+            origin: 'Ho Chi Minh',
+            destination: 'Da Nang',
+            distance_km: 950,
+            estimated_minutes: 1140,
+            starting_price: 500000,
+          },
+          {
+            route_id: '3',
+            origin: 'Ha Noi',
+            destination: 'Hai Phong',
+            distance_km: 100,
+            estimated_minutes: 120,
+            starting_price: 150000,
+          },
+          {
+            route_id: '4',
+            origin: 'Da Nang',
+            destination: 'Hue',
+            distance_km: 100,
+            estimated_minutes: 120,
+            starting_price: 100000,
+          },
+          {
+            route_id: '5',
+            origin: 'Ho Chi Minh',
+            destination: 'Dak Lak',
+            distance_km: 350,
+            estimated_minutes: 480,
+            starting_price: 300000,
+          },
+          {
+            route_id: '6',
+            origin: 'Ha Noi',
+            destination: 'Hue',
+            distance_km: 700,
+            estimated_minutes: 840,
+            starting_price: 450000,
+          },
+          {
+            route_id: '7',
+            origin: 'Phu Tho',
+            destination: 'Bac Ninh',
+            distance_km: 150,
+            estimated_minutes: 180,
+            starting_price: 120000,
+          },
+          {
+            route_id: '8',
+            origin: 'Ho Chi Minh',
+            destination: 'Vinh Long',
+            distance_km: 150,
+            estimated_minutes: 180,
+            starting_price: 100000,
+          },
+          {
+            route_id: '9',
+            origin: 'Can Tho',
+            destination: 'Ca Mau',
+            distance_km: 200,
+            estimated_minutes: 240,
+            starting_price: 150000,
+          },
+          {
+            route_id: '10',
+            origin: 'Dong Nai',
+            destination: 'Lam Dong',
+            distance_km: 250,
+            estimated_minutes: 300,
+            starting_price: 200000,
+          },
+        ]
+        setRoutes(fallbackRoutes)
+      } finally {
+        setLoading(false)
+      }
+    }
+
     fetchPopularRoutes()
-
-    // Set up periodic refresh every 5 minutes (300000ms)
-    const interval = setInterval(() => {
-      fetchPopularRoutes()
-    }, 300000)
-
-    return () => clearInterval(interval)
   }, [])
 
   if (loading) {

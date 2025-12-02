@@ -16,6 +16,7 @@ import { useAdminRoutes } from '@/hooks/admin/useAdminRoutes'
 import { useToast } from '@/hooks/use-toast'
 import { RouteFormDrawer } from '@/components/admin/RouteFormDrawer'
 import { CustomDropdown } from '@/components/ui/custom-dropdown'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 // Fallback mock data when API is unavailable
 const MOCK_ROUTES: RouteAdminData[] = [
@@ -139,6 +140,12 @@ const AdminRouteManagement: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [useMockData, setUseMockData] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [routeToDelete, setRouteToDelete] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+  const [expandedRoute, setExpandedRoute] = useState<string | null>(null)
   const ROUTES_PER_PAGE = 10
 
   // Use mock data if API fails
@@ -200,18 +207,22 @@ const AdminRouteManagement: React.FC = () => {
     setShowForm(true)
   }
 
-  const handleDeleteRoute = async (routeId: string, routeName: string) => {
-    if (
-      !confirm(
-        `Are you sure you want to delete "${routeName}"? This action cannot be undone.`
-      )
-    ) {
-      return
-    }
+  const handleDeleteRoute = (routeId: string, routeName: string) => {
+    setRouteToDelete({ id: routeId, name: routeName })
+    setDeleteDialogOpen(true)
+  }
 
-    setActionLoading(routeId)
+  const handleToggleExpand = (routeId: string) => {
+    setExpandedRoute(expandedRoute === routeId ? null : routeId)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!routeToDelete) return
+
+    setActionLoading(routeToDelete.id)
+    setDeleteDialogOpen(false)
     try {
-      await deleteRoute(routeId)
+      await deleteRoute(routeToDelete.id)
       setCurrentPage(1)
     } catch {
       toast({
@@ -220,6 +231,7 @@ const AdminRouteManagement: React.FC = () => {
       })
     } finally {
       setActionLoading(null)
+      setRouteToDelete(null)
     }
   }
 
@@ -359,12 +371,6 @@ const AdminRouteManagement: React.FC = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Duration
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Pickup Points
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                        Dropoff Points
-                      </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Actions
                       </th>
@@ -372,78 +378,238 @@ const AdminRouteManagement: React.FC = () => {
                   </thead>
                   <tbody className="bg-card divide-y divide-border">
                     {paginatedRoutes.map((route) => (
-                      <tr key={route.route_id} className="hover:bg-muted/50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium text-foreground">
-                              {route.origin}
-                            </span>
-                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium text-foreground">
-                              {route.destination}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                          {route.distance_km} km
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
-                          {Math.floor(route.estimated_minutes / 60)}h{' '}
-                          {route.estimated_minutes % 60}m
-                        </td>
-                        <td className="px-6 py-4 text-sm text-muted-foreground">
-                          <div className="flex flex-wrap gap-1">
-                            {route.pickup_points.map((point, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-flex px-2 py-1 text-xs bg-muted rounded"
-                                title={point.address}
-                              >
-                                {point.name}
+                      <React.Fragment key={route.route_id}>
+                        <tr
+                          className="hover:bg-muted/50 cursor-pointer"
+                          onClick={() => handleToggleExpand(route.route_id!)}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <MapPin className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-foreground">
+                                {route.origin}
                               </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm text-muted-foreground">
-                          <div className="flex flex-wrap gap-1">
-                            {route.dropoff_points.map((point, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-flex px-2 py-1 text-xs bg-muted rounded"
-                                title={point.address}
-                              >
-                                {point.name}
+                              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm font-medium text-foreground">
+                                {route.destination}
                               </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                          <button
-                            onClick={() => handleEditRoute(route)}
-                            disabled={actionLoading === route.route_id}
-                            className="inline-flex items-center text-primary hover:text-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleDeleteRoute(
-                                route.route_id!,
-                                `${route.origin} → ${route.destination}`
-                              )
-                            }
-                            disabled={actionLoading === route.route_id}
-                            className="inline-flex items-center text-destructive hover:text-destructive/80 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {actionLoading === route.route_id ? (
-                              <Loader className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </button>
-                        </td>
-                      </tr>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                            {route.distance_km} km
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                            {Math.floor(route.estimated_minutes / 60)}h{' '}
+                            {route.estimated_minutes % 60}m
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleEditRoute(route)
+                              }}
+                              disabled={actionLoading === route.route_id}
+                              className="inline-flex items-center text-primary hover:text-primary/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteRoute(
+                                  route.route_id!,
+                                  `${route.origin} → ${route.destination}`
+                                )
+                              }}
+                              disabled={actionLoading === route.route_id}
+                              className="inline-flex items-center text-destructive hover:text-destructive/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {actionLoading === route.route_id ? (
+                                <Loader className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </button>
+                          </td>
+                        </tr>
+                        {expandedRoute === route.route_id && (
+                          <tr>
+                            <td colSpan={4} className="px-6 py-4 bg-muted/30">
+                              <div className="space-y-4">
+                                {/* Route Details */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                  <div>
+                                    <h4 className="text-sm font-medium text-foreground mb-2">
+                                      Route ID
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">
+                                      {route.route_id}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <h4 className="text-sm font-medium text-foreground mb-2">
+                                      Operator ID
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">
+                                      {route.operator_id}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <h4 className="text-sm font-medium text-foreground mb-2">
+                                      Created At
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">
+                                      {route.created_at
+                                        ? new Date(
+                                            route.created_at
+                                          ).toLocaleString()
+                                        : 'N/A'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {/* Pickup Points Details */}
+                                <div>
+                                  <h4 className="text-sm font-medium text-foreground mb-3">
+                                    Pickup Points ({route.pickup_points.length})
+                                  </h4>
+                                  <div className="space-y-2">
+                                    {route.pickup_points.map((point, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-start gap-3 p-3 bg-card rounded-lg border border-border"
+                                      >
+                                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold mt-0.5">
+                                          {idx + 1}
+                                        </div>
+                                        <div className="flex-1">
+                                          <p className="font-medium text-sm text-foreground">
+                                            {point.name}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {point.address}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                            <span className="font-medium">
+                                              Time:
+                                            </span>{' '}
+                                            {point.time}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Dropoff Points Details */}
+                                <div>
+                                  <h4 className="text-sm font-medium text-foreground mb-3">
+                                    Dropoff Points (
+                                    {route.dropoff_points.length})
+                                  </h4>
+                                  <div className="space-y-2">
+                                    {route.dropoff_points.map((point, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex items-start gap-3 p-3 bg-card rounded-lg border border-border"
+                                      >
+                                        <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-muted-foreground text-xs font-semibold mt-0.5">
+                                          {idx + 1}
+                                        </div>
+                                        <div className="flex-1">
+                                          <p className="font-medium text-sm text-foreground">
+                                            {point.name}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground">
+                                            {point.address}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                                            <span className="font-medium">
+                                              Time:
+                                            </span>{' '}
+                                            {point.time}
+                                          </p>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Route Stops Details */}
+                                {route.route_stops &&
+                                  route.route_stops.length > 0 && (
+                                    <div>
+                                      <h4 className="text-sm font-medium text-foreground mb-3">
+                                        Route Stops ({route.route_stops.length})
+                                      </h4>
+                                      <div className="relative">
+                                        <div className="absolute left-16 top-0 bottom-0 w-0.5 bg-border"></div>
+                                        <div className="space-y-3">
+                                          {route.route_stops
+                                            .sort(
+                                              (a, b) => a.sequence - b.sequence
+                                            )
+                                            .map((stop, idx) => (
+                                              <div
+                                                key={idx}
+                                                className="flex items-center gap-3 relative"
+                                              >
+                                                <span className="text-xs text-muted-foreground font-medium min-w-10 text-right">
+                                                  {stop.sequence}
+                                                </span>
+                                                <div className="flex flex-col items-center gap-1 relative">
+                                                  <div className="w-6 h-6 rounded-full bg-primary border-2 border-card flex items-center justify-center relative z-10">
+                                                    <div className="w-2 h-2 rounded-full bg-card"></div>
+                                                  </div>
+                                                </div>
+                                                <div className="flex-1">
+                                                  <span className="text-sm text-foreground font-medium">
+                                                    {stop.stop_name}
+                                                  </span>
+                                                  {stop.address && (
+                                                    <div className="text-xs text-muted-foreground mt-1">
+                                                      <p>{stop.address}</p>
+                                                    </div>
+                                                  )}
+                                                  {(stop.arrival_offset_minutes !==
+                                                    undefined ||
+                                                    stop.departure_offset_minutes !==
+                                                      undefined) && (
+                                                    <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                                                      {stop.arrival_offset_minutes !==
+                                                        undefined && (
+                                                        <p>
+                                                          Arrival: +
+                                                          {
+                                                            stop.arrival_offset_minutes
+                                                          }{' '}
+                                                          min
+                                                        </p>
+                                                      )}
+                                                      {stop.departure_offset_minutes !==
+                                                        undefined && (
+                                                        <p>
+                                                          Departure: +
+                                                          {
+                                                            stop.departure_offset_minutes
+                                                          }{' '}
+                                                          min
+                                                        </p>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -489,6 +655,18 @@ const AdminRouteManagement: React.FC = () => {
           onClose={() => setShowForm(false)}
           initialRoute={editingRoute}
           onSave={handleSaveRoute}
+        />
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmDialog
+          open={deleteDialogOpen}
+          onClose={() => {
+            setDeleteDialogOpen(false)
+            setRouteToDelete(null)
+          }}
+          onConfirm={handleConfirmDelete}
+          title="Confirm Deletion"
+          message={`Are you sure you want to delete "${routeToDelete?.name}"? This action cannot be undone.`}
         />
       </div>
     </DashboardLayout>

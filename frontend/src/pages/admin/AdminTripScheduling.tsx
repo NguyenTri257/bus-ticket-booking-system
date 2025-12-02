@@ -1,12 +1,5 @@
 import React, { useState } from 'react'
-import {
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  Button,
-} from '@mui/material'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useAdminTripData } from '@/hooks/admin/useAdminTrip'
 import type { Trip, RouteAdminData, BusAdminData } from '../../types/trip.types'
 import '@/styles/admin.css'
@@ -793,27 +786,13 @@ const AdminTripSchedulingPage: React.FC = () => {
         />
       )}
 
-      <Dialog
+      <ConfirmDialog
         open={openConfirmDialog}
         onClose={() => setOpenConfirmDialog(false)}
-        aria-labelledby="confirm-dialog-title"
-        aria-describedby="confirm-dialog-description"
-      >
-        <DialogTitle id="confirm-dialog-title">Confirm Deletion</DialogTitle>
-        <DialogContent>
-          <DialogContentText id="confirm-dialog-description">
-            {dialogMessage}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenConfirmDialog(false)} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleConfirmDelete} color="primary" autoFocus>
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onConfirm={handleConfirmDelete}
+        title="Confirm Deletion"
+        message={dialogMessage}
+      />
     </DashboardLayout>
   )
 }

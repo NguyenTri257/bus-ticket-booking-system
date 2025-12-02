@@ -48,7 +48,7 @@ export interface RouteAdminData {
   estimated_minutes: number
   pickup_points: PickupPoint[]
   dropoff_points: DropoffPoint[]
-  route_stops: RouteStop[]
+  route_stops?: RouteStop[]
   created_at?: string
 }
 

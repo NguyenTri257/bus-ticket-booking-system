@@ -40,7 +40,7 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
         estimated_minutes: initialRoute.estimated_minutes,
         pickup_points: initialRoute.pickup_points,
         dropoff_points: initialRoute.dropoff_points,
-        route_stops: initialRoute.route_stops,
+        route_stops: initialRoute.route_stops || [],
       })
     } else {
       setForm(emptyForm)
@@ -88,8 +88,8 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
     setForm((prev) => ({
       ...prev,
       route_stops: [
-        ...prev.route_stops,
-        { stop_name: '', sequence: prev.route_stops.length + 1 },
+        ...(prev.route_stops || []),
+        { stop_name: '', sequence: (prev.route_stops || []).length + 1 },
       ],
     }))
   }
@@ -100,11 +100,12 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
       | 'stop_name'
       | 'sequence'
       | 'arrival_offset_minutes'
-      | 'departure_offset_minutes',
+      | 'departure_offset_minutes'
+      | 'address',
     value: string | number
   ) => {
     setForm((prev) => {
-      const stops = [...prev.route_stops]
+      const stops = [...(prev.route_stops || [])]
       stops[index] = { ...stops[index], [field]: value }
       return { ...prev, route_stops: stops }
     })
@@ -112,7 +113,7 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
 
   const removeStop = (index: number) => {
     setForm((prev) => {
-      const stops = [...prev.route_stops]
+      const stops = [...(prev.route_stops || [])]
       stops.splice(index, 1)
       // Re-sequence the remaining stops
       const updatedStops = stops.map((stop, idx) => ({
@@ -125,7 +126,7 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
 
   const moveStop = (index: number, direction: 'up' | 'down') => {
     setForm((prev) => {
-      const stops = [...prev.route_stops]
+      const stops = [...(prev.route_stops || [])]
       if (direction === 'up' && index > 0) {
         ;[stops[index], stops[index - 1]] = [stops[index - 1], stops[index]]
       } else if (direction === 'down' && index < stops.length - 1) {
@@ -316,119 +317,131 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
             >
               Route Stops
             </h3>
-            {form.route_stops.map((stop, idx) => (
-              <div
-                key={idx}
-                className="p-3 border rounded-lg space-y-2"
-                style={{ borderColor: 'var(--border)' }}
-              >
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={stop.stop_name}
-                    onChange={(e) =>
-                      updateStopField(idx, 'stop_name', e.target.value)
-                    }
-                    placeholder="Stop name"
-                    className="flex-1 rounded px-2 py-1 text-xs"
-                    style={{
-                      border: '1px solid var(--border)',
-                      backgroundColor: 'var(--card)',
-                      color: 'var(--foreground)',
-                    }}
-                  />
-                  <input
-                    type="number"
-                    value={stop.sequence}
-                    readOnly
-                    className="w-12 rounded px-2 py-1 text-xs text-center"
-                    style={{
-                      border: '1px solid var(--border)',
-                      backgroundColor: 'var(--muted)',
-                      color: 'var(--muted-foreground)',
-                    }}
-                  />
-                  <div className="flex flex-col gap-1">
-                    <button
-                      type="button"
-                      onClick={() => moveStop(idx, 'up')}
-                      disabled={idx === 0}
-                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Move up"
-                    >
-                      <ChevronUp className="h-3 w-3" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveStop(idx, 'down')}
-                      disabled={idx === form.route_stops.length - 1}
-                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Move down"
-                    >
-                      <ChevronDown className="h-3 w-3" />
-                    </button>
+            <div className="relative">
+              <div className="absolute left-16 top-0 bottom-0 w-0.5 bg-border"></div>
+              <div className="space-y-3">
+                {(form.route_stops || []).map((stop, idx) => (
+                  <div key={idx} className="flex items-center gap-3 relative">
+                    <span className="text-xs text-muted-foreground font-medium min-w-10 text-right">
+                      {stop.sequence}
+                    </span>
+                    <div className="flex flex-col items-center gap-1 relative">
+                      <div className="w-6 h-6 rounded-full bg-primary border-2 border-white shadow-sm flex items-center justify-center relative z-10">
+                        <div className="w-2 h-2 rounded-full bg-white"></div>
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <input
+                        type="text"
+                        value={stop.stop_name}
+                        onChange={(e) =>
+                          updateStopField(idx, 'stop_name', e.target.value)
+                        }
+                        placeholder="Stop name"
+                        className="w-full rounded px-2 py-1 text-xs"
+                        style={{
+                          border: '1px solid var(--border)',
+                          backgroundColor: 'var(--card)',
+                          color: 'var(--foreground)',
+                        }}
+                      />
+                      <input
+                        type="text"
+                        value={stop.address || ''}
+                        onChange={(e) =>
+                          updateStopField(idx, 'address', e.target.value)
+                        }
+                        placeholder="Address"
+                        className="w-full rounded px-2 py-1 text-xs"
+                        style={{
+                          border: '1px solid var(--border)',
+                          backgroundColor: 'var(--card)',
+                          color: 'var(--foreground)',
+                        }}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">
+                            Arrival offset (min)
+                          </label>
+                          <input
+                            type="number"
+                            value={stop.arrival_offset_minutes || 0}
+                            onChange={(e) =>
+                              updateStopField(
+                                idx,
+                                'arrival_offset_minutes',
+                                Number(e.target.value)
+                              )
+                            }
+                            min="0"
+                            placeholder="0"
+                            className="w-full rounded px-2 py-1 text-xs"
+                            style={{
+                              border: '1px solid var(--border)',
+                              backgroundColor: 'var(--card)',
+                              color: 'var(--foreground)',
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">
+                            Departure offset (min)
+                          </label>
+                          <input
+                            type="number"
+                            value={stop.departure_offset_minutes || 0}
+                            onChange={(e) =>
+                              updateStopField(
+                                idx,
+                                'departure_offset_minutes',
+                                Number(e.target.value)
+                              )
+                            }
+                            min="0"
+                            placeholder="0"
+                            className="w-full rounded px-2 py-1 text-xs"
+                            style={{
+                              border: '1px solid var(--border)',
+                              backgroundColor: 'var(--card)',
+                              color: 'var(--foreground)',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() => moveStop(idx, 'up')}
+                        disabled={idx === 0}
+                        className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Move up"
+                      >
+                        <ChevronUp className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveStop(idx, 'down')}
+                        disabled={idx === (form.route_stops || []).length - 1}
+                        className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Move down"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeStop(idx)}
+                        className="p-1 text-destructive hover:text-destructive/80"
+                        title="Remove stop"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeStop(idx)}
-                    className="p-1 text-destructive hover:text-destructive/80"
-                    title="Remove stop"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">
-                      Arrival offset (min)
-                    </label>
-                    <input
-                      type="number"
-                      value={stop.arrival_offset_minutes || 0}
-                      onChange={(e) =>
-                        updateStopField(
-                          idx,
-                          'arrival_offset_minutes',
-                          Number(e.target.value)
-                        )
-                      }
-                      min="0"
-                      placeholder="0"
-                      className="w-full rounded px-2 py-1 text-xs"
-                      style={{
-                        border: '1px solid var(--border)',
-                        backgroundColor: 'var(--card)',
-                        color: 'var(--foreground)',
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-muted-foreground mb-1">
-                      Departure offset (min)
-                    </label>
-                    <input
-                      type="number"
-                      value={stop.departure_offset_minutes || 0}
-                      onChange={(e) =>
-                        updateStopField(
-                          idx,
-                          'departure_offset_minutes',
-                          Number(e.target.value)
-                        )
-                      }
-                      min="0"
-                      placeholder="0"
-                      className="w-full rounded px-2 py-1 text-xs"
-                      style={{
-                        border: '1px solid var(--border)',
-                        backgroundColor: 'var(--card)',
-                        color: 'var(--foreground)',
-                      }}
-                    />
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
+            </div>
             <button
               type="button"
               onClick={addStop}

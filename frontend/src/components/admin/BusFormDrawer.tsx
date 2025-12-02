@@ -216,20 +216,22 @@ export const BusFormDrawer: React.FC<BusFormDrawerProps> = ({
               />
             </div>
 
-            <div>
-              <label
-                className="block text-xs font-medium"
-                style={{ color: 'var(--foreground)' }}
-              >
-                Operator *
-              </label>
-              <CustomDropdown
-                options={operators}
-                value={form.operator_id || ''}
-                onChange={(value) => handleChange('operator_id', value)}
-                placeholder="Select operator"
-              />
-            </div>
+            {!initialBus && (
+              <div>
+                <label
+                  className="block text-xs font-medium"
+                  style={{ color: 'var(--foreground)' }}
+                >
+                  Operator *
+                </label>
+                <CustomDropdown
+                  options={operators}
+                  value={form.operator_id || ''}
+                  onChange={(value) => handleChange('operator_id', value)}
+                  placeholder="Select operator"
+                />
+              </div>
+            )}
           </div>
 
           {/* Configuration */}

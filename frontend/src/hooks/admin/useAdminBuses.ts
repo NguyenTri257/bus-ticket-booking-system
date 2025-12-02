@@ -107,9 +107,13 @@ export function useAdminBuses() {
     ) => {
       setIsLoading(true)
       try {
+        // Remove operator_id from update data since it cannot be changed
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { operator_id, ...updateData } = busData
+
         await request(`/trips/buses/${busId}`, {
           method: 'PUT',
-          body: busData,
+          body: updateData,
         })
 
         toast({

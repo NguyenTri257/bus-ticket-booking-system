@@ -30,7 +30,8 @@ import { useAuth } from '@/context/AuthContext'
 // API functions
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
-async function searchTrips(params) {
+async function searchTrips(params: Record<string, string>) {
+  console.log('[TripSearchResults] searchTrips called with params:', params)
   const urlParams = new URLSearchParams(params)
   const response = await fetch(
     `${API_BASE_URL}/trips/search?${urlParams.toString()}`
@@ -69,9 +70,28 @@ export function TripSearchResults() {
 
   const [trips, setTrips] = useState<Trip[]>(mockTrips)
   const hasAddedSearchRef = useRef(false)
+  const hasFetchedTripsRef = useRef(false)
 
   // TODO: Fetch trips from GET /trips/search API
   useEffect(() => {
+    console.log('[TripSearchResults] useEffect running with:', {
+      origin,
+      destination,
+      date,
+      passengers,
+    })
+
+    // Prevent multiple API calls for the same search
+    const searchKey = `${origin}-${destination}-${date}-${passengers}`
+    if (hasFetchedTripsRef.current === searchKey) {
+      console.log(
+        '[TripSearchResults] Skipping duplicate fetch for:',
+        searchKey
+      )
+      return
+    }
+    hasFetchedTripsRef.current = searchKey
+
     // TODO: Implement API call to GET /trips/search
     const fetchTrips = async () => {
       try {

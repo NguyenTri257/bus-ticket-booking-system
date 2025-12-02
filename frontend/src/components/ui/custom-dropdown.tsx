@@ -13,6 +13,7 @@ interface CustomDropdownProps {
   onChange: (value: string) => void
   placeholder?: string
   onOpenChange?: (open: boolean) => void
+  disabled?: boolean
 }
 
 export const CustomDropdown = React.forwardRef<
@@ -20,18 +21,27 @@ export const CustomDropdown = React.forwardRef<
   CustomDropdownProps
 >(
   (
-    { options, value, onChange, placeholder = 'Select option', onOpenChange },
+    {
+      options,
+      value,
+      onChange,
+      placeholder = 'Select option',
+      onOpenChange,
+      disabled = false,
+    },
     ref
   ) => {
     const [isOpen, setIsOpen] = useState(false)
 
     const handleToggle = () => {
+      if (disabled) return
       const newOpen = !isOpen
       setIsOpen(newOpen)
       onOpenChange?.(newOpen)
     }
 
     const handleSelect = (optionId: string) => {
+      if (disabled) return
       onChange(optionId)
       setIsOpen(false)
       onOpenChange?.(false)
@@ -46,20 +56,24 @@ export const CustomDropdown = React.forwardRef<
       <div ref={ref} className="relative">
         <button
           type="button"
+          disabled={disabled}
           className="w-full rounded-lg px-3 py-2 text-sm text-left focus:outline-none flex items-center justify-between"
           style={{
             border: '1px solid var(--border)',
-            backgroundColor: 'var(--card)',
-            color: 'var(--foreground)',
+            backgroundColor: disabled ? 'var(--muted)' : 'var(--card)',
+            color: disabled ? 'var(--muted-foreground)' : 'var(--foreground)',
             boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
+            cursor: disabled ? 'not-allowed' : 'pointer',
           }}
           onClick={handleToggle}
           onFocus={(e) => {
+            if (disabled) return
             e.currentTarget.style.boxShadow =
               '0 0 0 2px color-mix(in srgb, var(--primary) 20%, transparent)'
             e.currentTarget.style.borderColor = 'var(--primary)'
           }}
           onBlur={(e) => {
+            if (disabled) return
             e.currentTarget.style.boxShadow = '0 1px 2px 0 rgb(0 0 0 / 0.05)'
             e.currentTarget.style.borderColor = 'var(--border)'
           }}

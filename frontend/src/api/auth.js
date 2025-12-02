@@ -36,6 +36,12 @@ export async function request(
   path,
   { body, token, method = 'POST', headers, ...options } = {}
 ) {
+  console.log(`[FE Request] ${method} ${path}`, {
+    body,
+    token: token ? '[TOKEN]' : null,
+    headers,
+  })
+
   let response
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {

@@ -22,7 +22,7 @@ Hệ thống đặt vé xe buýt trực tuyến với kiến trúc microservices
        ▼                  ▼                  ▼
 ┌─────────────┐   ┌─────────────┐   ┌─────────────────┐
 │Auth Service │   │Trip Service │   │Notification     │
-│Port: 3001   │   │Port: 3005   │   │Service          │
+│Port: 3001   │   │Port: 3002   │   │Service          │
 │             │   │             │   │Port: 3003       │
 └──────┬──────┘   └──────┬──────┘   └─────────────────┘
        │                  │
@@ -61,7 +61,7 @@ Hệ thống đặt vé xe buýt trực tuyến với kiến trúc microservices
   - Session management với Redis
 - **Technology**: Express.js, bcrypt, JWT, Google Auth Library
 
-### 3. Trip Service (Port: 3005)
+### 3. Trip Service (Port: 3002)
 
 - **Chức năng**: Quản lý và tìm kiếm chuyến xe
 - **Nhiệm vụ**:

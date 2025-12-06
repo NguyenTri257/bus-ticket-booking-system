@@ -93,12 +93,14 @@ class SeatRepository {
 
     // Transform seats data
     const transformedSeats = seats.map(seat => {
-      let is_active = seat.is_active;
+      let status = 'available';
+      let lockedUntil = null;
 
       if (occupiedSeatCodes.has(seat.seat_code)) {
-        is_active = false;
+        status = 'occupied';
       } else if (lockedSeats[seat.seat_code]) {
-        is_active = false;
+        status = 'locked';
+        lockedUntil = lockedSeats[seat.seat_code];
       }
 
       return {
@@ -108,7 +110,8 @@ class SeatRepository {
         seat_type: seat.seat_type,
         position: seat.position,
         price: parseFloat(trip.base_price) + parseFloat(seat.price || 0),
-        is_active,
+        status,
+        lockedUntil,
         created_at: seat.created_at
       };
     });

@@ -135,11 +135,49 @@ class TripController {
       
       const seatMapData = await tripService.getSeatMap(tripId);
       
-      res.json({
-        success: true,
-        data: seatMapData,
-        timestamp: new Date().toISOString()
+      const transformedSeats = seatMapData.seats.map(seat => {
+        // Calculate row and column from seat code (assuming format like A1, B2, etc.)
+        const match = seat.seat_code.match(/^([A-Z])(\d+)$/);
+        const row = match ? match[1].charCodeAt(0) - 'A'.charCodeAt(0) + 1 : 1;
+        const column = match ? parseInt(match[2]) : 1;
+
+        const seatData = {
+          seat_id: seat.seat_id,
+          seat_code: seat.seat_code,
+          row: row,
+          column: column,
+          seat_type: seat.seat_type,
+          position: seat.position,
+          price: seat.price,
+          status: seat.status
+        };
+
+        if (seat.lockedUntil) {
+          seatData.lockedUntil = seat.lockedUntil.toISOString();
+        }
+
+        return seatData;
       });
+
+      const response = {
+        success: true,
+        data: {
+          trip_id: tripId,
+          seat_map: {
+            layout: seatMapData.layout,
+            rows: seatMapData.rows,
+            columns: seatMapData.columns,
+            seats: transformedSeats
+          },
+          legend: {
+            available: "seat can be selected",
+            occupied: "seat already booked",
+            locked: "seat temporarily reserved by another user"
+          }
+        }
+      };
+      
+      res.json(response);
     } catch (err) {
       console.error('TripController.getSeats: Error occurred:', err.message);
       

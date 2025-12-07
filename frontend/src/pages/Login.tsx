@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import GoogleIcon from '@/components/GoogleIcon'
-import { requestGoogleIdToken } from '@/lib/googleAuth'
+import { GoogleSignInButton } from '@/components/GoogleSignInButton'
 import { login, loginWithGoogle } from '@/api/auth'
 import { hasErrors, validateLogin } from '@/lib/validation'
 import { ThemeToggle } from '@/components/ThemeToggle'
@@ -44,7 +43,6 @@ export default function Login() {
     message: '',
   })
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
-  const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false)
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
@@ -88,16 +86,12 @@ export default function Login() {
     navigate('/forgot-password')
   }
 
-  const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true)
+  const handleGoogleSuccess = async (credential: string) => {
     setStatus({ type: 'idle', message: '' })
 
     try {
-      const idToken = await requestGoogleIdToken()
-      const authData = await loginWithGoogle({ idToken })
-
+      const authData = await loginWithGoogle({ idToken: credential })
       authLogin(authData)
-
       setStatus({
         type: 'success',
         message: 'Google sign-in successful. Redirecting...',
@@ -110,9 +104,14 @@ export default function Login() {
             ? error.message
             : 'Google sign-in failed. Please try again.',
       })
-    } finally {
-      setIsGoogleLoading(false)
     }
+  }
+
+  const handleGoogleError = (error: Error) => {
+    setStatus({
+      type: 'error',
+      message: error.message || 'Google sign-in failed. Please try again.',
+    })
   }
 
   return (
@@ -204,22 +203,11 @@ export default function Login() {
               <span className="h-px flex-1 bg-border" />
             </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={handleGoogleSignIn}
-              disabled={isGoogleLoading}
-            >
-              {isGoogleLoading ? (
-                'Contacting Google…'
-              ) : (
-                <span className="flex w-full items-center justify-center gap-2">
-                  <GoogleIcon className="h-5 w-5" />
-                  Continue with Google
-                </span>
-              )}
-            </Button>
+            <GoogleSignInButton
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              disabled={isSubmitting}
+            />
 
             <p className="mt-8 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{' '}

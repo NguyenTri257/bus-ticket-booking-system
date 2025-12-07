@@ -113,13 +113,24 @@ export async function startGoogleSignIn({
     throw new Error('Google sign-in requires an onCredential handler.')
   }
 
-  await ensureGoogleSdk()
+  console.log('🔵 Starting Google Sign-In...', {
+    clientId: googleClientId.substring(0, 20) + '...',
+    uxMode,
+  })
+
+  try {
+    await ensureGoogleSdk()
+  } catch (sdkError) {
+    console.error('❌ Failed to load Google SDK:', sdkError)
+    throw sdkError
+  }
 
   if (!window.google?.accounts?.id) {
     throw new Error('Google OAuth is not available.')
   }
 
   const googleAccounts = window.google.accounts.id
+  console.log('✅ Google SDK loaded successfully')
 
   return new Promise<void>((resolve, reject) => {
     let isSettled = false
@@ -127,18 +138,21 @@ export async function startGoogleSignIn({
     const succeed = () => {
       if (isSettled) return
       isSettled = true
+      console.log('✅ Google sign-in completed')
       resolve()
     }
 
     const fail = (message: string) => {
       if (isSettled) return
       isSettled = true
+      console.error('❌ Google sign-in failed:', message)
       reject(new Error(message))
     }
 
     googleAccounts.initialize({
       client_id: googleClientId,
       callback: async (response: GoogleCredentialResponse) => {
+        console.log('🔵 Google callback received')
         if (!response?.credential) {
           fail('Google did not return a valid credential.')
           return
@@ -157,9 +171,10 @@ export async function startGoogleSignIn({
       cancel_on_tap_outside: true,
       ux_mode: uxMode,
       context: 'signin',
-      use_fedcm_for_prompt: uxMode === 'redirect',
+      use_fedcm_for_prompt: false,
     })
 
+    console.log('🔵 Prompting Google sign-in...')
     googleAccounts.prompt((notification?: GooglePromptNotification) => {
       if (!notification || isSettled) return
 
@@ -176,6 +191,8 @@ export async function startGoogleSignIn({
         notification.getNotDisplayedReason?.() ??
         notification.getSkippedReason?.() ??
         notification.getDismissedReason?.()
+
+      console.log('⚠️ Google prompt notification:', reason)
 
       const message = (() => {
         if (

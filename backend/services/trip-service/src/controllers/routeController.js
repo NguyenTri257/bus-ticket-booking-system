@@ -18,16 +18,16 @@ class RouteController {
         });
       }
 
-      const stop = await routeStopRepository.create(routeId, value);
+      const newRoute = await routeService.createRoute(value);
       res.status(201).json({
         success: true,
-        data: mapToRouteStop(stop),
+        data: newRoute,
         message: 'Route created successfully'
       });
     } catch (err) {
       res.status(409).json({
         success: false,
-        error: { code: 'ROUTE_001', message: err.message }
+        error: { code: 'ROUTE_001', message: err.message || 'Cant create route' }
       });
     }
   }

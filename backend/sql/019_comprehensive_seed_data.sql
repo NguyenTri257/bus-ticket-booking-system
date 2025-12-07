@@ -373,23 +373,23 @@ DELETE FROM seats;
 INSERT INTO seats (bus_id, seat_code, seat_type, position, price, row_num, col_num, is_active)
 SELECT
   b.bus_id,
-  seat_element.value::text as seat_code,
+  seat_element.value #>> '{}' as seat_code,
   CASE
-    WHEN seat_element.value::text LIKE 'VIP%' THEN 'vip'
-    WHEN seat_element.value::text LIKE 'H%A' OR seat_element.value::text LIKE 'H%B' THEN 'sleeper'
+    WHEN seat_element.value #>> '{}' LIKE 'VIP%' THEN 'vip'
+    WHEN seat_element.value #>> '{}' LIKE 'H%A' OR seat_element.value #>> '{}' LIKE 'H%B' THEN 'sleeper'
     ELSE 'standard'
   END as seat_type,
   CASE
-    WHEN seat_element.value::text ~ '^[0-9]+A$' THEN 'window'  -- Row + A = window
-    WHEN seat_element.value::text ~ '^[0-9]+B$' THEN 'aisle'   -- Row + B = aisle
-    WHEN seat_element.value::text ~ '^[0-9]+C$' THEN 'aisle'   -- Row + C = aisle
-    WHEN seat_element.value::text ~ '^[0-9]+D$' THEN 'aisle'   -- Row + D = aisle
-    WHEN seat_element.value::text ~ '^[0-9]+E$' THEN 'aisle'   -- Row + E = aisle
+    WHEN seat_element.value #>> '{}' ~ '^[0-9]+A$' THEN 'window'  -- Row + A = window
+    WHEN seat_element.value #>> '{}' ~ '^[0-9]+B$' THEN 'aisle'   -- Row + B = aisle
+    WHEN seat_element.value #>> '{}' ~ '^[0-9]+C$' THEN 'aisle'   -- Row + C = aisle
+    WHEN seat_element.value #>> '{}' ~ '^[0-9]+D$' THEN 'aisle'   -- Row + D = aisle
+    WHEN seat_element.value #>> '{}' ~ '^[0-9]+E$' THEN 'aisle'   -- Row + E = aisle
     ELSE 'aisle'
   END as position,
   CASE
-    WHEN seat_element.value::text LIKE 'VIP%' THEN 50000  -- VIP surcharge
-    WHEN seat_element.value::text LIKE 'H%A' OR seat_element.value::text LIKE 'H%B' THEN 100000  -- Sleeper surcharge
+    WHEN seat_element.value #>> '{}' LIKE 'VIP%' THEN 50000  -- VIP surcharge
+    WHEN seat_element.value #>> '{}' LIKE 'H%A' OR seat_element.value #>> '{}' LIKE 'H%B' THEN 100000  -- Sleeper surcharge
     ELSE 0
   END as price,
   (row_data->>'row')::integer as row_num,

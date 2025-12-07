@@ -2,44 +2,18 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import GoogleIcon from '@/components/GoogleIcon'
 
+type GoogleCredentialResponse = {
+  credential?: string
+}
+
 interface GoogleSignInButtonProps {
   onSuccess: (credential: string) => Promise<void> | void
   onError?: (error: Error) => void
   disabled?: boolean
 }
 
-interface GoogleCredentialResponse {
-  credential: string
-}
-
-interface GoogleButtonOptions {
-  theme?: 'outline' | 'filled_blue' | 'filled_black'
-  size?: 'large' | 'medium' | 'small'
-  width?: number
-  text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin'
-  shape?: 'rectangular' | 'pill' | 'circle' | 'square'
-}
-
-interface GoogleInitConfig {
-  client_id: string
-  callback: (response: GoogleCredentialResponse) => void
-  auto_select?: boolean
-}
-
 declare global {
   interface Window {
-    google?: {
-      accounts?: {
-        id?: {
-          initialize: (config: GoogleInitConfig) => void
-          renderButton: (
-            element: HTMLElement,
-            options: GoogleButtonOptions
-          ) => void
-          prompt: () => void
-        }
-      }
-    }
     handleGoogleCredential?: (response: GoogleCredentialResponse) => void
   }
 }
@@ -148,7 +122,7 @@ export function GoogleSignInButton({
 
         window.google?.accounts?.id?.initialize({
           client_id: clientId,
-          callback: window.handleGoogleCredential,
+          callback: window.handleGoogleCredential!,
           auto_select: false,
         })
 

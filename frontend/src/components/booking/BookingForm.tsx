@@ -118,8 +118,7 @@ export function BookingForm({
       )
 
       if (response.success) {
-        const bookingRef =
-          response.data.booking_reference || response.data.bookingReference
+        const bookingRef = response.data.bookingReference
         onSuccess?.(bookingRef)
         navigate(`/booking-confirmation/${bookingRef}`, {
           state: { booking: response.data },

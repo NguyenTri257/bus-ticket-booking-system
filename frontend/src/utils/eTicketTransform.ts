@@ -1,5 +1,5 @@
-﻿import { Booking } from '@/types/booking.types'
-import { ETicketData } from '@/components/booking/ETicket'
+﻿import type { Booking } from '@/types/booking.types'
+import type { ETicketData } from '@/components/booking/ETicket'
 
 /**
  * Transform a Booking object from the API into ETicketData format
@@ -28,7 +28,7 @@ export function transformBookingToETicket(booking: Booking): ETicketData {
     paymentStatus: booking.paymentStatus as 'paid' | 'pending' | 'failed',
     bookingDate: booking.createdAt,
     passengers: booking.passengers.map((p) => ({
-      name: p.name,
+      name: p.name || p.fullName || 'Unknown',
       seatNumber: p.seatNumber,
       passengerType: p.passengerType || 'adult',
     })),
@@ -62,8 +62,8 @@ export function transformBookingToETicket(booking: Booking): ETicketData {
       email: booking.contactEmail || booking.user?.email,
       phone: booking.contactPhone || booking.user?.phone,
     },
-    qrCode: booking.eTicket?.qrCode,
-    ticketUrl: booking.eTicket?.ticketUrl,
+    qrCode: booking.eTicket?.qrCode || undefined,
+    ticketUrl: booking.eTicket?.ticketUrl || undefined,
   }
 }
 

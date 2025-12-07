@@ -136,11 +136,11 @@ export function BookingLookup() {
   const getStatusText = (status: string) => {
     switch (status.toLowerCase()) {
       case 'confirmed':
-        return 'Đã xác nhận'
+        return 'Confirmed'
       case 'pending':
-        return 'Chờ thanh toán'
+        return 'Pending Payment'
       case 'cancelled':
-        return 'Đã hủy'
+        return 'Cancelled'
       default:
         return status
     }
@@ -312,7 +312,7 @@ export function BookingLookup() {
                 <div className="pt-4 border-t">
                   <div className="flex items-center gap-2 mb-4">
                     <Ticket className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold">Vé điện tử (E-Ticket)</h3>
+                    <h3 className="font-semibold">E-Ticket</h3>
                   </div>
 
                   <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg p-6 space-y-4">
@@ -322,16 +322,16 @@ export function BookingLookup() {
                         <div className="bg-white p-4 rounded-lg shadow-sm">
                           <img
                             src={booking.eTicket.qrCode}
-                            alt="QR Code vé"
+                            alt="Boarding QR Code"
                             className="w-40 h-40"
                           />
                         </div>
                         <div className="text-center">
                           <p className="text-sm font-medium">
-                            Quét mã QR để xác thực
+                            Scan QR code to verify
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Xuất trình mã này khi lên xe
+                            Present this code when boarding
                           </p>
                         </div>
                       </div>
@@ -346,10 +346,10 @@ export function BookingLookup() {
                       }
                     >
                       <Download className="mr-2 h-5 w-5" />
-                      Tải xuống vé PDF
+                      Download PDF Ticket
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
-                      Vé đã được gửi đến {booking.contact_email}
+                      Ticket sent to {booking.contact_email}
                     </p>
                   </div>
                 </div>
@@ -358,7 +358,7 @@ export function BookingLookup() {
               {/* Passengers */}
               <div className="pt-4 border-t">
                 <h3 className="font-semibold mb-3">
-                  Thông tin hành khách ({booking.passengers.length})
+                  Passenger Information ({booking.passengers.length})
                 </h3>
                 <div className="space-y-3">
                   {booking.passengers.map((passenger, index) => (
@@ -375,7 +375,7 @@ export function BookingLookup() {
                         )}
                       </div>
                       <Badge variant="outline" className="text-base">
-                        Ghế {passenger.seat_code}
+                        Seat {passenger.seat_code}
                       </Badge>
                     </div>
                   ))}
@@ -389,7 +389,7 @@ export function BookingLookup() {
                   className="flex-1"
                   onClick={() => window.print()}
                 >
-                  In vé
+                  Print Ticket
                 </Button>
                 <Button
                   className="flex-1"
@@ -432,6 +432,10 @@ export function BookingLookup() {
               <p>
                 <strong>Step 4:</strong> Click "Look Up Booking"
               </p>
+              <p>
+                <strong>Step 5:</strong> View booking details with E-Ticket (QR
+                code, PDF download)
+              </p>
               <div className="mt-4 p-3 bg-white rounded border">
                 <p className="font-medium mb-2">Sample test case:</p>
                 <code className="text-xs">
@@ -440,6 +444,8 @@ export function BookingLookup() {
                   Email: testguest@example.com
                   <br />
                   Phone: 0901234567
+                  <br />
+                  <br />✅ Includes E-Ticket with QR code and PDF download
                 </code>
               </div>
             </div>

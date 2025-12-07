@@ -437,15 +437,28 @@ export function BookingLookup() {
                 code, PDF download)
               </p>
               <div className="mt-4 p-3 bg-white rounded border">
-                <p className="font-medium mb-2">Sample test case:</p>
-                <code className="text-xs">
-                  Reference: BK202512064939
-                  <br />
-                  Email: testguest@example.com
-                  <br />
-                  Phone: 0901234567
-                  <br />
-                  <br />✅ Includes E-Ticket with QR code and PDF download
+                <p className="font-medium mb-2">
+                  Sample test case (with E-Ticket):
+                </p>
+                <code className="text-xs block space-y-1">
+                  <span className="block">
+                    Reference: <strong>BK20251207058</strong>
+                  </span>
+                  <span className="block">
+                    Email: <strong>nguyenvana@example.com</strong>
+                  </span>
+                  <span className="block">
+                    Phone: <strong>0901234567</strong>
+                  </span>
+                  <span className="block mt-2 text-green-600">
+                    ✅ This booking includes E-Ticket
+                  </span>
+                  <span className="block text-muted-foreground">
+                    • QR code for boarding verification
+                  </span>
+                  <span className="block text-muted-foreground">
+                    • PDF ticket download available
+                  </span>
                 </code>
               </div>
             </div>

@@ -10,12 +10,12 @@ const mockConfirmedBooking: ETicketData = {
   bookingDate: '2024-01-15T10:30:00Z',
   passengers: [
     {
-      name: 'John Smith',
+      name: 'Nguyen Van A',
       seatNumber: 'A12',
       passengerType: 'adult',
     },
     {
-      name: 'Jane Doe',
+      name: 'Tran Thi B',
       seatNumber: 'A13',
       passengerType: 'adult',
     },

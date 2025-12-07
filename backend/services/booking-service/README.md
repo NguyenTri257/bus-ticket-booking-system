@@ -18,7 +18,7 @@ Microservice quản lý đặt vé xe khách với **Redis-based concurrency con
 
 ### 1. Đặt vé Guest (Guest Checkout)
 ```
-http://localhost:5174/booking-demo
+http://localhost:5173/booking-demo
 ```
 - Chọn ghế trên sơ đồ 2-2
 - Bật "Book as Guest"
@@ -28,7 +28,7 @@ http://localhost:5174/booking-demo
 
 ### 2. Tra cứu vé Guest (Guest Lookup)
 ```
-http://localhost:5174/booking-lookup
+http://localhost:5173/booking-lookup
 ```
 - Nhập mã đặt vé (VD: BK202512064939)
 - Nhập email HOẶC phone đã dùng khi đặt

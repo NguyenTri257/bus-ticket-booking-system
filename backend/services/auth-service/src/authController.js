@@ -193,8 +193,10 @@ class AuthController {
           user: {
             userId: user.user_id,
             email: user.email,
+            phone: user.phone,
             fullName: user.full_name,
-            role: user.role
+            role: user.role,
+            emailVerified: user.email_verified
           }
         },
         timestamp: new Date().toISOString()
@@ -271,8 +273,10 @@ class AuthController {
           user: {
             userId: user.user_id,
             email: user.email,
+            phone: user.phone,
             fullName: user.full_name,
-            role: user.role
+            role: user.role,
+            emailVerified: user.email_verified
           }
         },
         timestamp: new Date().toISOString()

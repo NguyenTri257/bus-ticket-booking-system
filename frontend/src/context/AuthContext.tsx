@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom'
 interface User {
   userId: number
   email: string
-  phone: string
+  phone: string | null
   fullName: string
   role: 'passenger' | 'admin'
   emailVerified: boolean

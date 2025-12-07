@@ -12,11 +12,11 @@ export function transformBookingToETicket(booking: Booking): ETicketData {
       return booking.trip.schedule.duration
     }
     if (
-      booking.trip?.schedule?.departureTime &&
-      booking.trip?.schedule?.arrivalTime
+      booking.trip?.schedule?.departure_time &&
+      booking.trip?.schedule?.arrival_time
     ) {
-      const departure = new Date(booking.trip.schedule.departureTime)
-      const arrival = new Date(booking.trip.schedule.arrivalTime)
+      const departure = new Date(booking.trip.schedule.departure_time)
+      const arrival = new Date(booking.trip.schedule.arrival_time)
       return Math.floor((arrival.getTime() - departure.getTime()) / (1000 * 60))
     }
     return undefined
@@ -34,9 +34,9 @@ export function transformBookingToETicket(booking: Booking): ETicketData {
     })),
     trip: {
       route: {
-        originCity: booking.trip?.route?.origin?.city || 'N/A',
-        destinationCity: booking.trip?.route?.destination?.city || 'N/A',
-        distance: booking.trip?.route?.distance,
+        originCity: booking.trip?.route?.origin || 'N/A',
+        destinationCity: booking.trip?.route?.destination || 'N/A',
+        distance: booking.trip?.route?.distance_km,
       },
       operator: {
         name: booking.trip?.operator?.name || 'Bus Operator',
@@ -44,13 +44,13 @@ export function transformBookingToETicket(booking: Booking): ETicketData {
       },
       schedule: {
         departureTime:
-          booking.trip?.schedule?.departureTime || booking.createdAt,
-        arrivalTime: booking.trip?.schedule?.arrivalTime || booking.createdAt,
+          booking.trip?.schedule?.departure_time || booking.createdAt,
+        arrivalTime: booking.trip?.schedule?.arrival_time || booking.createdAt,
         duration: getDuration(),
       },
       bus: {
-        busNumber: booking.trip?.bus?.busNumber || 'N/A',
-        type: booking.trip?.bus?.type || 'Standard',
+        busNumber: booking.trip?.bus?.plate_number || 'N/A',
+        type: booking.trip?.bus?.bus_type || 'Standard',
       },
     },
     pricing: {
@@ -60,7 +60,7 @@ export function transformBookingToETicket(booking: Booking): ETicketData {
     },
     contact: {
       email: booking.contactEmail || booking.user?.email,
-      phone: booking.contactPhone || booking.user?.phone,
+      phone: booking.contactPhone || (booking.user?.phone ?? undefined),
     },
     qrCode: booking.eTicket?.qrCode || undefined,
     ticketUrl: booking.eTicket?.ticketUrl || undefined,

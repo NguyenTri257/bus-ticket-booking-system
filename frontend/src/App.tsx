@@ -29,6 +29,7 @@ import TripSearchResults from './pages/TripSearchResults'
 import { BookingConfirmation } from './pages/BookingConfirmation'
 import { BookingDemo } from './pages/BookingDemo'
 import { BookingLookup } from './pages/BookingLookup'
+import ETicketPreview from './pages/ETicketPreview'
 
 const queryClient = new QueryClient()
 
@@ -72,6 +73,7 @@ const App = () => (
                 path="/booking-confirmation/:bookingReference"
                 element={<BookingConfirmation />}
               />
+              <Route path="/e-ticket-preview" element={<ETicketPreview />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />

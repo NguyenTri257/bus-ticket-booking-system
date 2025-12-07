@@ -28,6 +28,7 @@ import Landing from './pages/Landing'
 import TripSearchResults from './pages/TripSearchResults'
 import { BookingConfirmation } from './pages/BookingConfirmation'
 import { BookingDemo } from './pages/BookingDemo'
+import { BookingLookup } from './pages/BookingLookup'
 
 const queryClient = new QueryClient()
 
@@ -66,6 +67,7 @@ const App = () => (
                 element={<TripSearchResults />}
               />
               <Route path="/booking-demo" element={<BookingDemo />} />
+              <Route path="/booking-lookup" element={<BookingLookup />} />
               <Route
                 path="/booking-confirmation/:bookingReference"
                 element={<BookingConfirmation />}

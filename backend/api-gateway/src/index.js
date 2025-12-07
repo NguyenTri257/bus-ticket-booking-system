@@ -111,12 +111,15 @@ app.use('/notification', async (req, res) => {
 app.use('/bookings', async (req, res) => {
   try {
     const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://localhost:3004';
-    const queryString = Object.keys(req.query).length 
-      ? '?' + new URLSearchParams(req.query).toString() 
-      : '';
     
     // req.path is already stripped of /bookings prefix by app.use, so we need to add it back
     const fullPath = '/bookings' + req.path;
+    
+    // Query string is already in req.originalUrl, extract it properly
+    const queryString = req.originalUrl.includes('?') 
+      ? '?' + req.originalUrl.split('?')[1] 
+      : '';
+    
     console.log(`🔄 Proxying ${req.method} ${req.originalUrl} to ${bookingServiceUrl}${fullPath}${queryString}`);
 
     const response = await axios({

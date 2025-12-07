@@ -104,6 +104,28 @@ class BookingService {
     return await bookingRepository.findByReference(bookingReference);
   }
 
+  async getBookingByReferenceAndContact(bookingReference, contactEmail, contactPhone) {
+    // Verify at least one contact method matches
+    const booking = await bookingRepository.findByReference(bookingReference);
+    
+    if (!booking) {
+      return null;
+    }
+    
+    // Check if either email or phone matches
+    const emailMatches = contactEmail && booking.contact_email && 
+                        booking.contact_email.toLowerCase() === contactEmail.toLowerCase();
+    const phoneMatches = contactPhone && booking.contact_phone && 
+                        booking.contact_phone.replace(/\s/g, '') === contactPhone.replace(/\s/g, '');
+    
+    if (!emailMatches && !phoneMatches) {
+      // Contact info doesn't match - return null (security: don't reveal booking exists)
+      return null;
+    }
+    
+    return booking;
+  }
+
   async lookupGuestBooking(bookingReference, contactEmail, contactPhone) {
     return await bookingRepository.findByReferenceAndContact(bookingReference, contactEmail, contactPhone);
   }

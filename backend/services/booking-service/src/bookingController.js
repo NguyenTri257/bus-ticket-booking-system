@@ -75,12 +75,64 @@ class BookingController {
   async getBooking(req, res) {
     try {
       const { bookingReference } = req.params;
-      const booking = await bookingService.getBookingByReference(bookingReference);
+      const { contactEmail, contactPhone } = req.query;
+      const isAuthenticated = !!req.user;
+
+      // Authenticated users - no contact verification needed
+      if (isAuthenticated) {
+        const booking = await bookingService.getBookingByReference(bookingReference);
+
+        if (!booking) {
+          return res.status(404).json({
+            success: false,
+            error: { code: 'BOOKING_003', message: 'Booking not found' },
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        // Verify booking belongs to authenticated user
+        if (booking.user_id && booking.user_id !== req.user.userId) {
+          return res.status(403).json({
+            success: false,
+            error: { code: 'BOOKING_004', message: 'Access denied to this booking' },
+            timestamp: new Date().toISOString()
+          });
+        }
+
+        return res.json({
+          success: true,
+          data: booking,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Guest lookup - require contact verification
+      if (!contactEmail && !contactPhone) {
+        return res.status(400).json({
+          success: false,
+          error: { 
+            code: 'VAL_003', 
+            message: 'Either contactEmail or contactPhone is required for guest booking lookup' 
+          },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      // Verify contact information matches
+      const booking = await bookingService.getBookingByReferenceAndContact(
+        bookingReference,
+        contactEmail,
+        contactPhone
+      );
 
       if (!booking) {
+        // Don't reveal if booking exists or contact info is wrong (security)
         return res.status(404).json({
           success: false,
-          error: { code: 'BOOKING_003', message: 'Booking not found' },
+          error: { 
+            code: 'BOOKING_003', 
+            message: 'Booking not found or contact information does not match' 
+          },
           timestamp: new Date().toISOString()
         });
       }

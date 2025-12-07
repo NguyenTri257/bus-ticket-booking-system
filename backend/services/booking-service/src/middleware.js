@@ -1,4 +1,47 @@
 const jwt = require('jsonwebtoken');
+const redisClient = require('./redis');
+
+// Anti-bruteforce rate limiting for guest lookups
+const rateLimitGuestLookup = async (req, res, next) => {
+  const { bookingReference } = req.params;
+  const { contactEmail, contactPhone } = req.query;
+  
+  // Skip rate limiting for authenticated users
+  if (req.user) {
+    return next();
+  }
+  
+  // For guest lookups, check rate limit
+  const identifier = contactEmail || contactPhone || req.ip;
+  const key = `rate_limit:booking_lookup:${identifier}`;
+  
+  try {
+    const attempts = await redisClient.incr(key);
+    
+    if (attempts === 1) {
+      // First attempt, set expiry to 15 minutes
+      await redisClient.expire(key, 900);
+    }
+    
+    // Allow max 10 attempts per 15 minutes
+    if (attempts > 10) {
+      return res.status(429).json({
+        success: false,
+        error: { 
+          code: 'RATE_LIMIT_001', 
+          message: 'Too many lookup attempts. Please try again in 15 minutes.' 
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    next();
+  } catch (error) {
+    console.error('⚠️ Rate limit check failed:', error);
+    // If Redis fails, continue anyway (fail-open)
+    next();
+  }
+};
 
 // Optional authentication - allows both authenticated and guest users
 const optionalAuthenticate = (req, res, next) => {
@@ -50,4 +93,8 @@ const authenticate = (req, res, next) => {
   }
 };
 
-module.exports = { authenticate, optionalAuthenticate };
+module.exports = { 
+  authenticate, 
+  optionalAuthenticate, 
+  rateLimitGuestLookup 
+};

@@ -1,14 +1,44 @@
 # Booking Service
 
-Microservice quản lý đặt vé xe khách, hỗ trợ **Guest Checkout** (đặt vé không cần đăng nhập) và **Authenticated Booking** (đặt vé với tài khoản).
+Microservice quản lý đặt vé xe khách, hỗ trợ **Guest Checkout** (đặt vé không cần đăng nhập) và **Guest Booking Lookup** (tra cứu vé không cần đăng nhập).
+
+## 🚀 QUICK START - Demo Pages
+
+### 1. Đặt vé Guest (Guest Checkout)
+```
+http://localhost:5174/booking-demo
+```
+- Chọn ghế trên sơ đồ 2-2
+- Bật "Book as Guest"
+- Nhập email + phone (cả 2 bắt buộc)
+- Click "Confirm Booking"
+- Nhận mã đặt vé (VD: BK202512064939)
+
+### 2. Tra cứu vé Guest (Guest Lookup)
+```
+http://localhost:5174/booking-lookup
+```
+- Nhập mã đặt vé (VD: BK202512064939)
+- Nhập email HOẶC phone đã dùng khi đặt
+- Click "Tra cứu đặt vé"
+- Xem thông tin booking đầy đủ
+
+### Test Case Mẫu
+```
+Mã đặt vé: BK202512064939
+Email: testguest@example.com
+Phone: 0901234567
+```
 
 ## 🎯 Tính năng chính
 
 - ✅ **Guest Checkout**: Đặt vé mà không cần đăng nhập
+- ✅ **Guest Booking Lookup**: Tra cứu vé với mã + email/phone
 - ✅ **Redis Seat Locking**: Khóa ghế trong 10 phút khi đang đặt
 - ✅ **Booking Reference**: Tự động tạo mã đặt vé (VD: BK202512071234)
 - ✅ **Optional JWT Authentication**: Hỗ trợ cả guest và user đã đăng nhập
 - ✅ **Real-time Seat Availability**: Kiểm tra ghế có sẵn từ database
+- ✅ **Anti-Bruteforce**: Giới hạn 10 lần tra cứu / 15 phút
 - ✅ **Validation**: Kiểm tra email và số điện thoại bắt buộc cho guest
 
 ## 📋 Yêu cầu hệ thống
@@ -143,28 +173,90 @@ Authorization: Bearer <JWT_TOKEN>
 - `fullName`: Bắt buộc
 - `seatNumber`: Bắt buộc và phải available
 
-### 2. Tra cứu đặt vé
+### 2. Tra cứu đặt vé (Guest hoặc Authenticated)
 
 **Endpoint:** `GET /bookings/:bookingReference`
 
-**Query Parameters (Optional):**
+**📌 Hai cách tra cứu:**
+
+#### A. Guest Lookup (Không cần JWT)
+**Query Parameters (BẮT BUỘC):**
 ```
 contactEmail=guest@example.com
-contactPhone=+84901234567
+# HOẶC
+contactPhone=0901234567
+# HOẶC CẢ HAI
+contactEmail=guest@example.com&contactPhone=0901234567
 ```
 
-**Response:**
+**Example:**
+```bash
+# Với email
+curl "http://localhost:3000/bookings/BK202512064939?contactEmail=testguest@example.com"
+
+# Với phone
+curl "http://localhost:3000/bookings/BK202512064939?contactPhone=0901234567"
+```
+
+**⚠️ Lưu ý:**
+- Phải cung cấp ít nhất 1 trong 2: `contactEmail` HOẶC `contactPhone`
+- Thông tin phải khớp với DB
+- Có rate limit: 10 lần / 15 phút
+
+#### B. Authenticated Lookup (Với JWT)
+**Headers:**
+```
+Authorization: Bearer <JWT_TOKEN>
+```
+
+**Example:**
+```bash
+curl -H "Authorization: Bearer <JWT>" \
+  "http://localhost:3000/bookings/BK202512064939"
+```
+
+**Response (Cả 2 cách):**
 
 ```json
 {
   "success": true,
   "data": {
-    "bookingId": "123e4567-e89b-12d3-a456-426614174000",
-    "bookingReference": "BK202512071234",
+    "booking_id": "uuid",
+    "booking_reference": "BK202512071234",
     "status": "confirmed",
-    "tripId": "TRIP_TEST_001",
-    "totalPrice": 250000,
+    "trip_id": "TRIP_TEST_001",
+    "total_price": 250000,
+    "contact_email": "guest@example.com",
+    "contact_phone": "0901234567",
     "passengers": [...]
+  }
+}
+```
+
+**Error Responses:**
+
+```json
+// Thiếu contact info (guest)
+{
+  "error": {
+    "code": "VAL_003",
+    "message": "Either contactEmail or contactPhone is required for guest booking lookup"
+  }
+}
+
+// Không tìm thấy hoặc thông tin sai
+{
+  "error": {
+    "code": "BOOKING_003",
+    "message": "Booking not found or contact information does not match"
+  }
+}
+
+// Quá nhiều lần thử
+{
+  "error": {
+    "code": "RATE_LIMIT_001",
+    "message": "Too many lookup attempts. Please try again in 15 minutes."
   }
 }
 ```
@@ -198,44 +290,109 @@ contactPhone=+84901234567
 - `booked`: Đã được đặt
 - `locked`: Đang bị khóa (đang trong quá trình đặt)
 
-## 🧪 Demo Guest Checkout
+## 🧪 Hướng dẫn Test đầy đủ
 
 ### Bước 1: Khởi động services
 
 ```bash
-# Backend
+# Backend (API + DB + Redis)
 cd backend
 docker-compose up -d
 
-# Frontend
+# Frontend  
 cd frontend
-npm run dev
+npm run dev  # Mở http://localhost:5174
 ```
 
-### Bước 2: Truy cập demo page
+### Bước 2: Test Guest Checkout
 
-Mở trình duyệt: `http://localhost:5173/booking-demo`
+**URL:** `http://localhost:5174/booking-demo`
 
-### Bước 3: Test guest checkout
+**Flow:**
+1. **Chọn ghế** trên sơ đồ 2-2 (A1, A2, B1, B2...)
+   - Trắng = Available
+   - Xanh = Selected
+   - Xám = Occupied
+   
+2. **Bật Guest Mode** và điền:
+   - ✅ Email: `guest@test.com` (bắt buộc)
+   - ✅ Phone: `0901234567` (bắt buộc)
+   
+3. **Nhập hành khách:**
+   - Họ tên: `Nguyen Van A`
+   - CMND: `001234567890` (optional)
+   
+4. **Click "Confirm Booking"**
+   - ✅ Nhận mã: `BK202512064939`
+   - → Auto redirect sang Booking Confirmation
 
-1. **Chọn ghế** trên sơ đồ ghế ngồi (layout 2-2)
-   - Ghế trống: màu trắng, click để chọn
-   - Ghế đã chọn: màu xanh
-   - Ghế đã đặt: màu xám, không click được
+### Bước 3: Test Guest Lookup
 
-2. **Điền thông tin**
-   - Email: Bắt buộc (VD: `guest@test.com`)
-   - Số điện thoại: Bắt buộc (VD: `0901234567`)
-   - Toggle "Book as Guest" = ON
+**URL:** `http://localhost:5174/booking-lookup`
 
-3. **Nhập thông tin hành khách**
-   - Họ tên đầy đủ
-   - Số CMND/Passport (optional)
-   - Số điện thoại (optional)
+**Flow:**
+1. **Nhập thông tin:**
+   - Mã đặt vé: `BK202512064939`
+   - Email: `guest@test.com` (HOẶC)
+   - Phone: `0901234567`
+   
+2. **Click "Tra cứu đặt vé"**
+   - ✅ Hiển thị đầy đủ thông tin
+   - Badge trạng thái màu
+   - Danh sách hành khách + ghế
+   - Nút in vé
 
-4. **Xác nhận đặt vé**
-   - Click "Confirm Booking"
-   - Nhận mã đặt vé (VD: `BK202512071234`)
+### Test Cases
+
+#### ✅ Guest Checkout (Pass)
+```bash
+POST /bookings
+Body: {
+  "tripId": "TRIP_TEST_001",
+  "isGuestCheckout": true,
+  "contactEmail": "test@example.com",  # BẮT BUỘC
+  "contactPhone": "0901234567",         # BẮT BUỘC
+  "passengers": [...],
+  "totalPrice": 250000
+}
+```
+
+#### ✅ Guest Lookup (Pass) 
+```bash
+# Test 1: Với email đúng
+GET /bookings/BK202512064939?contactEmail=guest@test.com
+
+# Test 2: Với phone đúng
+GET /bookings/BK202512064939?contactPhone=0901234567
+
+# Test 3: Với cả 2
+GET /bookings/BK202512064939?contactEmail=guest@test.com&contactPhone=0901234567
+```
+
+#### ❌ Guest Lookup (Fail - Expected)
+```bash
+# Không có contact info
+GET /bookings/BK202512064939
+→ 400: "Either contactEmail or contactPhone is required"
+
+# Email sai
+GET /bookings/BK202512064939?contactEmail=wrong@email.com
+→ 404: "Booking not found or contact information does not match"
+
+# Phone sai
+GET /bookings/BK202512064939?contactPhone=9999999999
+→ 404: "Booking not found or contact information does not match"
+```
+
+### Demo Data Có Sẵn
+
+```
+Mã đặt vé: BK202512064939
+Email: testguest@example.com
+Phone: 0901234567
+Chuyến xe: TRIP_TEST_001
+Ghế: B4
+Tổng tiền: 250,000 VND
    - Redirect đến trang xác nhận
 
 ### Test bằng cURL

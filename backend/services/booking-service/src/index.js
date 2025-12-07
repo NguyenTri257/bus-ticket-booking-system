@@ -5,7 +5,7 @@ const morgan = require('morgan');
 require('dotenv').config();
 
 const bookingController = require('./bookingController');
-const { authenticate, optionalAuthenticate } = require('./middleware');
+const { authenticate, optionalAuthenticate, rateLimitGuestLookup } = require('./middleware');
 
 const app = express();
 const PORT = process.env.PORT || 3004;
@@ -33,7 +33,9 @@ app.post('/bookings/lookup', bookingController.lookupBooking);
 
 // Protected routes (authenticated users only)
 app.get('/bookings/user', authenticate, bookingController.getUserBookings);
-app.get('/bookings/:bookingReference', bookingController.getBooking);
+
+// Booking lookup - supports both authenticated and guest (with contact verification)
+app.get('/bookings/:bookingReference', optionalAuthenticate, bookingController.getBooking);
 
 // Error handling
 app.use((err, req, res, next) => {

@@ -148,6 +148,12 @@ class BookingRepository {
     const result = await pool.query(query, [tripId, seatNumbers]);
     return result.rows.map(row => row.seat_code);
   }
+
+  async checkReferenceExists(bookingReference) {
+    const query = 'SELECT EXISTS(SELECT 1 FROM bookings WHERE booking_reference = $1)';
+    const result = await pool.query(query, [bookingReference]);
+    return result.rows[0].exists;
+  }
 }
 
 module.exports = new BookingRepository();

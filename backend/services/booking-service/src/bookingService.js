@@ -2,13 +2,60 @@ const bookingRepository = require('./bookingRepository');
 const redisClient = require('./redis');
 
 class BookingService {
-  generateBookingReference() {
+  /**
+   * Generate unique booking reference with format: BK + YYYYMMDD + sequence
+   * Example: BK20251207001
+   * Uses Redis INCR for concurrency-safe sequence generation
+   */
+  async generateBookingReference() {
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-    return `BK${year}${month}${day}${random}`;
+    const dateKey = `${year}${month}${day}`;
+    
+    // Redis key for daily sequence counter
+    const redisKey = `booking:sequence:${dateKey}`;
+    
+    // Atomic increment with retry logic for uniqueness
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+      try {
+        // Get next sequence number (atomic operation)
+        const sequence = await redisClient.incr(redisKey);
+        
+        // Set expiry to 48 hours (to clean up old keys)
+        if (sequence === 1) {
+          await redisClient.expire(redisKey, 48 * 60 * 60);
+        }
+        
+        // Format: BK + YYYYMMDD + 3-digit sequence
+        const sequenceStr = String(sequence).padStart(3, '0');
+        const bookingReference = `BK${dateKey}${sequenceStr}`;
+        
+        // Verify uniqueness in database
+        const exists = await bookingRepository.checkReferenceExists(bookingReference);
+        if (!exists) {
+          return bookingReference;
+        }
+        
+        // If exists (edge case), retry with next sequence
+        attempts++;
+      } catch (error) {
+        console.error('Error generating booking reference:', error);
+        attempts++;
+        
+        // Fallback to timestamp-based if Redis fails
+        if (attempts >= maxAttempts) {
+          const timestamp = Date.now().toString().slice(-6);
+          return `BK${dateKey}${timestamp}`;
+        }
+      }
+    }
+    
+    throw new Error('Failed to generate unique booking reference after maximum attempts');
   }
 
   async lockSeats(tripId, seatNumbers, duration = 600) {
@@ -71,8 +118,8 @@ class BookingService {
     const serviceFee = totalPrice * 0.05; // 5% service fee
     const subtotal = totalPrice - serviceFee;
 
-    // Generate booking reference
-    const bookingReference = this.generateBookingReference();
+    // Generate unique booking reference (async, concurrency-safe)
+    const bookingReference = await this.generateBookingReference();
 
     // Create booking with 10 minute lock
     const lockedUntil = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes

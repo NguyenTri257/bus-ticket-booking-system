@@ -82,7 +82,7 @@ export function CountdownTimer({
         ${className}
       `}
     >
-      <Clock className="w-3 h-3" />
+      {!isWarning && <Clock className="w-3 h-3" />}
       <span>{formatTime(timeLeft)}</span>
       {isWarning && <AlertTriangle className="w-3 h-3" />}
     </div>

@@ -39,6 +39,8 @@ export interface UseSeatLocksOptions {
   isGuest?: boolean
   /** Session ID for guest users */
   sessionId?: string
+  /** Maximum seats allowed per user */
+  maxSeats?: number
 }
 
 export interface UseSeatLocksReturn {
@@ -59,7 +61,8 @@ export interface UseSeatLocksReturn {
   /** Transfer guest locks to authenticated user */
   transferGuestLocks: (
     tripId: string,
-    guestSessionId: string
+    guestSessionId: string,
+    maxSeats?: number
   ) => Promise<SeatLockResponse>
   /** Refresh locks from server */
   refreshLocks: (tripId: string) => Promise<void>
@@ -85,6 +88,7 @@ export function useSeatLocks(
     onLocksLoaded,
     isGuest = false,
     sessionId,
+    maxSeats = 5,
   } = options
 
   const [locks, setLocks] = useState<SeatLock[]>([])
@@ -273,11 +277,16 @@ export function useSeatLocks(
   const handleTransferGuestLocks = useCallback(
     async (
       tripId: string,
-      guestSessionId: string
+      guestSessionId: string,
+      maxSeatsOverride?: number
     ): Promise<SeatLockResponse> => {
       try {
         setIsLoading(true)
-        const response = await transferGuestLocks(tripId, guestSessionId)
+        const response = await transferGuestLocks(
+          tripId,
+          guestSessionId,
+          maxSeatsOverride ?? maxSeats
+        )
         // Refresh locks after transfer
         await refreshLocks(tripId)
         setError(null)
@@ -289,7 +298,7 @@ export function useSeatLocks(
         setIsLoading(false)
       }
     },
-    [refreshLocks, handleError]
+    [maxSeats, refreshLocks, handleError]
   )
 
   // Auto-refresh locks

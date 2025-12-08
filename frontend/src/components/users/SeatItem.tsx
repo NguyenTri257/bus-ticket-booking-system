@@ -44,7 +44,10 @@ export function SeatItem({
 }: SeatItemProps) {
   // Determine seat status class
   const getSeatStatusClass = () => {
+    // Selected takes precedence over all other statuses
     if (isSelected) return 'seat-selected'
+    // User has a lock on this seat (but not selected) - treat as selected
+    if (userLock) return 'seat-selected'
     if (seat.status === 'available') return 'seat-available'
     if (seat.status === 'occupied') return 'seat-occupied'
     if (seat.status === 'locked') return 'seat-locked'
@@ -56,7 +59,7 @@ export function SeatItem({
 
   // Get seat icon based on status
   const getSeatIcon = () => {
-    if (isSelected) {
+    if (isSelected || userLock) {
       return <Check className="w-4 h-4" />
     }
     if (seat.status !== 'available') {
@@ -73,7 +76,6 @@ export function SeatItem({
       className={`
         seat-item
         ${getSeatStatusClass()}
-        ${isSelected ? 'seat-item-selected' : ''}
         ${isClickable ? 'seat-item-interactive' : 'seat-item-disabled-btn'}
         ${seat.seat_type === 'vip' ? 'seat-vip' : ''}
       `}
@@ -95,7 +97,7 @@ export function SeatItem({
         <span className="seat-code">{seat.seat_code}</span>
 
         {/* Countdown Timer for selected seats with locks */}
-        {userLock && isSelected && (
+        {userLock && (isSelected || userLock) && (
           <div className="seat-countdown">
             <CountdownTimer
               expiresAt={userLock.expires_at}

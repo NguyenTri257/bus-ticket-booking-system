@@ -100,6 +100,13 @@ class SeatLockController {
         });
       }
 
+      if (err.message.includes('exceed maximum')) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'MAX_SEATS_EXCEEDED', message: err.message }
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: { code: 'SYS_ERROR', message: 'Internal Server Error' }
@@ -313,7 +320,7 @@ class SeatLockController {
   async transferGuestLocks(req, res) {
     try {
       const { id: tripId } = req.params;
-      const { guestSessionId } = req.body;
+      const { guestSessionId, maxSeats = 5 } = req.body;
 
       if (!guestSessionId) {
         return res.status(400).json({
@@ -337,7 +344,8 @@ class SeatLockController {
         tripId,
         guestUserId,
         guestSessionId,
-        authUserId
+        authUserId,
+        maxSeats
       );
 
       res.json({

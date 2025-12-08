@@ -163,7 +163,9 @@ export interface SeatLockApiRequest {
 export interface SeatLockResponse {
   success: boolean
   data: {
-    locked_seats: string[]
+    locked_seats?: string[]
+    transferredSeats?: string[]
+    rejectedSeats?: string[]
     expires_at: string
   }
   message?: string
@@ -313,10 +315,11 @@ export async function getUserLocks(
  */
 export async function transferGuestLocks(
   tripId: string,
-  guestSessionId: string
+  guestSessionId: string,
+  maxSeats: number = 5
 ): Promise<SeatLockResponse> {
   return await apiRequest(`/trips/${tripId}/seats/transfer-guest-locks`, {
     method: 'POST',
-    body: { guestSessionId },
+    body: { guestSessionId, maxSeats },
   })
 }

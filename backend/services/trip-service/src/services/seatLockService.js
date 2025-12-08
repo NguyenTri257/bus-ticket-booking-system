@@ -349,6 +349,86 @@ class SeatLockService {
   }
 
   /**
+   * Transfer guest locks to authenticated user
+   * @param {string} tripId - Trip ID
+   * @param {string} guestUserId - Guest user ID (guest_sessionId)
+   * @param {string} guestSessionId - Guest session ID
+   * @param {string} authUserId - Authenticated user ID
+   * @returns {Promise<Object>} Transfer result
+   */
+  async transferGuestLocksToUser(tripId, guestUserId, guestSessionId, authUserId) {
+    if (!this.redis) {
+      throw new Error('Redis client not available');
+    }
+
+    const guestLockKey = this._getUserLockKey(guestUserId, tripId);
+    const seatCodes = await this.redis.smembers(guestLockKey);
+
+    if (seatCodes.length === 0) {
+      return { success: true, transferredSeats: [] };
+    }
+
+    const pipeline = this.redis.pipeline();
+    const transferredSeats = [];
+
+    // Check each seat lock and transfer if owned by guest
+    for (const seatCode of seatCodes) {
+      const lockKey = this._getLockKey(tripId, seatCode);
+      pipeline.get(lockKey);
+    }
+
+    const results = await pipeline.exec();
+
+    // Transfer valid guest locks
+    const transferPipeline = this.redis.pipeline();
+
+    for (let i = 0; i < seatCodes.length; i++) {
+      const seatCode = seatCodes[i];
+      const existingLock = results[i][1];
+
+      if (existingLock) {
+        const lockInfo = JSON.parse(existingLock);
+
+        // Only transfer if it's actually owned by this guest
+        if (lockInfo.userId === guestUserId && lockInfo.sessionId === guestSessionId) {
+          // Update lock data with authenticated user info
+          const newLockData = {
+            ...lockInfo,
+            userId: authUserId,
+            sessionId: authUserId, // Use auth user ID as session ID
+            transferredAt: new Date().toISOString()
+          };
+
+          // Update the lock
+          const lockKey = this._getLockKey(tripId, seatCode);
+          transferPipeline.setex(lockKey, this.LOCK_TTL, JSON.stringify(newLockData));
+
+          // Move from guest lock set to auth user lock set
+          const guestLockKey = this._getUserLockKey(guestUserId, tripId);
+          const authLockKey = this._getUserLockKey(authUserId, tripId);
+
+          transferPipeline.srem(guestLockKey, seatCode);
+          transferPipeline.sadd(authLockKey, seatCode);
+          transferPipeline.expire(authLockKey, this.LOCK_TTL);
+
+          transferredSeats.push(seatCode);
+        }
+      }
+    }
+
+    // Clean up empty guest lock set
+    transferPipeline.del(guestLockKey);
+
+    await transferPipeline.exec();
+
+    return {
+      success: true,
+      transferredSeats,
+      message: `Transferred ${transferredSeats.length} guest locks to authenticated user`
+    };
+  }
+
+  /**
    * Release all locks for a user on a trip
    * @param {string} userId - User ID
    * @param {string} tripId - Trip ID

@@ -84,6 +84,11 @@ const App = () => (
                 path="/auth/google/callback"
                 element={<AuthGoogleCallback />}
               />
+              {/* Seat selection - accessible to both guests and authenticated users */}
+              <Route
+                path="/booking/:tripId/seats"
+                element={<SeatSelection />}
+              />
 
               {/* Passenger routes - protected */}
               <Route element={<PassengerRoute />}>
@@ -97,10 +102,6 @@ const App = () => (
                   element={<Notifications />}
                 />
                 <Route path="/trips/search" element={<TripSearch />} />
-                <Route
-                  path="/booking/:tripId/seats"
-                  element={<SeatSelection />}
-                />
               </Route>
 
               {/* Admin routes - protected */}

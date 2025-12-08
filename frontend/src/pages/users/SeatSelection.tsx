@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { SeatMap } from '@/components/users/SeatMap'
-import { ChevronLeft, ArrowRight, Lock, Clock } from 'lucide-react'
+import { ChevronLeft, ArrowRight, Lock, Clock, LogOut } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useSeatLocks } from '@/hooks/useSeatLocks'
 import { useAuth } from '@/context/AuthContext'
@@ -37,7 +37,7 @@ function formatTime(dateString: string | undefined): string {
 export function SeatSelection() {
   const { tripId } = useParams<{ tripId: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
 
   const [trip, setTrip] = useState<Trip | null>(null)
   const [seatMapData, setSeatMapData] = useState<SeatMapData | null>(null)
@@ -47,6 +47,24 @@ export function SeatSelection() {
   const [error, setError] = useState<string | null>(null)
   const [operationInProgress, setOperationInProgress] = useState(false)
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Generate or load session ID for guest users
+  const [guestSessionId] = useState<string | null>(() => {
+    if (!user) {
+      // Try to load existing session ID from sessionStorage
+      const stored = sessionStorage.getItem('guestSessionId')
+      if (stored) {
+        return stored
+      }
+      // Generate new session ID and store it
+      const newSessionId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+      sessionStorage.setItem('guestSessionId', newSessionId)
+      return newSessionId
+    }
+    return null
+  })
+
+  const isGuest = !user
 
   // Separate function to fetch seat map
   const fetchSeatMap = useCallback(async () => {
@@ -75,6 +93,7 @@ export function SeatSelection() {
     lockSeats: lockSeatsApi,
     releaseLocks: releaseLocksApi,
     releaseAllLocks: releaseAllLocksApi,
+    transferGuestLocks: transferGuestLocksApi,
     refreshLocks,
   } = useSeatLocks({
     autoRefreshInterval: 30, // Refresh every 30 seconds
@@ -91,6 +110,8 @@ export function SeatSelection() {
     },
     userId: user?.userId.toString(),
     tripId,
+    isGuest,
+    sessionId: user ? user.userId.toString() : guestSessionId || undefined,
   })
 
   // Debounced refresh function to prevent multiple concurrent refreshes
@@ -162,8 +183,44 @@ export function SeatSelection() {
           console.error('Error releasing locks on unmount:', err)
         })
       }
+      // Clear guest session ID when user logs in
+      if (user && guestSessionId) {
+        sessionStorage.removeItem('guestSessionId')
+      }
     }
-  }, [user, selectedSeats.length, tripId, releaseAllLocksApi])
+  }, [user, selectedSeats.length, tripId, releaseAllLocksApi, guestSessionId])
+
+  // Transfer guest locks when user logs in
+  useEffect(() => {
+    const transferGuestLocksOnLogin = async () => {
+      // Check if user just became authenticated and we have a stored guest session
+      if (user && tripId && guestSessionId) {
+        try {
+          console.log('User logged in, transferring guest locks...')
+          await transferGuestLocksApi(tripId, guestSessionId)
+          // Refresh seat map to show updated lock ownership
+          await fetchSeatMap()
+          // Ensure locks are refreshed
+          await refreshLocks(tripId)
+          // Clear the guest session ID after successful transfer
+          sessionStorage.removeItem('guestSessionId')
+          console.log('Guest locks transferred successfully')
+        } catch (error) {
+          console.error('Failed to transfer guest locks:', error)
+          // Don't clear session ID on failure, user can try again
+        }
+      }
+    }
+
+    transferGuestLocksOnLogin()
+  }, [
+    user,
+    tripId,
+    guestSessionId,
+    transferGuestLocksApi,
+    fetchSeatMap,
+    refreshLocks,
+  ])
 
   // Set selectedSeats from loaded locks (only when not in operation)
   useEffect(() => {
@@ -193,7 +250,7 @@ export function SeatSelection() {
   }, [selectedSeats, seatMapData])
 
   const handleSeatSelect = async (seat: Seat, isSelected: boolean) => {
-    if (!seat.seat_id || !user || !tripId) return
+    if (!seat.seat_id || !tripId) return
 
     // Check if this seat is already being processed
     const isAlreadySelected = selectedSeats.includes(seat.seat_id)
@@ -214,7 +271,10 @@ export function SeatSelection() {
         await lockSeatsApi({
           tripId,
           seatCodes: [seat.seat_code],
-          userId: user.userId.toString(),
+          userId: user?.userId.toString() || guestSessionId!,
+          sessionId: user
+            ? user.userId.toString()
+            : guestSessionId || undefined,
         })
         // Refresh seat map first to show updated lock status
         await fetchSeatMap()
@@ -225,7 +285,10 @@ export function SeatSelection() {
         await releaseLocksApi({
           tripId,
           seatCodes: [seat.seat_code],
-          userId: user.userId.toString(),
+          userId: user?.userId.toString() || guestSessionId!,
+          sessionId: user
+            ? user.userId.toString()
+            : guestSessionId || undefined,
         })
         // Refresh seat map first to show updated lock status
         await fetchSeatMap()
@@ -250,9 +313,24 @@ export function SeatSelection() {
       alert('Please select at least one seat')
       return
     }
-    // In real app, navigate to next step (passenger details, etc.)
-    console.log('Selected seats:', selectedSeats)
-    console.log('Total price:', totalPrice)
+
+    // Navigate to booking page with selected seats and guest info
+    const bookingData = {
+      tripId,
+      selectedSeats,
+      isGuest,
+      sessionId: guestSessionId || undefined,
+    }
+
+    // Store in sessionStorage for the booking page
+    sessionStorage.setItem('bookingData', JSON.stringify(bookingData))
+
+    // Clear guest session ID after booking data is stored
+    if (isGuest) {
+      sessionStorage.removeItem('guestSessionId')
+    }
+
+    navigate('/booking')
   }
 
   const getSelectedSeatCodes = () => {
@@ -324,14 +402,36 @@ export function SeatSelection() {
           {/* Dashboard Button and Theme Toggle */}
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button
-              onClick={() => navigate('/dashboard')}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              <span className="hidden sm:inline">Dashboard</span>
-            </Button>
+            {isGuest ? (
+              <Button
+                onClick={() => navigate('/login')}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <span className="hidden sm:inline">Login</span>
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => navigate('/dashboard')}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <span className="hidden sm:inline">Dashboard</span>
+                </Button>
+                <Button
+                  onClick={logout}
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Logout</span>
+                </Button>
+              </div>
+            )}
           </div>
         </nav>
       </header>

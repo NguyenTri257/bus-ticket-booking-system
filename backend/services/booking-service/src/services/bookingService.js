@@ -4,6 +4,7 @@ const passengerRepository = require('../repositories/passengerRepository');
 const redisClient = require('../redis');
 const {
   generateBookingReference,
+  normalizeBookingReference,
   calculateServiceFee,
   calculateLockExpiration,
   formatPrice
@@ -200,8 +201,11 @@ class BookingService {
    * @returns {Promise<object>} Booking details
    */
   async guestLookupBooking(bookingReference, phone = null, email = null) {
+    // Normalize booking reference (case-insensitive)
+    const normalizedRef = normalizeBookingReference(bookingReference);
+    
     // Find booking by reference
-    const booking = await bookingRepository.findByReference(bookingReference);
+    const booking = await bookingRepository.findByReference(normalizedRef);
     
     if (!booking) {
       throw new Error('BOOKING_NOT_FOUND');

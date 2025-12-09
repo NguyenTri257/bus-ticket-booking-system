@@ -195,10 +195,10 @@ const getBookingsQuerySchema = Joi.object({
  */
 const guestLookupSchema = Joi.object({
   bookingReference: Joi.string()
-    .pattern(/^[A-Z0-9]{6}$/)
+    .pattern(/^[A-Z]{2}\d{11}$/i)
     .required()
     .messages({
-      'string.pattern.base': 'Booking reference must be 6 alphanumeric characters',
+      'string.pattern.base': 'Booking reference must be in format: BKYYYYMMDDXXX (e.g., BK20251209001)',
       'any.required': 'Booking reference is required'
     }),
   

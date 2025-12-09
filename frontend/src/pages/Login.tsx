@@ -129,9 +129,17 @@ export default function Login() {
       >
         <Card className="w-full max-w-lg border-none shadow-2xl shadow-indigo-100">
           <CardHeader className="space-y-3 text-center">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">
-              Bus Ticket Booking System
-            </p>
+            <div
+              className="flex items-center justify-center gap-2 cursor-pointer"
+              onClick={() => navigate('/')}
+            >
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-xl">🚌</span>
+              </div>
+              <span className="text-2xl font-bold text-gray-900 dark:text-white">
+                BusGo
+              </span>
+            </div>
             <CardTitle className="text-3xl font-semibold">Sign in</CardTitle>
           </CardHeader>
           <CardContent>
@@ -203,11 +211,15 @@ export default function Login() {
               <span className="h-px flex-1 bg-border" />
             </div>
 
-            <GoogleSignInButton
-              onSuccess={handleGoogleSuccess}
-              onError={handleGoogleError}
-              disabled={isSubmitting}
-            />
+            <div className="flex justify-center">
+              <div className="w-full max-w-xs">
+                <GoogleSignInButton
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  disabled={isSubmitting}
+                />
+              </div>
+            </div>
 
             <p className="mt-8 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{' '}

@@ -30,6 +30,7 @@ import { SeatSelection } from './pages/users/SeatSelection'
 import { BookingConfirmation } from './pages/BookingConfirmation'
 import { BookingDemo } from './pages/BookingDemo'
 import { BookingLookup } from './pages/BookingLookup'
+import { BookingReview } from './pages/BookingReview'
 import ETicketPreview from './pages/ETicketPreview'
 
 const queryClient = new QueryClient()
@@ -89,6 +90,11 @@ const App = () => (
                 path="/booking/:tripId/seats"
                 element={<SeatSelection />}
               />
+              {/* Booking review/payment - accessible to both guests and authenticated users */}
+              <Route
+                path="/booking/:bookingId/review"
+                element={<BookingReview />}
+              />
 
               {/* Passenger routes - protected */}
               <Route element={<PassengerRoute />}>
@@ -135,7 +141,7 @@ const App = () => (
                 {/* Operator Management */}
               </Route>
 
-              <Route path="*" element={<Navigate to="/login" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </TooltipProvider>
         </ThemeProviderWithSuppress>

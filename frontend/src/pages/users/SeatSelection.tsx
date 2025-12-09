@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { SeatMap } from '@/components/users/SeatMap'
+import { GuestCheckoutDialog } from '@/components/users/GuestCheckoutDialog'
 import { ChevronLeft, ArrowRight, Lock, Clock, LogOut } from 'lucide-react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useSeatLocks } from '@/hooks/useSeatLocks'
@@ -46,6 +47,7 @@ export function SeatSelection() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [operationInProgress, setOperationInProgress] = useState(false)
+  const [showGuestCheckout, setShowGuestCheckout] = useState(false)
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Generate or load session ID for guest users
@@ -314,23 +316,11 @@ export function SeatSelection() {
       return
     }
 
-    // Navigate to booking page with selected seats and guest info
-    const bookingData = {
-      tripId,
-      selectedSeats,
-      isGuest,
-      sessionId: guestSessionId || undefined,
-    }
+    // Show guest checkout dialog for all users (guests and authenticated)
+    setShowGuestCheckout(true)
 
-    // Store in sessionStorage for the booking page
-    sessionStorage.setItem('bookingData', JSON.stringify(bookingData))
-
-    // Clear guest session ID after booking data is stored
-    if (isGuest) {
-      sessionStorage.removeItem('guestSessionId')
-    }
-
-    navigate('/booking')
+    // TODO: For authenticated users, we can pre-fill the form with their data
+    // Or implement a different flow if needed
   }
 
   const getSelectedSeatCodes = () => {
@@ -582,6 +572,16 @@ export function SeatSelection() {
           </div>
         </div>
       </div>
+
+      {/* Guest Checkout Dialog */}
+      <GuestCheckoutDialog
+        open={showGuestCheckout}
+        onOpenChange={setShowGuestCheckout}
+        tripId={tripId!}
+        selectedSeats={selectedSeats}
+        seatCodes={getSelectedSeatCodes().split(', ')}
+        totalPrice={totalPrice}
+      />
     </div>
   )
 }

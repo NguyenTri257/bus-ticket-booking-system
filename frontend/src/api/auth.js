@@ -82,14 +82,21 @@ export async function request(
       data?.error?.action === 'FORCE_LOGOUT'
     ) {
       console.error('[Auth] Old JWT token detected - forcing logout')
+
+      // Check if user was logged in before clearing
+      const wasLoggedIn = localStorage.getItem('user')
+
       clearTokens()
       localStorage.removeItem('user')
 
-      // Show alert to user
-      alert('Your session is outdated. Please login again to continue.')
+      // Only show alert and redirect if user was actually logged in
+      if (wasLoggedIn) {
+        // Show alert to user
+        alert('Your session is outdated. Please login again to continue.')
 
-      // Redirect to login
-      window.location.href = '/login'
+        // Redirect to login
+        window.location.href = '/login'
+      }
 
       const error = new Error(
         data.error.message || 'Session expired - please login again'

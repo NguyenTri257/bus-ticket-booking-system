@@ -156,10 +156,10 @@ export function GoogleSignInButton({
       <Button
         type="button"
         variant="outline"
-        className="w-full"
+        className="w-full h-11 text-base font-medium border-destructive/50 hover:bg-destructive/5 rounded-md"
         disabled={true}
       >
-        <span className="flex w-full items-center justify-center gap-2 text-destructive">
+        <span className="flex w-full items-center justify-center gap-3 text-destructive">
           <GoogleIcon className="h-5 w-5" />
           {error}
         </span>
@@ -172,12 +172,12 @@ export function GoogleSignInButton({
       <Button
         type="button"
         variant="outline"
-        className="w-full"
+        className="w-full h-11 text-base font-medium hover:bg-accent rounded-md"
         disabled={true}
       >
-        <span className="flex w-full items-center justify-center gap-2">
-          <GoogleIcon className="h-5 w-5" />
-          Signing in...
+        <span className="flex w-full items-center justify-center gap-3">
+          <GoogleIcon className="h-5 w-5 animate-pulse" />
+          Continue with Google
         </span>
       </Button>
     )
@@ -186,8 +186,8 @@ export function GoogleSignInButton({
   return (
     <div
       ref={buttonRef}
-      className="w-full [&>div]:!w-full [&>div>div]:!w-full [&>div>div>iframe]:!w-full"
-      style={{ minHeight: '40px' }}
+      className="w-full [&>div]:!w-full [&>div>div]:!w-full [&>div>div>iframe]:!w-full [&>div>div>iframe]:!h-11"
+      style={{ minHeight: '44px', borderRadius: '4px', overflow: 'hidden' }}
     />
   )
 }

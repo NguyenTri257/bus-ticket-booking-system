@@ -11,14 +11,14 @@ const createBookingSchema = Joi.object({
     }),
   
   seats: Joi.array()
-    .items(Joi.string().pattern(/^[A-Z]\d{1,2}$/))
+    .items(Joi.string().pattern(/^([A-Z]\d{1,2}|\d{1,2}[A-Z])$/))
     .min(1)
     .max(10)
     .required()
     .messages({
       'array.min': 'At least one seat must be selected',
       'array.max': 'Cannot book more than 10 seats at once',
-      'string.pattern.base': 'Invalid seat code format (e.g., A1, B2)',
+      'string.pattern.base': 'Invalid seat code format (e.g., A1, B2, 1A, 2B)',
       'any.required': 'Seats are required'
     }),
   
@@ -47,7 +47,7 @@ const createBookingSchema = Joi.object({
           }),
         
         seatCode: Joi.string()
-          .pattern(/^[A-Z]\d{1,2}$/)
+          .pattern(/^([A-Z]\d{1,2}|\d{1,2}[A-Z])$/)
           .required()
           .messages({
             'string.pattern.base': 'Invalid seat code format',
@@ -190,10 +190,41 @@ const getBookingsQuerySchema = Joi.object({
     .default('desc')
 });
 
+/**
+ * Validation schema for guest booking lookup
+ */
+const guestLookupSchema = Joi.object({
+  bookingReference: Joi.string()
+    .pattern(/^[A-Z]{2}\d{11}$/i)
+    .required()
+    .messages({
+      'string.pattern.base': 'Booking reference must be in format: BKYYYYMMDDXXX (e.g., BK20251209001)',
+      'any.required': 'Booking reference is required'
+    }),
+  
+  phone: Joi.string()
+    .pattern(/^(\+84|0)[0-9]{9,10}$/)
+    .optional()
+    .messages({
+      'string.pattern.base': 'Invalid Vietnamese phone number format'
+    }),
+  
+  email: Joi.string()
+    .email()
+    .optional()
+    .messages({
+      'string.email': 'Invalid email format'
+    })
+}).or('phone', 'email')
+  .messages({
+    'object.missing': 'Either phone or email must be provided'
+  });
+
 module.exports = {
   createBookingSchema,
   updateBookingStatusSchema,
   cancelBookingSchema,
   confirmPaymentSchema,
-  getBookingsQuerySchema
+  getBookingsQuerySchema,
+  guestLookupSchema
 };

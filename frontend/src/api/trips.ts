@@ -164,8 +164,8 @@ export interface SeatLockResponse {
   success: boolean
   data: {
     locked_seats?: string[]
-    transferredSeats?: string[]
-    rejectedSeats?: string[]
+    transferred_seats?: string[]
+    rejected_seats?: string[]
     expires_at: string
   }
   message?: string

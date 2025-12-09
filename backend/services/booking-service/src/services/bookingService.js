@@ -564,7 +564,7 @@ class BookingService {
       }
 
       // 4. Check if ticket exists
-      if (!booking.ticketUrl) {
+      if (!booking.eTicket || !booking.eTicket.ticketUrl) {
         throw new Error('E-ticket not generated yet. Please try again later.');
       }
 
@@ -578,14 +578,14 @@ class BookingService {
           reference: booking.bookingReference,
           tripId: booking.tripId,
           status: booking.status,
-          totalPrice: booking.totalPrice,
-          currency: booking.currency || 'VND',
+          totalPrice: booking.pricing.total,
+          currency: booking.pricing.currency || 'VND',
           passengers: booking.passengers || [],
           contactEmail: booking.contactEmail,
           contactPhone: booking.contactPhone
         },
-        ticketUrl: booking.ticketUrl,
-        qrCode: booking.qrCodeUrl
+        ticketUrl: booking.eTicket.ticketUrl,
+        qrCode: booking.eTicket.qrCodeUrl
       };
 
       const response = await axios.post(

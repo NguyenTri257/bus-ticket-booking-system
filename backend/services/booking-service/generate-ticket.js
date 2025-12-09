@@ -16,16 +16,22 @@ async function generateTicketForBooking(bookingReference) {
     console.log(`   Status: ${booking.status}`);
     console.log(`   Contact: ${booking.contactEmail}`);
     
-    // 2. Generate ticket
+    // 2. Generate ticket with complete data structure
     const { ticketUrl, qrCode } = await ticketService.generateTicket({
       booking_reference: booking.bookingReference,
       booking_id: booking.bookingId,
       trip_id: booking.tripId,
       contact_email: booking.contactEmail,
       contact_phone: booking.contactPhone,
-      total_price: booking.pricing.total,
+      // Support both formats
+      pricing: booking.pricing,
+      subtotal: booking.pricing?.subtotal,
+      service_fee: booking.pricing?.serviceFee,
+      total_price: booking.pricing?.total,
+      currency: booking.pricing?.currency || 'VND',
       status: booking.status,
-      passengers: booking.passengers || []
+      passengers: booking.passengers || [],
+      created_at: booking.createdAt
     });
     
     console.log('\n✅ Ticket generated successfully!');

@@ -29,8 +29,10 @@ class PDFGenerator {
         // Header
         doc
           .fontSize(24)
+          .font('Helvetica-Bold')
           .fillColor('#2563eb')
-          .text('🚌 BUS TICKET', { align: 'center' })
+          .text('BUS TICKET', { align: 'center' })
+          .font('Helvetica')
           .moveDown(0.5);
 
         doc
@@ -137,6 +139,12 @@ class PDFGenerator {
 
         const paymentY = doc.y;
 
+        // Handle both snake_case and camelCase
+        const subtotal = bookingData.subtotal || bookingData.pricing?.subtotal || 0;
+        const serviceFee = bookingData.service_fee || bookingData.pricing?.serviceFee || 0;
+        const totalPrice = bookingData.total_price || bookingData.pricing?.total || 0;
+        const currency = bookingData.currency || bookingData.pricing?.currency || 'VND';
+        
         doc
           .fontSize(10)
           .fillColor('#666666')
@@ -144,7 +152,7 @@ class PDFGenerator {
         
         doc
           .fillColor('#000000')
-          .text(`${parseFloat(bookingData.subtotal || 0).toLocaleString()} ${bookingData.currency || 'VND'}`, 150, paymentY);
+          .text(`${parseFloat(subtotal).toLocaleString()} ${currency}`, 150, paymentY);
 
         doc
           .fillColor('#666666')
@@ -152,7 +160,7 @@ class PDFGenerator {
         
         doc
           .fillColor('#000000')
-          .text(`${parseFloat(bookingData.service_fee || 0).toLocaleString()} ${bookingData.currency || 'VND'}`, 150, paymentY + 20);
+          .text(`${parseFloat(serviceFee).toLocaleString()} ${currency}`, 150, paymentY + 20);
 
         doc
           .fontSize(12)
@@ -162,19 +170,30 @@ class PDFGenerator {
         
         doc
           .fillColor('#2563eb')
-          .text(`${parseFloat(bookingData.total_price || 0).toLocaleString()} ${bookingData.currency || 'VND'}`, 150, paymentY + 45);
+          .text(`${parseFloat(totalPrice).toLocaleString()} ${currency}`, 150, paymentY + 45);
 
         doc.font('Helvetica').moveDown(2);
 
         // QR Code Section
         if (qrCodeDataUrl) {
+          // Add proper spacing before QR section
+          doc.moveDown(1);
+          
           doc
             .fontSize(12)
             .fillColor('#000000')
-            .font('Helvetica-Bold')
-            .text('VERIFICATION QR CODE', { align: 'center' })
+            .font('Helvetica-Bold');
+          
+          // Center the title properly
+          const titleY = doc.y;
+          doc.text('VERIFICATION QR CODE', 50, titleY, {
+            width: 495,
+            align: 'center'
+          });
+          
+          doc
             .font('Helvetica')
-            .moveDown(0.5);
+            .moveDown(1);
 
           // Convert data URL to buffer
           const base64Data = qrCodeDataUrl.replace(/^data:image\/png;base64,/, '');

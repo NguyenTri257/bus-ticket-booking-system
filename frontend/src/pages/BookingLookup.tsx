@@ -7,6 +7,7 @@ import {
   AlertCircle,
   Download,
   Share2,
+  Loader2,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -109,6 +110,12 @@ export function BookingLookup() {
       if (response.data.success) {
         const bookingData = response.data.data
         console.log('Raw booking data:', JSON.stringify(bookingData, null, 2))
+        console.log('Share section check:', {
+          status: bookingData.status,
+          hasETicket: !!bookingData.eTicket,
+          hasTicketUrl: !!bookingData.eTicket?.ticketUrl,
+          eTicket: bookingData.eTicket,
+        })
 
         setBooking(bookingData)
       } else {
@@ -291,7 +298,7 @@ export function BookingLookup() {
             >
               {loading ? (
                 <>
-                  <Search className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Looking up...
                 </>
               ) : (
@@ -529,6 +536,10 @@ export function BookingLookup() {
                 <strong>Step 4:</strong> View booking details with E-Ticket (QR
                 code, PDF download)
               </p>
+              <p>
+                <strong>Step 5:</strong> Share E-Ticket via email (for confirmed
+                bookings)
+              </p>
               <div className="mt-4 p-3 bg-white rounded border">
                 <p className="font-medium mb-2">
                   Sample test case (with E-Ticket):
@@ -538,7 +549,7 @@ export function BookingLookup() {
                     Reference: <strong>BK20251209001</strong>
                   </span>
                   <span className="block">
-                    Email: <strong>test@example.com</strong>
+                    Email: <strong>phamminh0973@gmail.com</strong>
                   </span>
                   <span className="block">
                     Phone: <strong>+84973994154</strong> or{' '}
@@ -546,6 +557,9 @@ export function BookingLookup() {
                   </span>
                   <span className="block mt-2 text-green-600">
                     ✅ This booking is available for testing
+                  </span>
+                  <span className="block text-blue-600">
+                    📧 Test share: Enter any email to receive e-ticket
                   </span>
                   <span className="block text-muted-foreground">
                     • Format: BKYYYYMMDDXXX (13 characters)

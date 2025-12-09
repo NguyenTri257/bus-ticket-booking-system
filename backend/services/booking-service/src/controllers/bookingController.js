@@ -1,4 +1,5 @@
 const bookingService = require('../services/bookingService');
+const { mapToBooking } = require('../utils/helpers');
 const {
   createBookingSchema,
   cancelBookingSchema,
@@ -211,6 +212,7 @@ class BookingController {
         email
       );
 
+      // Booking is already formatted by repository layer
       return res.json({
         success: true,
         data: booking,

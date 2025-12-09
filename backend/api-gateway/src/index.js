@@ -108,6 +108,38 @@ app.use('/notification', async (req, res) => {
 });
 
 // Booking service routes
+// Ticket files proxy (static files - PDF downloads)
+app.get('/bookings/tickets/:filename', async (req, res) => {
+  try {
+    const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://localhost:3004';
+    const filename = req.params.filename;
+    
+    console.log(`📄 Proxying ticket download: /tickets/${filename}`);
+    
+    const response = await axios({
+      method: 'GET',
+      url: `${bookingServiceUrl}/tickets/${filename}`,
+      responseType: 'stream', // Important for binary files
+      timeout: 15000,
+    });
+    
+    // Set appropriate headers for PDF
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    
+    // Pipe the response stream directly to client
+    response.data.pipe(res);
+    
+  } catch (error) {
+    console.error(`❌ Ticket download error:`, error.message);
+    res.status(404).json({
+      success: false,
+      error: { code: 'TICKET_001', message: 'Ticket file not found' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 app.use('/bookings', async (req, res) => {
   try {
     const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://localhost:3004';

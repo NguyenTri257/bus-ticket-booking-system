@@ -7,6 +7,7 @@ import {
   AlertCircle,
   Download,
   Share2,
+  Loader2,
 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -297,7 +298,7 @@ export function BookingLookup() {
             >
               {loading ? (
                 <>
-                  <Search className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Looking up...
                 </>
               ) : (

@@ -26,6 +26,8 @@ interface SeatMapProps {
   onLockExpire?: (seatCode: string) => void
   /** Custom class name */
   className?: string
+  /** Current user ID (for fallback lock ownership check) */
+  currentUserId?: string
 }
 
 /**
@@ -50,6 +52,7 @@ export function SeatMap({
   userLocks = [],
   onLockExpire,
   className = '',
+  currentUserId,
 }: SeatMapProps) {
   const [localSelectedSeats, setLocalSelectedSeats] =
     useState<string[]>(selectedSeats)
@@ -94,14 +97,19 @@ export function SeatMap({
 
   const handleSeatClick = (seat: Seat) => {
     if (readOnly || operationInProgress) return
-
-    // Allow clicking if available or locked by current user
-    const isLockedByUser = userLocks.some(
-      (lock) => lock.seat_code === seat.seat_code
-    )
-    if (seat.status !== 'available' && !isLockedByUser) return
-
     const isCurrentlySelected = localSelectedSeats.includes(seat.seat_id!)
+
+    // Allow clicking if:
+    // - Seat is available, OR
+    // - Seat is locked by current user, OR
+    // - Seat is currently selected (allows deselection)
+    const isLockedByUser =
+      userLocks.some((lock) => lock.seat_code === seat.seat_code) ||
+      (currentUserId && seat.locked_by === currentUserId)
+    const canToggleSeat =
+      seat.status === 'available' || isLockedByUser || isCurrentlySelected
+
+    if (!canToggleSeat) return
 
     // Check if we can add more seats
     if (!isCurrentlySelected && localSelectedSeats.length >= maxSelectable) {
@@ -188,26 +196,40 @@ export function SeatMap({
                           const userLock = userLocks.find(
                             (lock) => lock.seat_code === seat.seat_code
                           )
-                          const isLockedByUser = userLocks.some(
-                            (lock) => lock.seat_code === seat.seat_code
+                          // Check if seat is locked by current user:
+                          // 1. Primary: Check if seat_code exists in userLocks array
+                          // 2. Fallback: Check if seat.locked_by matches currentUserId
+                          const isLockedByUser =
+                            userLocks.some(
+                              (lock) => lock.seat_code === seat.seat_code
+                            ) ||
+                            (currentUserId && seat.locked_by === currentUserId)
+                          const isCurrentlySelected = !!(
+                            seat.seat_id &&
+                            localSelectedSeats.includes(seat.seat_id)
                           )
+                          // A seat should be clickable if:
+                          // - It's available, OR
+                          // - It's locked by the current user, OR
+                          // - It's currently selected by the user (allows deselection)
+                          const canToggleSeat =
+                            seat.status === 'available' ||
+                            isLockedByUser ||
+                            isCurrentlySelected
                           return (
                             <SeatItem
                               key={seat.seat_id}
                               seat={seat}
-                              isSelected={
-                                seat.seat_id
-                                  ? localSelectedSeats.includes(seat.seat_id)
-                                  : false
-                              }
+                              isSelected={isCurrentlySelected}
                               onClick={() => handleSeatClick(seat)}
                               disabled={
                                 readOnly ||
                                 operationInProgress ||
-                                (seat.status !== 'available' && !isLockedByUser)
+                                !canToggleSeat
                               }
                               userLock={userLock}
                               onLockExpire={onLockExpire}
+                              currentUserId={currentUserId}
                             />
                           )
                         } else {

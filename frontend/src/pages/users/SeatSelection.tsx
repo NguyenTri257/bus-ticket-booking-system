@@ -197,6 +197,29 @@ export function SeatSelection() {
     }, 300) // Wait 300ms after last operation
   }, [tripId, refreshLocks])
 
+  // Memoized callback for when a lock expires
+  const handleLockExpire = useCallback(
+    async (seatCode: string) => {
+      console.log('Lock expired for seat:', seatCode)
+
+      // Immediately remove the expired seat from selectedSeats
+      if (seatMapDataRef.current) {
+        const expiredSeat = seatMapDataRef.current.seats.find(
+          (s: Seat) => s.seat_code === seatCode
+        )
+        if (expiredSeat?.seat_id) {
+          setSelectedSeats((prev) =>
+            prev.filter((id) => id !== expiredSeat.seat_id)
+          )
+        }
+      }
+
+      // Refresh both seat map and user locks when a lock expires
+      await Promise.all([fetchSeatMap(), refreshLocks(tripId!)])
+    },
+    [fetchSeatMap, refreshLocks, tripId]
+  )
+
   // Fetch trip details and seat map
   useEffect(() => {
     fetchTripAndSeats()
@@ -371,19 +394,13 @@ export function SeatSelection() {
 
   // Restore selectedSeats from userLocks on mount/refresh (but not after transfer)
   useEffect(() => {
-    if (hasCompletedTransferRef.current) {
-      // Skip restoration if transfer just completed
-      hasCompletedTransferRef.current = false
-      return
-    }
     if (userLocks.length > 0 && selectedSeats.length === 0 && seatMapData) {
       const lockedSeatIds = userLocks
-        .map((lock) => {
-          const seat = seatMapData.seats.find(
-            (s) => s.seat_code === lock.seat_code
-          )
-          return seat?.seat_id
-        })
+        .map(
+          (lock) =>
+            seatMapData.seats.find((seat) => seat.seat_code === lock.seat_code)
+              ?.seat_id
+        )
         .filter(Boolean) as string[]
       setSelectedSeats(lockedSeatIds)
     }
@@ -635,11 +652,10 @@ export function SeatSelection() {
                     maxSelectable={MAX_SELECTABLE_SEATS}
                     operationInProgress={operationInProgress}
                     userLocks={userLocks}
-                    onLockExpire={async (seatCode) => {
-                      console.log('Lock expired for seat:', seatCode)
-                      // Refresh seat map when a lock expires
-                      await fetchSeatMap()
-                    }}
+                    onLockExpire={handleLockExpire}
+                    currentUserId={
+                      user?.userId.toString() || guestSessionId || undefined
+                    }
                   />
                 </div>
               )}

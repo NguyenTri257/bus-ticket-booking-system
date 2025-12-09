@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import { Check, AlertCircle } from 'lucide-react'
 import type { Seat } from '@/types/trip.types'
 import { CountdownTimer } from './CountdownTimer'
@@ -16,6 +17,8 @@ interface SeatItemProps {
   userLock?: { seat_code: string; expires_at: string }
   /** Callback when lock expires */
   onLockExpire?: (seatCode: string) => void
+  /** Current user ID (for fallback lock ownership check) */
+  currentUserId?: string
 }
 
 /**
@@ -41,13 +44,22 @@ export function SeatItem({
   disabled,
   userLock,
   onLockExpire,
+  currentUserId,
 }: SeatItemProps) {
+  // Memoize the expire callback to prevent CountdownTimer from restarting on every render
+  const handleExpire = useCallback(() => {
+    onLockExpire?.(seat.seat_code)
+  }, [onLockExpire, seat.seat_code])
+
   // Determine seat status class
   const getSeatStatusClass = () => {
     // Selected takes precedence over all other statuses
     if (isSelected) return 'seat-selected'
     // User has a lock on this seat (but not selected) - treat as selected
     if (userLock) return 'seat-selected'
+    // Fallback: check if seat is locked by current user
+    if (currentUserId && seat.locked_by === currentUserId)
+      return 'seat-selected'
     if (seat.status === 'available') return 'seat-available'
     if (seat.status === 'occupied') return 'seat-occupied'
     if (seat.status === 'locked') return 'seat-locked'
@@ -59,12 +71,15 @@ export function SeatItem({
 
   // Get seat icon based on status
   const getSeatIcon = () => {
-    if (isSelected || userLock) {
+    // Show checkmark for selected seats (regardless of underlying status)
+    if (isSelected) {
       return <Check className="w-4 h-4" />
     }
-    if (seat.status !== 'available') {
+    // Show alert icon for locked seats (not selected by current user)
+    if (seat.status === 'locked' || seat.status === 'occupied') {
       return <AlertCircle className="w-4 h-4" />
     }
+    // Don't show icon for available seats
     return null
   }
 
@@ -97,16 +112,17 @@ export function SeatItem({
         <span className="seat-code">{seat.seat_code}</span>
 
         {/* Countdown Timer for selected seats with locks */}
-        {userLock && (isSelected || userLock) && (
-          <div className="seat-countdown">
-            <CountdownTimer
-              expiresAt={userLock.expires_at}
-              onExpire={() => onLockExpire?.(seat.seat_code)}
-              showWarning={true}
-              warningThreshold={120}
-            />
-          </div>
-        )}
+        {(userLock || (currentUserId && seat.locked_by === currentUserId)) &&
+          isSelected && (
+            <div className="seat-countdown">
+              <CountdownTimer
+                expiresAt={userLock?.expires_at || seat.locked_until || ''}
+                onExpire={handleExpire}
+                showWarning={true}
+                warningThreshold={120}
+              />
+            </div>
+          )}
       </div>
 
       {/* Status Indicator Dot */}

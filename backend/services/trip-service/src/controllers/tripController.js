@@ -148,8 +148,8 @@ class TripController {
         };
 
         if (seat.lockedUntil) {
-          seatData.lockedUntil = seat.lockedUntil.toISOString();
-          seatData.lockedBy = seat.lockedBy;
+          seatData.locked_until = seat.lockedUntil.toISOString();
+          seatData.locked_by = seat.lockedBy;
         }
 
         return seatData;

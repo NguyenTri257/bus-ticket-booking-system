@@ -353,6 +353,7 @@ export function SeatSelection() {
                 const allUserLocks = userLocks
 
                 const existingUserLockIds = allUserLocks
+                  .filter((lock) => new Date(lock.expires_at) > new Date()) // Only include non-expired locks
                   .map(
                     (lock: {
                       seat_code: string
@@ -441,6 +442,7 @@ export function SeatSelection() {
 
     if (userLocks.length > 0 && seatMapData) {
       const lockedSeatIds = userLocks
+        .filter((lock) => new Date(lock.expires_at) > new Date()) // Only include non-expired locks
         .map(
           (lock) =>
             seatMapData.seats.find((seat) => seat.seat_code === lock.seat_code)

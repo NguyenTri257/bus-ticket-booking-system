@@ -670,9 +670,12 @@ export function SeatSelection() {
               .map((id) =>
                 seatMapData?.seats.find((seat) => seat.seat_id === id)
               )
-              .filter(Boolean)
+              .filter(
+                (seat): seat is Seat =>
+                  seat !== undefined && seat.seat_id !== undefined
+              )
               .map((seat) => ({
-                seat_id: seat.seat_id,
+                seat_id: seat.seat_id!,
                 seat_code: seat.seat_code,
               }))}
             onBack={() => setShowGuestCheckout(false)}
@@ -846,3 +849,5 @@ export function SeatSelection() {
     </div>
   )
 }
+
+export default SeatSelection

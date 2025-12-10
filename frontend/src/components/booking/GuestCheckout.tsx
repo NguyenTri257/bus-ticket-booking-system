@@ -88,7 +88,7 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
         <CardHeader className="pb-0 pt-6 flex flex-col items-center">
           <div className="flex items-center gap-2 mb-2">
             <UserCheck className="w-7 h-7 text-primary" />
-            <CardTitle className="text-3xl font-bold text-center">
+            <CardTitle className="text-3xl font-bold text-center text-foreground">
               Guest Checkout
             </CardTitle>
           </div>
@@ -109,7 +109,7 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
             </div>
           )}
           <div className="mb-8">
-            <Card className="border rounded-xl shadow-sm bg-white dark:bg-white">
+            <Card className="border rounded-xl shadow-sm bg-white dark:bg-slate-800">
               <CardHeader className="p-4 pb-0">
                 <CardTitle className="text-lg font-semibold text-primary">
                   Contact Information
@@ -118,7 +118,7 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
               <CardContent className="p-4 pt-0">
                 <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="block text-sm font-medium mb-2">
+                    <label className="block text-sm font-semibold mb-2 text-foreground">
                       Contact Email *
                     </label>
                     <input
@@ -149,10 +149,10 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
                         }
                       }}
                       className={
-                        'w-full rounded-lg border px-3 py-2 ' +
+                        'w-full rounded-lg border px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground/70 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 dark:border-[#d0d0d0] ' +
                         (contactErrors.email
                           ? 'border-red-500 focus:ring-red-500'
-                          : '')
+                          : 'border-input')
                       }
                       required
                     />
@@ -163,7 +163,7 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-2">
+                    <label className="block text-sm font-semibold mb-2 text-foreground">
                       Contact Phone *
                     </label>
                     <input
@@ -194,10 +194,10 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
                         }
                       }}
                       className={
-                        'w-full rounded-lg border px-3 py-2 ' +
+                        'w-full rounded-lg border px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground/70 placeholder:font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 dark:border-[#d0d0d0] ' +
                         (contactErrors.phone
                           ? 'border-red-500 focus:ring-red-500'
-                          : '')
+                          : 'border-input')
                       }
                       required
                     />
@@ -222,7 +222,7 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
               type="button"
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="bg-primary hover:bg-primary/90 text-white font-semibold py-3 px-8 rounded-full shadow-md text-lg transition-all duration-150"
+              className="bg-primary hover:bg-primary/90 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full shadow-md dark:shadow-blue-500/20 text-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Processing...' : 'Continue to Summary'}
             </button>

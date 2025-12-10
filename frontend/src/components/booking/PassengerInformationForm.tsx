@@ -31,12 +31,7 @@ export function PassengerInformationForm({
   onBack,
   isLoading = false,
 }: PassengerFormProps) {
-  const { setPassengers, setContactInfo } = useBookingStore()
-
-  // Contact information state
-  const [contactEmail] = useState('')
-  const [contactPhone] = useState('')
-  // contactErrors is used for type only, not value
+  const { setPassengers } = useBookingStore()
 
   const [passengers, setPassengersState] = useState<PassengerFormData[]>(
     seatInfos.map((info) => ({
@@ -97,38 +92,6 @@ export function PassengerInformationForm({
     return allValid
   }
 
-  const validateContactInfo = (): boolean => {
-    const errors: typeof contactErrors = {}
-    let isValid = true
-
-    // Email validation
-    if (!contactEmail || !contactEmail.trim()) {
-      errors.email = 'Email is required'
-      isValid = false
-    } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(contactEmail.trim())) {
-        errors.email = 'Invalid email format'
-        isValid = false
-      }
-    }
-
-    // Phone validation
-    if (!contactPhone || !contactPhone.trim()) {
-      errors.phone = 'Phone number is required'
-      isValid = false
-    } else {
-      const phoneRegex = /^(\+84|0)[0-9]{9,10}$/
-      if (!phoneRegex.test(contactPhone.trim())) {
-        errors.phone = 'Invalid phone format (e.g., 0901234567)'
-        isValid = false
-      }
-    }
-
-    setContactErrors(errors)
-    return isValid
-  }
-
   const handleInputChange = (
     index: number,
     field: keyof PassengerInfo,
@@ -151,11 +114,10 @@ export function PassengerInformationForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Validate both passengers and contact info
+    // Validate passengers
     const passengersValid = validateAllPassengers()
-    const contactValid = validateContactInfo()
 
-    if (!passengersValid || !contactValid) {
+    if (!passengersValid) {
       return
     }
 
@@ -169,7 +131,6 @@ export function PassengerInformationForm({
 
     // Save to store
     setPassengers(cleanedPassengers)
-    setContactInfo(contactEmail.trim(), contactPhone.trim())
 
     // Only call onSubmit, never navigate
     if (propOnSubmit) {
@@ -181,8 +142,10 @@ export function PassengerInformationForm({
     <div className="max-w-4xl mx-auto p-4">
       <Card>
         <div className="p-6">
-          <h2 className="text-2xl font-bold mb-2">Passenger Information</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
+          <h2 className="text-2xl font-bold mb-2 text-foreground">
+            Passenger Information
+          </h2>
+          <p className="text-muted-foreground mb-6">
             Please provide information for each passenger. Fields marked with *
             are required.
           </p>
@@ -193,10 +156,10 @@ export function PassengerInformationForm({
               {passengers.map((passenger, index) => (
                 <div
                   key={passenger.seatCode}
-                  className="border rounded-lg p-4 bg-white dark:bg-white"
+                  className="border rounded-lg p-4 bg-white dark:bg-slate-800"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">
+                    <h3 className="text-lg font-semibold text-foreground">
                       Passenger {index + 1}
                     </h3>
                     <span className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium">
@@ -207,7 +170,7 @@ export function PassengerInformationForm({
                   <div className="grid gap-4 md:grid-cols-2">
                     {/* Full Name */}
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium mb-2">
+                      <label className="block text-sm font-semibold mb-2 text-foreground">
                         Full Name *
                       </label>
                       <Input
@@ -233,7 +196,7 @@ export function PassengerInformationForm({
 
                     {/* Phone Number */}
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label className="block text-sm font-semibold mb-2 text-foreground">
                         Phone Number (Optional)
                       </label>
                       <Input
@@ -258,7 +221,7 @@ export function PassengerInformationForm({
 
                     {/* Document ID */}
                     <div>
-                      <label className="block text-sm font-medium mb-2">
+                      <label className="block text-sm font-semibold mb-2 text-foreground">
                         ID/Passport Number (Optional)
                       </label>
                       <Input

@@ -75,10 +75,17 @@ export function SeatItem({
     ) {
       return 'seat-selected'
     }
-    // Use seat status from backend as source of truth
+    // Use seat status from backend as source of truth, but only if lock is still valid
+    // Don't show locked status if we have no valid lock for this seat
     if (seat.status === 'available') return 'seat-available'
     if (seat.status === 'occupied') return 'seat-occupied'
-    if (seat.status === 'locked') return 'seat-locked'
+    // For locked status, verify we actually have a valid lock or it's selected
+    if (
+      seat.status === 'locked' &&
+      (userLock || (currentUserId && seat.locked_by === currentUserId))
+    ) {
+      return 'seat-locked'
+    }
     return 'seat-unavailable'
   }
 
@@ -137,10 +144,11 @@ export function SeatItem({
         <span className="seat-code">{seat.seat_code}</span>
 
         {/* Countdown Timer for selected seats with locks */}
-        {((userLock && !isLockExpired) ||
-          (currentUserId &&
-            seat.locked_by === currentUserId &&
-            !isLockExpired)) &&
+        {isSelected &&
+          ((userLock && !isLockExpired) ||
+            (currentUserId &&
+              seat.locked_by === currentUserId &&
+              !isLockExpired)) &&
           (userLock?.expires_at || seat.locked_until) && (
             <div className="seat-countdown">
               <CountdownTimer

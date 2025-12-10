@@ -112,21 +112,25 @@ class BookingService {
     });
 
     const createdPassengers = await passengerRepository.createBatch(
-      booking.bookingId,
+      booking.booking_id,
       passengerRecords
     );
 
     // 7. Schedule expiration check in Redis
-    await this.scheduleBookingExpiration(booking.bookingId, booking.lockedUntil);
+    await this.scheduleBookingExpiration(booking.booking_id, booking.locked_until);
 
     // 8. Return complete booking
     return {
       ...booking,
       passengers: createdPassengers,
-      tripDetails: {
-        tripId: trip.tripId,
-        route: trip.route,
-        operator: trip.operator,
+      trip_details: {
+        route: {
+          origin: trip.route.origin,
+          destination: trip.route.destination,
+        },
+        operator: {
+          name: trip.operator.name,
+        },
         schedule: {
           departure_time: trip.schedule.departure_time,
           arrival_time: trip.schedule.arrival_time,
@@ -162,13 +166,19 @@ class BookingService {
     return {
       ...booking,
       passengers,
-      tripDetails: trip
+      trip_details: trip
         ? {
-            tripId: trip.tripId,
-            route: trip.route,
-            operator: trip.operator,
-            bus: trip.bus,
-            schedule: trip.schedule,
+            route: {
+              origin: trip.route.origin,
+              destination: trip.route.destination,
+            },
+            operator: {
+              name: trip.operator.name,
+            },
+            schedule: {
+              departure_time: trip.schedule.departure_time,
+              arrival_time: trip.schedule.arrival_time,
+            },
           }
         : null,
     };
@@ -188,20 +198,34 @@ class BookingService {
     }
 
     // Verify contact email for guest bookings
-    if (!booking.userId && booking.contactEmail !== contactEmail) {
+    if (!booking.userId && booking.contact_email !== contactEmail) {
       throw new Error('Invalid booking reference or email');
     }
 
     // Get passengers
-    const passengers = await passengerRepository.findByBookingId(booking.bookingId);
+    const passengers = await passengerRepository.findByBookingId(booking.booking_id);
 
     // Get trip details
-    const trip = await this.getTripById(booking.tripId);
+    const trip = await this.getTripById(booking.trip_id);
 
     return {
       ...booking,
       passengers,
-      tripDetails: trip,
+      trip_details: trip
+        ? {
+            route: {
+              origin: trip.route.origin,
+              destination: trip.route.destination,
+            },
+            operator: {
+              name: trip.operator.name,
+            },
+            schedule: {
+              departure_time: trip.schedule.departure_time,
+              arrival_time: trip.schedule.arrival_time,
+            },
+          }
+        : null,
     };
   }
 
@@ -226,15 +250,15 @@ class BookingService {
     // Verify contact information (phone OR email must match)
     let isVerified = false;
 
-    if (phone && booking.contactPhone) {
+    if (phone && booking.contact_phone) {
       // Normalize phone numbers for comparison (remove spaces, handle +84/0 prefix)
       const normalizePhone = (p) => p.replace(/\s+/g, '').replace(/^0/, '+84');
-      isVerified = normalizePhone(booking.contactPhone) === normalizePhone(phone);
+      isVerified = normalizePhone(booking.contact_phone) === normalizePhone(phone);
     }
 
-    if (!isVerified && email && booking.contactEmail) {
+    if (!isVerified && email && booking.contact_email) {
       // Case-insensitive email comparison
-      isVerified = booking.contactEmail.toLowerCase() === email.toLowerCase();
+      isVerified = booking.contact_email.toLowerCase() === email.toLowerCase();
     }
 
     if (!isVerified) {
@@ -242,21 +266,27 @@ class BookingService {
     }
 
     // Get passengers
-    const passengers = await passengerRepository.findByBookingId(booking.bookingId);
+    const passengers = await passengerRepository.findByBookingId(booking.booking_id);
 
     // Get trip details
-    const trip = await this.getTripById(booking.tripId);
+    const trip = await this.getTripById(booking.trip_id);
 
     return {
       ...booking,
       passengers,
-      tripDetails: trip
+      trip_details: trip
         ? {
-            tripId: trip.tripId,
-            route: trip.route,
-            operator: trip.operator,
-            bus: trip.bus,
-            schedule: trip.schedule,
+            route: {
+              origin: trip.route.origin,
+              destination: trip.route.destination,
+            },
+            operator: {
+              name: trip.operator.name,
+            },
+            schedule: {
+              departure_time: trip.schedule.departure_time,
+              arrival_time: trip.schedule.arrival_time,
+            },
           }
         : null,
     };
@@ -274,11 +304,11 @@ class BookingService {
     // Enrich each booking with passengers count
     const enrichedBookings = await Promise.all(
       result.bookings.map(async (booking) => {
-        const passengers = await passengerRepository.findByBookingId(booking.bookingId);
+        const passengers = await passengerRepository.findByBookingId(booking.booking_id);
         return {
           ...booking,
           passengersCount: passengers.length,
-          seatCodes: passengers.map((p) => p.seatCode),
+          seatCodes: passengers.map((p) => p.seat_code),
         };
       })
     );
@@ -368,11 +398,11 @@ class BookingService {
     // Release seat locks since booking is cancelled
     try {
       const passengers = await passengerRepository.findByBookingId(bookingId);
-      const seatCodes = passengers.map((p) => p.seatCode);
+      const seatCodes = passengers.map((p) => p.seat_code);
 
       if (seatCodes.length > 0) {
         console.log(`🔓 Attempting to release locks for seats: ${seatCodes.join(', ')}`);
-        await this.releaseLocksForCancelledBooking(booking.tripId, seatCodes, booking.userId);
+        await this.releaseLocksForCancelledBooking(booking.trip_id, seatCodes, booking.user_id);
         console.log(`✅ Released locks for cancelled booking seats: ${seatCodes.join(', ')}`);
       } else {
         console.log('⚠️ No seat codes found for cancelled booking');
@@ -406,7 +436,7 @@ class BookingService {
     }
 
     // Get trip details to check departure time
-    const trip = await this.getTripById(booking.tripId);
+    const trip = await this.getTripById(booking.trip_id);
     if (!trip) {
       return 0;
     }
@@ -457,15 +487,15 @@ class BookingService {
     for (const booking of expiredBookings) {
       try {
         // Get passengers before cancelling to know which seats to release
-        const passengers = await passengerRepository.findByBookingId(booking.bookingId);
-        const seatCodes = passengers.map((p) => p.seatCode);
+        const passengers = await passengerRepository.findByBookingId(booking.booking_id);
+        const seatCodes = passengers.map((p) => p.seat_code);
 
-        await bookingRepository.cancel(booking.bookingId, {
+        await bookingRepository.cancel(booking.booking_id, {
           reason: 'Booking expired - payment not received',
           refundAmount: 0,
         });
 
-        await redisClient.del(`booking:expiration:${booking.bookingId}`);
+        await redisClient.del(`booking:expiration:${booking.booking_id}`);
 
         // Release seat locks for expired booking
         if (seatCodes.length > 0) {
@@ -473,7 +503,7 @@ class BookingService {
             console.log(
               `🔓 Attempting to release locks for expired booking seats: ${seatCodes.join(', ')}`
             );
-            await this.releaseLocksForCancelledBooking(booking.tripId, seatCodes, booking.userId);
+            await this.releaseLocksForCancelledBooking(booking.trip_id, seatCodes, booking.user_id);
             console.log(`✅ Released locks for expired booking seats: ${seatCodes.join(', ')}`);
           } catch (error) {
             console.error('❌ Error releasing locks for expired booking:', error);
@@ -484,7 +514,7 @@ class BookingService {
 
         cancelledCount++;
       } catch (error) {
-        console.error(`Failed to cancel expired booking ${booking.bookingId}:`, error);
+        console.error(`Failed to cancel expired booking ${booking.booking_id}:`, error);
       }
     }
 
@@ -514,7 +544,7 @@ class BookingService {
    */
   async getTripById(tripId) {
     try {
-      const tripServiceUrl = process.env.TRIP_SERVICE_URL || 'http://localhost:3002';
+      const tripServiceUrl = process.env.TRIP_SERVICE_URL || 'http://trip-service:3002';
       const response = await axios.get(`${tripServiceUrl}/${tripId}`);
 
       if (response.data.success && response.data.data) {
@@ -549,11 +579,11 @@ class BookingService {
       const notificationServiceUrl =
         process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3003';
       await axios.post(`${notificationServiceUrl}/send-email`, {
-        to: booking.contactEmail,
+        to: booking.contact_email,
         template: 'booking-confirmation',
         data: {
-          bookingReference: booking.bookingReference,
-          bookingId: booking.bookingId,
+          bookingReference: booking.booking_reference,
+          bookingId: booking.booking_id,
         },
       });
     } catch (error) {
@@ -570,11 +600,11 @@ class BookingService {
       const notificationServiceUrl =
         process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3003';
       await axios.post(`${notificationServiceUrl}/send-email`, {
-        to: booking.contactEmail,
+        to: booking.contact_email,
         template: 'booking-cancellation',
         data: {
-          bookingReference: booking.bookingReference,
-          refundAmount: booking.cancellation?.refundAmount || 0,
+          bookingReference: booking.booking_reference,
+          refundAmount: booking.cancellation?.refund_amount || 0,
         },
       });
     } catch (error) {
@@ -607,9 +637,9 @@ class BookingService {
       }
 
       // 3. Optional phone verification for security
-      if (phone && booking.contactPhone) {
+      if (phone && booking.contact_phone) {
         const normalizedInputPhone = phone.replace(/\s+/g, '');
-        const normalizedBookingPhone = booking.contactPhone.replace(/\s+/g, '');
+        const normalizedBookingPhone = booking.contact_phone.replace(/\s+/g, '');
 
         if (normalizedInputPhone !== normalizedBookingPhone) {
           throw new Error('Phone number does not match booking records');
@@ -629,17 +659,17 @@ class BookingService {
         type: 'booking-ticket',
         to: email,
         bookingData: {
-          reference: booking.bookingReference,
-          tripId: booking.tripId,
+          reference: booking.booking_reference,
+          tripId: booking.trip_id,
           status: booking.status,
           totalPrice: booking.pricing.total,
           currency: booking.pricing.currency || 'VND',
           passengers: booking.passengers || [],
-          contactEmail: booking.contactEmail,
-          contactPhone: booking.contactPhone,
+          contactEmail: booking.contact_email,
+          contactPhone: booking.contact_phone,
         },
-        ticketUrl: booking.eTicket.ticketUrl,
-        qrCode: booking.eTicket.qrCodeUrl,
+        ticketUrl: booking.e_ticket.ticket_url,
+        qrCode: booking.e_ticket.qr_code_url,
       };
 
       const response = await axios.post(`${notificationServiceUrl}/send-email`, emailPayload, {

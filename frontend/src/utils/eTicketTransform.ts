@@ -23,14 +23,14 @@ export function transformBookingToETicket(booking: Booking): ETicketData {
   }
 
   return {
-    bookingReference: booking.bookingReference,
+    bookingReference: booking.booking_reference,
     status: booking.status as 'confirmed' | 'pending' | 'cancelled',
-    paymentStatus: booking.paymentStatus as 'paid' | 'pending' | 'failed',
-    bookingDate: booking.createdAt,
+    paymentStatus: booking.payment_status as 'paid' | 'pending' | 'failed',
+    bookingDate: booking.created_at,
     passengers: booking.passengers.map((p) => ({
-      name: p.name || p.fullName || 'Unknown',
-      seatNumber: p.seatNumber,
-      passengerType: p.passengerType || 'adult',
+      name: p.fullName || p.passenger?.fullName || 'Unknown',
+      seatNumber: p.seatNumber || p.seat_code || 'N/A',
+      passengerType: 'adult',
     })),
     trip: {
       route: {
@@ -44,8 +44,8 @@ export function transformBookingToETicket(booking: Booking): ETicketData {
       },
       schedule: {
         departureTime:
-          booking.trip?.schedule?.departure_time || booking.createdAt,
-        arrivalTime: booking.trip?.schedule?.arrival_time || booking.createdAt,
+          booking.trip?.schedule?.departure_time || booking.created_at,
+        arrivalTime: booking.trip?.schedule?.arrival_time || booking.created_at,
         duration: getDuration(),
       },
       bus: {
@@ -54,16 +54,16 @@ export function transformBookingToETicket(booking: Booking): ETicketData {
       },
     },
     pricing: {
-      subtotal: booking.totalPrice - (booking.serviceFee || 0),
-      serviceFee: booking.serviceFee || 0,
-      total: booking.totalPrice,
+      subtotal: (booking.total_price || 0) - (booking.service_fee || 0),
+      serviceFee: booking.service_fee || 0,
+      total: booking.total_price || 0,
     },
     contact: {
-      email: booking.contactEmail || booking.user?.email,
-      phone: booking.contactPhone || (booking.user?.phone ?? undefined),
+      email: booking.contact_email || booking.user?.email,
+      phone: booking.contact_phone || (booking.user?.phone ?? undefined),
     },
-    qrCode: booking.eTicket?.qrCode || undefined,
-    ticketUrl: booking.eTicket?.ticketUrl || undefined,
+    qrCode: booking.e_ticket?.qr_code || undefined,
+    ticketUrl: booking.e_ticket?.ticket_url || undefined,
   }
 }
 
@@ -72,12 +72,12 @@ export function transformBookingToETicket(booking: Booking): ETicketData {
  */
 export function canDisplayETicket(booking: Booking): boolean {
   return !!(
-    booking.bookingReference &&
+    booking.booking_reference &&
     booking.status &&
-    booking.paymentStatus &&
+    booking.payment_status &&
     booking.passengers &&
     booking.passengers.length > 0 &&
-    booking.totalPrice !== undefined
+    booking.total_price !== undefined
   )
 }
 
@@ -85,5 +85,5 @@ export function canDisplayETicket(booking: Booking): boolean {
  * Check if e-ticket assets (QR code, PDF) are available
  */
 export function hasETicketAssets(booking: Booking): boolean {
-  return !!(booking.eTicket?.qrCode || booking.eTicket?.ticketUrl)
+  return !!(booking.e_ticket?.qr_code || booking.e_ticket?.ticket_url)
 }

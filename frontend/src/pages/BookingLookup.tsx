@@ -21,16 +21,16 @@ import axios from 'axios'
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 interface BookingData {
-  bookingId: string
-  bookingReference: string
+  booking_id: string
+  booking_reference: string
   trip_id: string
-  contactEmail: string
-  contactPhone: string
+  contact_email: string
+  contact_phone: string
   status: string
-  createdAt: string
+  created_at: string
   pricing: {
     subtotal: number
-    serviceFee: number
+    service_fee: number
     total: number
     currency: string
   }
@@ -39,11 +39,11 @@ interface BookingData {
     seat_code: string
     phone: string
   }>
-  eTicket?: {
-    ticketUrl: string | null
-    qrCodeUrl: string | null
+  e_ticket?: {
+    ticket_url: string | null
+    qr_code_url: string | null
   }
-  tripDetails?: {
+  trip_details?: {
     route: {
       origin: string
       destination: string
@@ -184,7 +184,7 @@ export function BookingLookup() {
 
     try {
       await shareTicket(
-        booking.bookingReference,
+        booking.booking_reference,
         shareEmail,
         contactPhone || undefined
       )
@@ -322,7 +322,7 @@ export function BookingLookup() {
                     Booking Information
                   </h2>
                   <p className="text-muted-foreground">
-                    Booking Reference: {booking.bookingReference}
+                    Booking Reference: {booking.booking_reference}
                   </p>
                 </div>
                 <Badge className={getStatusColor(booking.status)}>
@@ -346,26 +346,26 @@ export function BookingLookup() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Email</p>
-                  <p className="font-medium">{booking.contactEmail}</p>
+                  <p className="font-medium">{booking.contact_email}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">
                     Phone Number
                   </p>
-                  <p className="font-medium">{booking.contactPhone}</p>
+                  <p className="font-medium">{booking.contact_phone}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">
                     Booking Date
                   </p>
                   <p className="font-medium">
-                    {new Date(booking.createdAt).toLocaleString('vi-VN')}
+                    {new Date(booking.created_at).toLocaleString('vi-VN')}
                   </p>
                 </div>
               </div>
 
               {/* E-Ticket Section */}
-              {booking.eTicket && booking.eTicket.ticketUrl && (
+              {booking.e_ticket && booking.e_ticket.ticket_url && (
                 <div className="pt-4 border-t">
                   <div className="flex items-center gap-2 mb-4">
                     <Ticket className="h-5 w-5 text-primary" />
@@ -374,11 +374,11 @@ export function BookingLookup() {
 
                   <div className="bg-linear-to-br from-primary/5 to-primary/10 rounded-lg p-6 space-y-4">
                     {/* QR Code Display */}
-                    {booking.eTicket.qrCodeUrl && (
+                    {booking.e_ticket.qr_code_url && (
                       <div className="flex flex-col items-center gap-4 pb-4 border-b border-white/50">
                         <div className="bg-white p-4 rounded-lg shadow-sm">
                           <img
-                            src={booking.eTicket.qrCodeUrl}
+                            src={booking.e_ticket.qr_code_url}
                             alt="Boarding QR Code"
                             className="w-40 h-40"
                           />
@@ -399,14 +399,14 @@ export function BookingLookup() {
                       className="w-full"
                       size="lg"
                       onClick={() =>
-                        window.open(booking.eTicket!.ticketUrl!, '_blank')
+                        window.open(booking.e_ticket!.ticket_url!, '_blank')
                       }
                     >
                       <Download className="mr-2 h-5 w-5" />
                       Download PDF Ticket
                     </Button>
                     <p className="text-xs text-center text-muted-foreground">
-                      Ticket sent to {booking.contactEmail}
+                      Ticket sent to {booking.contact_email}
                     </p>
                   </div>
                 </div>
@@ -421,7 +421,7 @@ export function BookingLookup() {
                   {booking.passengers.map((passenger, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
                     >
                       <div>
                         <p className="font-medium">{passenger.full_name}</p>
@@ -440,58 +440,59 @@ export function BookingLookup() {
               </div>
 
               {/* Share Ticket Section */}
-              {booking.status === 'confirmed' && booking.eTicket?.ticketUrl && (
-                <div className="pt-4 border-t">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Share2 className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold">Share E-Ticket</h3>
-                  </div>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                    <p className="text-sm text-blue-800">
-                      Send this ticket to another email address
-                    </p>
-                    <form
-                      onSubmit={handleShareTicket}
-                      className="flex gap-2 items-start"
-                    >
-                      <div className="flex-1">
-                        <Input
-                          type="email"
-                          placeholder="recipient@example.com"
-                          value={shareEmail}
-                          onChange={(e) => setShareEmail(e.target.value)}
-                          disabled={shareLoading}
-                          className="bg-white"
-                        />
-                      </div>
-                      <Button
-                        type="submit"
-                        disabled={shareLoading}
-                        size="default"
+              {booking.status === 'confirmed' &&
+                booking.e_ticket?.ticket_url && (
+                  <div className="pt-4 border-t">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Share2 className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold">Share E-Ticket</h3>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                      <p className="text-sm text-blue-800">
+                        Send this ticket to another email address
+                      </p>
+                      <form
+                        onSubmit={handleShareTicket}
+                        className="flex gap-2 items-start"
                       >
-                        {shareLoading ? (
-                          <>Sending...</>
-                        ) : (
-                          <>
-                            <Mail className="w-4 h-4 mr-2" />
-                            Send
-                          </>
-                        )}
-                      </Button>
-                    </form>
-                    {shareSuccess && (
-                      <div className="bg-green-50 border border-green-200 rounded p-2 text-sm text-green-800">
-                        ✅ {shareSuccess}
-                      </div>
-                    )}
-                    {shareError && (
-                      <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-800">
-                        ❌ {shareError}
-                      </div>
-                    )}
+                        <div className="flex-1">
+                          <Input
+                            type="email"
+                            placeholder="recipient@example.com"
+                            value={shareEmail}
+                            onChange={(e) => setShareEmail(e.target.value)}
+                            disabled={shareLoading}
+                            className="bg-white"
+                          />
+                        </div>
+                        <Button
+                          type="submit"
+                          disabled={shareLoading}
+                          size="default"
+                        >
+                          {shareLoading ? (
+                            <>Sending...</>
+                          ) : (
+                            <>
+                              <Mail className="w-4 h-4 mr-2" />
+                              Send
+                            </>
+                          )}
+                        </Button>
+                      </form>
+                      {shareSuccess && (
+                        <div className="bg-green-50 border border-green-200 rounded p-2 text-sm text-green-800">
+                          ✅ {shareSuccess}
+                        </div>
+                      )}
+                      {shareError && (
+                        <div className="bg-red-50 border border-red-200 rounded p-2 text-sm text-red-800">
+                          ❌ {shareError}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
               {/* Actions */}
               <div className="pt-4 border-t flex gap-3">
@@ -520,7 +521,7 @@ export function BookingLookup() {
 
         {/* Demo Instructions */}
         {!booking && (
-          <Card className="p-6 bg-gray-50 mt-6">
+          <Card className="p-6 bg-gray-50 dark:bg-gray-800 mt-6">
             <h3 className="font-semibold mb-3">💡 Test Instructions</h3>
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>

@@ -1,20 +1,20 @@
 /**
  * Generate a unique, user-friendly booking reference
- * 
+ *
  * Format: BKYYYYMMDDXXX
  * - BK: Prefix (configurable via env)
  * - YYYYMMDD: Full date (year, month, day)
  * - XXX: 3-digit numeric sequence (000-999)
- * 
+ *
  * Examples: BK20251209001, BK20251209042, BK20251209999
- * 
+ *
  * Features:
  * - Compact 15-character format
  * - Date-based for easy sorting and identification
  * - Numeric suffix for clear sequencing
  * - Easy to read and communicate (no ambiguous characters)
  * - 1,000 unique references per day (000-999)
- * 
+ *
  * @returns {string} Booking reference (format: BKYYYYMMDDXXX)
  */
 function generateBookingReference() {
@@ -22,7 +22,7 @@ function generateBookingReference() {
   const year = String(date.getFullYear()); // Full 4 digits
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-  
+
   // Generate 3-digit random number (000-999)
   // Use crypto-quality randomness if available, else fallback to Math.random
   let randomNum;
@@ -33,12 +33,12 @@ function generateBookingReference() {
   } else {
     randomNum = Math.floor(Math.random() * 1000); // 0-999
   }
-  
+
   const code = String(randomNum).padStart(3, '0'); // Pad to 3 digits
-  
+
   const prefix = process.env.BOOKING_REFERENCE_PREFIX || 'BK';
   const dateStr = `${year}${month}${day}`;
-  
+
   return `${prefix}${dateStr}${code}`;
 }
 
@@ -92,7 +92,7 @@ function validateSeatCodes(seatCodes) {
   }
   // Seat code format: A1, B2, etc.
   const seatPattern = /^[A-Z]\d{1,2}$/;
-  return seatCodes.every(code => seatPattern.test(code));
+  return seatCodes.every((code) => seatPattern.test(code));
 }
 
 /**
@@ -102,35 +102,37 @@ function validateSeatCodes(seatCodes) {
  */
 function mapToBooking(row) {
   return {
-    bookingId: row.booking_id,
-    bookingReference: row.booking_reference,
-    tripId: row.trip_id,
-    userId: row.user_id,
-    contactEmail: row.contact_email,
-    contactPhone: row.contact_phone,
+    booking_id: row.booking_id,
+    booking_reference: row.booking_reference,
+    trip_id: row.trip_id,
+    user_id: row.user_id,
+    contact_email: row.contact_email,
+    contact_phone: row.contact_phone,
     status: row.status,
-    lockedUntil: row.locked_until,
+    locked_until: row.locked_until,
     pricing: {
       subtotal: parseFloat(row.subtotal),
-      serviceFee: parseFloat(row.service_fee),
+      service_fee: parseFloat(row.service_fee),
       total: parseFloat(row.total_price),
-      currency: row.currency
+      currency: row.currency,
     },
     payment: {
       method: row.payment_method,
       status: row.payment_status,
-      paidAt: row.paid_at
+      paid_at: row.paid_at,
     },
-    cancellation: row.cancellation_reason ? {
-      reason: row.cancellation_reason,
-      refundAmount: parseFloat(row.refund_amount)
-    } : null,
-    eTicket: {
-      ticketUrl: row.ticket_url,
-      qrCodeUrl: row.qr_code_url
+    cancellation: row.cancellation_reason
+      ? {
+          reason: row.cancellation_reason,
+          refund_amount: parseFloat(row.refund_amount),
+        }
+      : null,
+    e_ticket: {
+      ticket_url: row.ticket_url,
+      qr_code_url: row.qr_code_url,
     },
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
+    created_at: row.created_at,
+    updated_at: row.updated_at,
   };
 }
 
@@ -163,16 +165,14 @@ function isValidBookingReferenceFormat(reference) {
  */
 function mapToPassenger(row) {
   return {
-    ticketId: row.ticket_id,
-    bookingId: row.booking_id,
-    seatCode: row.seat_code,
+    ticket_id: row.ticket_id,
+    booking_id: row.booking_id,
+    seat_code: row.seat_code,
     price: parseFloat(row.price),
-    passenger: {
-      fullName: row.full_name,
-      phone: row.phone,
-      documentId: row.document_id
-    },
-    createdAt: row.created_at
+    full_name: row.full_name,
+    phone: row.phone,
+    document_id: row.document_id,
+    created_at: row.created_at,
   };
 }
 
@@ -186,5 +186,5 @@ module.exports = {
   normalizeBookingReference,
   isValidBookingReferenceFormat,
   mapToBooking,
-  mapToPassenger
+  mapToPassenger,
 };

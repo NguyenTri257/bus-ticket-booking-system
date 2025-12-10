@@ -282,6 +282,8 @@ class SeatLockService {
       throw new Error('Redis client not available');
     }
 
+    console.log(`🔓 [releaseLocksBySeatCodes] Attempting to release locks for seats: ${seatCodes.join(', ')} on trip: ${tripId}`);
+
     const pipeline = this.redis.pipeline();
     const releasedSeats = [];
 
@@ -301,21 +303,27 @@ class SeatLockService {
       const lockKey = this._getLockKey(tripId, seatCode);
       const existingLock = results[i][1];
 
+      console.log(`  Checking lock for ${seatCode}: ${existingLock ? 'EXISTS' : 'NOT_FOUND'}`);
+
       if (existingLock) {
         // Seat is locked, release it
         releasePipeline.del(lockKey);
         releasedSeats.push(seatCode);
 
-        // Also remove from any user lock sets (we don't know which user, so check all)
-        // This is inefficient but necessary for cleanup
+        // Also remove from user lock set
         const lockInfo = JSON.parse(existingLock);
-        const userLockKey = this._getUserLockKey(lockInfo.userId);
+        const userLockKey = this._getUserLockKey(lockInfo.userId, tripId);
+        console.log(`    Removing ${seatCode} from user lock set: ${userLockKey}`);
         releasePipeline.srem(userLockKey, seatCode);
       }
     }
 
     if (releasedSeats.length > 0) {
+      console.log(`  Executing release for ${releasedSeats.length} seats: ${releasedSeats.join(', ')}`);
       await releasePipeline.exec();
+      console.log(`✅ [releaseLocksBySeatCodes] Successfully released locks for: ${releasedSeats.join(', ')}`);
+    } else {
+      console.log(`⚠️ [releaseLocksBySeatCodes] No seats found to release`);
     }
 
     return {

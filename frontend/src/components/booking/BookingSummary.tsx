@@ -160,7 +160,7 @@ export function BookingSummary({
         // Show success and redirect to payment or booking details
         // For now, redirect to booking confirmation page
         alert(
-          `Booking created successfully! Reference: ${response.data.bookingReference}`
+          `Booking created successfully! Reference: ${response.data.booking_reference}`
         )
 
         // Redirect to user bookings/history

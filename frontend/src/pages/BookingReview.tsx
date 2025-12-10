@@ -125,10 +125,10 @@ export function BookingReview() {
 
   // Update countdown timer
   useEffect(() => {
-    if (!booking?.lockedUntil) return
+    if (!booking?.locked_until) return
 
     const interval = setInterval(() => {
-      const remaining = getTimeRemaining(booking.lockedUntil || undefined)
+      const remaining = getTimeRemaining(booking.locked_until || undefined)
       setTimeRemaining(remaining)
 
       // If time expired, navigate to home
@@ -214,7 +214,7 @@ export function BookingReview() {
 
   const seatCodes =
     booking.passengers
-      ?.map((p) => p.seatCode)
+      ?.map((p) => p.seat_code)
       .filter(Boolean)
       .join(', ') || 'N/A'
 
@@ -234,13 +234,13 @@ export function BookingReview() {
           <p className="text-muted-foreground text-lg">
             Reference:{' '}
             <span className="font-mono font-semibold text-foreground">
-              {booking.bookingReference}
+              {booking.booking_reference}
             </span>
           </p>
         </div>
 
         {/* Time Remaining Alert */}
-        {booking.lockedUntil && (
+        {booking.locked_until && (
           <Card className="mb-6 p-4 bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
             <div className="flex items-center gap-3">
               <Clock className="w-5 h-5 text-amber-600" />
@@ -268,16 +268,16 @@ export function BookingReview() {
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Route</p>
                 <p className="font-semibold text-lg">
-                  {booking.tripDetails?.route?.origin || 'Unknown'}{' '}
+                  {booking.trip_details?.route?.origin || 'Unknown'}{' '}
                   <ArrowRight className="inline w-4 h-4 mx-1" />{' '}
-                  {booking.tripDetails?.route?.destination || 'Unknown'}
+                  {booking.trip_details?.route?.destination || 'Unknown'}
                 </p>
               </div>
 
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Operator</p>
                 <p className="font-semibold">
-                  {booking.tripDetails?.operator?.name || 'Unknown'}
+                  {booking.trip_details?.operator?.name || 'Unknown'}
                 </p>
               </div>
 
@@ -291,12 +291,12 @@ export function BookingReview() {
                     <div>
                       <p className="font-semibold text-sm">
                         {formatDate(
-                          booking.tripDetails?.schedule?.departure_time
+                          booking.trip_details?.schedule?.departure_time
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatTime(
-                          booking.tripDetails?.schedule?.departure_time
+                          booking.trip_details?.schedule?.departure_time
                         )}
                       </p>
                     </div>
@@ -310,12 +310,12 @@ export function BookingReview() {
                     <div>
                       <p className="font-semibold text-sm">
                         {formatDate(
-                          booking.tripDetails?.schedule?.arrival_time
+                          booking.trip_details?.schedule?.arrival_time
                         )}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {formatTime(
-                          booking.tripDetails?.schedule?.arrival_time
+                          booking.trip_details?.schedule?.arrival_time
                         )}
                       </p>
                     </div>
@@ -344,7 +344,7 @@ export function BookingReview() {
                 </p>
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-muted-foreground" />
-                  <p className="font-mono text-sm">{booking.contactEmail}</p>
+                  <p className="font-mono text-sm">{booking.contact_email}</p>
                 </div>
               </div>
 
@@ -354,7 +354,7 @@ export function BookingReview() {
                 </p>
                 <div className="flex items-center gap-2">
                   <Phone className="w-4 h-4 text-muted-foreground" />
-                  <p className="font-mono text-sm">{booking.contactPhone}</p>
+                  <p className="font-mono text-sm">{booking.contact_phone}</p>
                 </div>
               </div>
 
@@ -374,7 +374,7 @@ export function BookingReview() {
                           Service Fee
                         </span>
                         <span>
-                          {booking.pricing.serviceFee.toLocaleString('vi-VN')}đ
+                          {booking.pricing.service_fee.toLocaleString('vi-VN')}đ
                         </span>
                       </div>
                       <div className="flex justify-between pt-2 border-t">
@@ -394,7 +394,7 @@ export function BookingReview() {
 
               <div className="pt-4">
                 <p className="text-xs text-muted-foreground mb-4">
-                  Your e-ticket will be sent to {booking.contactEmail} after
+                  Your e-ticket will be sent to {booking.contact_email} after
                   payment is confirmed.
                 </p>
 

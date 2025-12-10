@@ -156,7 +156,7 @@ export function GuestCheckoutDialog({
       sessionStorage.setItem('pendingBooking', JSON.stringify(response.data))
 
       // Navigate to review/payment page
-      navigate(`/booking/${response.data.bookingId}/review`)
+      navigate(`/booking/${response.data.booking_id}/review`)
     } catch (error) {
       console.error('Error creating booking:', error)
 

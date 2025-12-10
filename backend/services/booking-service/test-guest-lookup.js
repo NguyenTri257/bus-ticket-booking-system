@@ -1,24 +1,24 @@
 /**
  * Test script for Guest Booking Lookup API
- * 
+ *
  * SETUP: First create a test booking in database:
  * docker exec bus-ticket-postgres psql -U postgres -d bus_ticket_dev -c "
- * INSERT INTO bookings (booking_reference, trip_id, user_id, contact_email, contact_phone, status, locked_until, subtotal, service_fee, total_price, currency) 
+ * INSERT INTO bookings (booking_reference, trip_id, user_id, contact_email, contact_phone, status, locked_until, subtotal, service_fee, total_price, currency)
  * VALUES ('BK20251209001', '7195f79f-c867-407c-b8bc-31ad6794951b', NULL, 'test@example.com', '+84973994154', 'confirmed', NOW() + INTERVAL '10 minutes', 500000, 25000, 525000, 'VND');"
- * 
+ *
  * Tests various scenarios:
  * 1. Lookup with phone number (BK20251209001)
  * 2. Lookup with email (BK20251209001)
  * 3. Invalid booking reference format
  * 4. Contact mismatch
  * 5. Missing parameters
- * 
+ *
  * Format: BKYYYYMMDDXXX (e.g., BK20251209001, BK20251209042)
  */
 
 const axios = require('axios');
 
-const BASE_URL = 'http://localhost:3004';
+const BASE_URL = 'http://localhost:3000/bookings';
 
 // ANSI color codes for terminal output
 const colors = {
@@ -27,7 +27,7 @@ const colors = {
   red: '\x1b[31m',
   yellow: '\x1b[33m',
   blue: '\x1b[36m',
-  bold: '\x1b[1m'
+  bold: '\x1b[1m',
 };
 
 function log(message, color = colors.reset) {
@@ -63,15 +63,17 @@ async function testGuestLookup() {
     const response = await axios.get(`${BASE_URL}/guest/lookup`, {
       params: {
         bookingReference: 'BK20251209001',
-        phone: '+84973994154'
-      }
+        phone: '+84973994154',
+      },
     });
 
     if (response.status === 200 && response.data.success) {
       logSuccess('Successfully retrieved booking with phone');
-      logInfo(`Booking Reference: ${response.data.data.bookingReference}`);
-      logInfo(`Contact Phone: ${response.data.data.contactPhone}`);
-      logInfo(`Total Price: ${response.data.data.pricing.total} ${response.data.data.pricing.currency}`);
+      logInfo(`Booking Reference: ${response.data.data.booking_reference}`);
+      logInfo(`Contact Phone: ${response.data.data.contact_phone}`);
+      logInfo(
+        `Total Price: ${response.data.data.pricing.total} ${response.data.data.pricing.currency}`
+      );
       passedTests++;
     } else {
       logError('Unexpected response structure');
@@ -98,14 +100,14 @@ async function testGuestLookup() {
     const response = await axios.get(`${BASE_URL}/guest/lookup`, {
       params: {
         bookingReference: 'BK20251209001',
-        email: 'test@example.com'
-      }
+        email: 'test@example.com',
+      },
     });
 
     if (response.status === 200 && response.data.success) {
       logSuccess('Successfully retrieved booking with email');
-      logInfo(`Booking Reference: ${response.data.data.bookingReference}`);
-      logInfo(`Contact Email: ${response.data.data.contactEmail}`);
+      logInfo(`Booking Reference: ${response.data.data.booking_reference}`);
+      logInfo(`Contact Email: ${response.data.data.contact_email}`);
       passedTests++;
     } else {
       logError('Unexpected response structure');
@@ -126,8 +128,8 @@ async function testGuestLookup() {
   try {
     const response = await axios.get(`${BASE_URL}/guest/lookup`, {
       params: {
-        phone: '+84973994154'
-      }
+        phone: '+84973994154',
+      },
     });
     logError('Should have returned 400 error');
     failedTests++;
@@ -148,8 +150,8 @@ async function testGuestLookup() {
   try {
     const response = await axios.get(`${BASE_URL}/guest/lookup`, {
       params: {
-        bookingReference: 'ABC123'
-      }
+        bookingReference: 'ABC123',
+      },
     });
     logError('Should have returned 400 error');
     failedTests++;
@@ -170,8 +172,8 @@ async function testGuestLookup() {
     const response = await axios.get(`${BASE_URL}/guest/lookup`, {
       params: {
         bookingReference: 'INVALID123', // Wrong format, should be BKYYYYMMDDXXX
-        phone: '+84973994154'
-      }
+        phone: '+84973994154',
+      },
     });
     logError('Should have returned 400 error');
     failedTests++;
@@ -192,8 +194,8 @@ async function testGuestLookup() {
     const response = await axios.get(`${BASE_URL}/guest/lookup`, {
       params: {
         bookingReference: 'BK20251209001',
-        phone: '+84999999999' // Wrong phone
-      }
+        phone: '+84999999999', // Wrong phone
+      },
     });
     logError('Should have returned 403 error');
     failedTests++;
@@ -214,8 +216,8 @@ async function testGuestLookup() {
     const response = await axios.get(`${BASE_URL}/guest/lookup`, {
       params: {
         bookingReference: 'ABC123',
-        phone: '123' // Invalid phone
-      }
+        phone: '123', // Invalid phone
+      },
     });
     logError('Should have returned 400 error');
     failedTests++;
@@ -234,9 +236,9 @@ async function testGuestLookup() {
   try {
     const response = await axios.get(`${BASE_URL}/guest/lookup`, {
       params: {
-        bookingReference: 'ABC123',
-        phone: '0973994154' // Vietnamese format
-      }
+        bookingReference: 'BK99999999999', // Valid format but non-existent
+        phone: '0973994154', // Vietnamese format
+      },
     });
 
     if (response.status === 200) {
@@ -261,11 +263,11 @@ async function testGuestLookup() {
   try {
     const response = await axios.get(`${BASE_URL}/guest/lookup`, {
       params: {
-        bookingReference: 'ABC123',
-        phone: '+84999999999' // Wrong phone
-      }
+        bookingReference: 'BK99999999999', // Valid format but non-existent
+        phone: '+84999999999', // Wrong phone
+      },
     });
-    
+
     if (response.status === 200) {
       logError('Should have returned 403 for wrong phone');
       failedTests++;
@@ -291,13 +293,13 @@ async function testGuestLookup() {
   if (failedTests > 0) {
     logError(`Failed: ${failedTests}`);
   }
-  
+
   const percentage = ((passedTests / (passedTests + failedTests)) * 100).toFixed(1);
   log(`\nSuccess Rate: ${percentage}%`, percentage >= 80 ? colors.green : colors.red);
 }
 
 // Run tests
-testGuestLookup().catch(error => {
+testGuestLookup().catch((error) => {
   logError(`Fatal error: ${error.message}`);
   process.exit(1);
 });

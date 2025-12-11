@@ -646,8 +646,8 @@ class BookingService {
         }
       }
 
-      // 4. Check if ticket exists
-      if (!booking.eTicket || !booking.eTicket.ticketUrl) {
+      // 4. Check if ticket exists (repository maps DB columns to snake_case)
+      if (!booking.e_ticket || !booking.e_ticket.ticket_url) {
         throw new Error('E-ticket not generated yet. Please try again later.');
       }
 
@@ -682,7 +682,7 @@ class BookingService {
         return {
           sent: true,
           recipient: email,
-          bookingReference: booking.bookingReference,
+          bookingReference: booking.booking_reference,
         };
       } else {
         throw new Error('Email service returned unsuccessful response');

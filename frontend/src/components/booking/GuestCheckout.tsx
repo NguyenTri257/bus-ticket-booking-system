@@ -171,7 +171,7 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
                 disabled={isSubmitting}
               >
                 <ChevronLeft className="w-4 h-4" />
-                Quay lại chọn ghế
+                Back to Seat Selection
               </Button>
             </div>
           )}

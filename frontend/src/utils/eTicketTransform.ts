@@ -62,7 +62,7 @@ export function transformBookingToETicket(booking: Booking): ETicketData {
       email: booking.contact_email || booking.user?.email,
       phone: booking.contact_phone || (booking.user?.phone ?? undefined),
     },
-    qrCode: booking.e_ticket?.qr_code || undefined,
+    qrCode: booking.e_ticket?.qr_code_url || undefined,
     ticketUrl: booking.e_ticket?.ticket_url || undefined,
   }
 }
@@ -85,5 +85,5 @@ export function canDisplayETicket(booking: Booking): boolean {
  * Check if e-ticket assets (QR code, PDF) are available
  */
 export function hasETicketAssets(booking: Booking): boolean {
-  return !!(booking.e_ticket?.qr_code || booking.e_ticket?.ticket_url)
+  return !!(booking.e_ticket?.qr_code_url || booking.e_ticket?.ticket_url)
 }

@@ -88,14 +88,13 @@ type RawBooking = Partial<BookingData> & {
 const normalizeBookingData = (data: RawBooking): BookingData => {
   const rawETicket = data.e_ticket || data.eTicket || {}
 
+  // Access various possible key shapes safely using index access
+  const rt = rawETicket as Record<string, string | null | undefined>
   const ticketUrl =
-    rawETicket.ticket_url ??
-    rawETicket.ticketUrl ??
-    rawETicket.ticketurl ??
-    null
-  const qrCodeUrl =
-    rawETicket.qr_code_url ?? rawETicket.qrCodeUrl ?? rawETicket.qrCode ?? null
+    rt['ticket_url'] ?? rt['ticketUrl'] ?? rt['ticketurl'] ?? null
+  const qrCodeUrl = rt['qr_code_url'] ?? rt['qrCodeUrl'] ?? rt['qrCode'] ?? null
 
+  // Return normalized object. Cast to BookingData to satisfy TypeScript
   return {
     ...data,
     booking_reference:
@@ -106,7 +105,7 @@ const normalizeBookingData = (data: RawBooking): BookingData => {
       ticket_url: ticketUrl,
       qr_code_url: qrCodeUrl,
     },
-  }
+  } as BookingData
 }
 
 export function BookingLookup() {

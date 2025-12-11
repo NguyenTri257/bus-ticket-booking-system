@@ -250,11 +250,11 @@ export function BookingConfirmation() {
 
               <div className="bg-linear-to-br from-primary/5 to-primary/10 rounded-lg p-6 space-y-4">
                 {/* QR Code Display */}
-                {booking.e_ticket.qr_code && (
+                {booking.e_ticket.qr_code_url && (
                   <div className="flex flex-col items-center gap-4 pb-4 border-b">
                     <div className="bg-white p-4 rounded-lg shadow-sm">
                       <img
-                        src={booking.e_ticket.qr_code}
+                        src={booking.e_ticket.qr_code_url}
                         alt="Ticket QR Code"
                         className="w-48 h-48"
                       />

@@ -1,9 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 // already imported waitFor
 import { MemoryRouter } from 'react-router-dom'
-import GuestCheckout from '../pages/GuestCheckout'
+import GuestCheckout from '@/components/booking/GuestCheckout'
 import GuestConfirmation from '../pages/GuestConfirmation'
 import * as bookingApi from '../api/booking.api'
+import type { Booking } from '@/types/booking.types'
 
 describe('Guest Checkout Flow', () => {
   beforeEach(() => {
@@ -49,13 +50,19 @@ describe('Guest Checkout Flow', () => {
       .spyOn(bookingApi, 'createBooking')
       .mockResolvedValue({
         success: true,
+        message: 'Booking created successfully',
         data: {
+          booking_id: 'bk123',
           booking_reference: 'BK20251210001',
+          trip_id: 'trip123',
+          user_id: null,
           contact_email: 'test@example.com',
           contact_phone: '0973994154',
-          passengers: [{ fullName: 'Nguyen Van A', seatCode: 'A1' }],
-          trip_id: 'trip123',
           status: 'pending',
+          locked_until: null,
+          created_at: '2025-12-11T00:00:00Z',
+          updated_at: '2025-12-11T00:00:00Z',
+          passengers: [{ fullName: 'Nguyen Van A', seat_code: 'A1' }],
         },
       })
     render(
@@ -119,11 +126,13 @@ describe('Guest Checkout Flow', () => {
     const mockCreateBooking = vi.spyOn(bookingApi, 'createBooking')
     mockCreateBooking.mockResolvedValueOnce({
       success: true,
-      data: { booking_reference: 'BK20251210001' },
+      data: { booking_reference: 'BK20251210001' } as Booking,
+      message: 'Booking created successfully',
     })
     mockCreateBooking.mockResolvedValueOnce({
       success: true,
-      data: { booking_reference: 'BK20251210002' },
+      data: { booking_reference: 'BK20251210002' } as Booking,
+      message: 'Booking created successfully',
     })
     render(
       <MemoryRouter
@@ -170,9 +179,19 @@ describe('Guest Checkout Flow', () => {
       .spyOn(bookingApi, 'createBooking')
       .mockResolvedValue({
         success: true,
+        message: 'Booking created successfully',
         data: {
+          booking_id: 'bk123',
           booking_reference: 'BK20251210001',
+          trip_id: 'trip123',
+          user_id: null,
           contact_email: 'test@example.com',
+          contact_phone: '0973994154',
+          status: 'pending',
+          locked_until: null,
+          created_at: '2025-12-11T00:00:00Z',
+          updated_at: '2025-12-11T00:00:00Z',
+          passengers: [{ fullName: 'Test Passenger', seat_code: 'A1' }],
           e_ticket: {
             ticket_url: 'http://example.com/ticket.pdf',
             qr_code_url: 'http://example.com/qr.png',

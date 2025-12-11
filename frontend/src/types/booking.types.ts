@@ -27,7 +27,7 @@ export interface User {
 
 export interface ETicket {
   ticket_url: string | null
-  qr_code: string | null
+  qr_code_url: string | null
 }
 
 export interface CreateBookingRequest {
@@ -66,6 +66,7 @@ export interface Booking {
   }
   e_ticket?: ETicket
   trip_details?: {
+    trip_id?: string
     route: {
       origin: string
       destination: string

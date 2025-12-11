@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import GuestCheckout from '../pages/GuestCheckout'
+import GuestCheckout from '@/components/booking/GuestCheckout'
 
 describe('GuestCheckout', () => {
   it('renders guest checkout form', () => {

@@ -101,7 +101,6 @@ export function BookingReview() {
     serviceFee: number
     total: number
   } | null>(null)
-  const { toast } = useToast()
 
   // Load booking from sessionStorage or fetch from API
   useEffect(() => {
@@ -212,27 +211,21 @@ export function BookingReview() {
       const remaining = getTimeRemaining(booking.locked_until || undefined)
       setTimeRemaining(remaining)
 
-      // If time expired, show toast and navigate to home
+      // If time expired, show alert and navigate to home
       if (remaining === '0:00') {
         clearInterval(interval)
-        toast({
-          title: 'Booking expired',
-          description: 'Booking time expired. Please select seats again.',
-        })
+        alert('Booking time expired. Please select seats again')
         navigate('/')
       }
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [booking, navigate, toast])
+  }, [booking, navigate])
 
   const handleProceedToPayment = () => {
     // TODO: Implement payment flow
     // For now, just show a toast and keep placeholder behavior
-    toast({
-      title: 'Payment',
-      description: 'Payment integration coming soon!',
-    })
+    alert('Payment integration coming soon!')
     // navigate(`/booking/${bookingId}/payment`)
   }
 

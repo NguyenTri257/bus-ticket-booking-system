@@ -43,6 +43,14 @@ interface BookingData {
     ticket_url: string | null
     qr_code_url: string | null
   }
+  // Support camelCase responses from some endpoints
+  eTicket?: {
+    ticketUrl?: string | null
+    qrCodeUrl?: string | null
+    qrCode?: string | null
+    ticket_url?: string | null
+    qr_code_url?: string | null
+  }
   trip_details?: {
     route: {
       origin: string
@@ -55,6 +63,49 @@ interface BookingData {
       departure_time: string
       arrival_time: string
     }
+  }
+}
+
+type RawBooking = Partial<BookingData> & {
+  bookingReference?: string
+  reference?: string
+  contactEmail?: string
+  contactPhone?: string
+  e_ticket?: {
+    ticket_url?: string | null
+    qr_code_url?: string | null
+  }
+  eTicket?: {
+    ticketUrl?: string | null
+    qrCodeUrl?: string | null
+    qrCode?: string | null
+    ticket_url?: string | null
+    qr_code_url?: string | null
+  }
+}
+
+// Normalize booking data coming from different API response shapes
+const normalizeBookingData = (data: RawBooking): BookingData => {
+  const rawETicket = data.e_ticket || data.eTicket || {}
+
+  const ticketUrl =
+    rawETicket.ticket_url ??
+    rawETicket.ticketUrl ??
+    rawETicket.ticketurl ??
+    null
+  const qrCodeUrl =
+    rawETicket.qr_code_url ?? rawETicket.qrCodeUrl ?? rawETicket.qrCode ?? null
+
+  return {
+    ...data,
+    booking_reference:
+      data.booking_reference ?? data.bookingReference ?? data.reference ?? '',
+    contact_email: data.contact_email ?? data.contactEmail ?? '',
+    contact_phone: data.contact_phone ?? data.contactPhone ?? '',
+    e_ticket: {
+      ticket_url: ticketUrl,
+      qr_code_url: qrCodeUrl,
+    },
   }
 }
 
@@ -108,13 +159,13 @@ export function BookingLookup() {
       console.log('API Response:', response.data)
 
       if (response.data.success) {
-        const bookingData = response.data.data
+        const bookingData = normalizeBookingData(response.data.data)
         console.log('Raw booking data:', JSON.stringify(bookingData, null, 2))
         console.log('Share section check:', {
           status: bookingData.status,
-          hasETicket: !!bookingData.eTicket,
-          hasTicketUrl: !!bookingData.eTicket?.ticketUrl,
-          eTicket: bookingData.eTicket,
+          hasETicket: !!bookingData.e_ticket,
+          hasTicketUrl: !!bookingData.e_ticket?.ticket_url,
+          eTicket: bookingData.e_ticket,
         })
 
         setBooking(bookingData)

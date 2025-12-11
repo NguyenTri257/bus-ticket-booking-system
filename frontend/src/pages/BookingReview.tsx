@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { Header } from '@/components/landing/Header'
 import {
   CheckCircle2,
   Clock,
@@ -143,15 +144,16 @@ export function BookingReview() {
   // Calculate pricing by fetching seat prices
   const calculatePricing = async (bookingData: Booking) => {
     try {
-      if (!bookingData.trip_details?.trip_id) {
+      const tripId =
+        (bookingData.trip_details as { trip_id?: string } | undefined)
+          ?.trip_id || bookingData.trip_id
+      if (!tripId) {
         console.warn('No trip ID available for pricing calculation')
         return
       }
 
       // Fetch seats for the trip
-      const seatsResponse = await fetch(
-        `${API_BASE_URL}/trips/${bookingData.trip_details.trip_id}/seats`
-      )
+      const seatsResponse = await fetch(`${API_BASE_URL}/trips/${tripId}/seats`)
       if (!seatsResponse.ok) {
         throw new Error('Failed to fetch seat information')
       }
@@ -236,10 +238,13 @@ export function BookingReview() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground">Loading booking details...</p>
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="flex items-center justify-center p-6">
+          <div className="text-center space-y-4">
+            <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto" />
+            <p className="text-muted-foreground">Loading booking details...</p>
+          </div>
         </div>
       </div>
     )
@@ -247,31 +252,34 @@ export function BookingReview() {
 
   if (error || !booking) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full p-6 text-center space-y-4">
-          <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto">
-            <svg
-              className="w-8 h-8 text-destructive"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </div>
-          <h2 className="text-xl font-bold">Booking Not Found</h2>
-          <p className="text-muted-foreground">
-            {error || 'Unable to load booking details'}
-          </p>
-          <Button onClick={() => navigate('/')} className="w-full">
-            Back to Home
-          </Button>
-        </Card>
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="flex items-center justify-center p-4">
+          <Card className="max-w-md w-full p-6 text-center space-y-4">
+            <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto">
+              <svg
+                className="w-8 h-8 text-destructive"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold">Booking Not Found</h2>
+            <p className="text-muted-foreground">
+              {error || 'Unable to load booking details'}
+            </p>
+            <Button onClick={() => navigate('/')} className="w-full">
+              Back to Home
+            </Button>
+          </Card>
+        </div>
       </div>
     )
   }
@@ -284,6 +292,7 @@ export function BookingReview() {
 
   return (
     <div className="min-h-screen bg-linear-to-br from-background via-background to-primary/5">
+      <Header />
       <div className="absolute top-4 right-4 z-50">
         <ThemeToggle />
       </div>

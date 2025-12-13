@@ -1,11 +1,13 @@
 import React from 'react'
-import { useNavigate } from 'react-router-dom'
+
 import { Button } from '@/components/ui/button'
 import { ChevronLeft, UserCheck } from 'lucide-react'
 import { PassengerInformationForm } from '@/components/booking/PassengerInformationForm'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { useAuth } from '@/context/AuthContext'
 import { createBooking } from '@/api/bookings'
+import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector'
+import { createPayment } from '@/api/payments'
 import { useBookingStore } from '@/store/bookingStore'
 
 interface GuestCheckoutProps {
@@ -29,7 +31,7 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
   onBack,
 }) => {
   const { user } = useAuth()
-  const navigate = useNavigate()
+  // const navigate = useNavigate()
   const { selectedTrip } = useBookingStore()
 
   const selectedSeats = propSeats ?? []
@@ -49,6 +51,16 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
   >([])
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = React.useState<
+    string | null
+  >(null)
+  const [paymentResult, setPaymentResult] = React.useState<{
+    paymentId?: string
+    status?: string
+    paymentUrl?: string
+    qrCode?: string
+    expiresAt?: string
+  } | null>(null)
 
   const validateContactInfo = () => {
     const errors: { email?: string; phone?: string } = {}
@@ -92,6 +104,11 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
     setIsSubmitting(true)
 
     try {
+      if (!selectedPaymentMethod) {
+        setError('Vui lòng chọn phương thức thanh toán.')
+        setIsSubmitting(false)
+        return
+      }
       // Validate contact info
       const contactValid = validateContactInfo()
       if (!contactValid || passengers.length === 0) {
@@ -122,16 +139,28 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
 
       console.log('Creating booking with data:', bookingData)
 
-      // Call backend API
+      // Call backend API to create booking
       const response = await createBooking(bookingData)
-      console.log('Booking created successfully:', response.data)
-
+      const booking = response.data
       // Store booking in sessionStorage for BookingReview
-      sessionStorage.setItem('pendingBooking', JSON.stringify(response.data))
+      sessionStorage.setItem('pendingBooking', JSON.stringify(booking))
 
-      // Navigate to review page with bookingId
-      navigate(`/booking/${response.data.booking_id}/review`)
-
+      // Call payment API
+      const paymentPayload = {
+        bookingId: booking.booking_id,
+        paymentMethod: selectedPaymentMethod,
+        amount: booking.pricing?.total || 0,
+        returnUrl: window.location.origin + `/payment/callback`,
+        metadata: {
+          userAgent: navigator.userAgent,
+          ipAddress: '', // Optionally fill from backend or leave blank
+        },
+      }
+      const paymentRes = await createPayment(paymentPayload)
+      setPaymentResult(paymentRes.data)
+      if (paymentRes.data?.paymentUrl) {
+        window.location.href = paymentRes.data.paymentUrl
+      }
       // Call optional onSubmit callback if provided
       if (onSubmit) {
         onSubmit({ contactEmail, contactPhone, passengers })
@@ -184,6 +213,13 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
           )}
 
           <div className="mb-8">
+            <PaymentMethodSelector
+              amount={selectedTrip?.price || 0}
+              onSelect={(method) => setSelectedPaymentMethod(method.key)}
+            />
+            {error && !isSubmitting && (
+              <div className="mt-2 text-red-600 text-sm">{error}</div>
+            )}
             <Card className="border rounded-xl shadow-sm bg-white dark:bg-slate-800">
               <CardHeader className="p-4 pb-0">
                 <CardTitle className="text-lg font-semibold text-primary">
@@ -299,9 +335,37 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
               disabled={isSubmitting || passengers.length === 0}
               className="bg-primary hover:bg-primary/90 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-full shadow-md dark:shadow-blue-500/20 text-lg transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? 'Creating Booking...' : 'Continue to Summary'}
+              {isSubmitting
+                ? 'Đang xử lý thanh toán...'
+                : 'Tiếp tục thanh toán'}
             </button>
           </div>
+          {paymentResult && (
+            <div className="mt-6 p-4 border rounded-lg bg-green-50 text-green-800">
+              <div>Thanh toán đã được khởi tạo.</div>
+              {paymentResult.paymentUrl && (
+                <div>
+                  <a
+                    href={paymentResult.paymentUrl}
+                    className="text-blue-600 underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Nhấn vào đây nếu không được chuyển hướng tự động
+                  </a>
+                </div>
+              )}
+              {paymentResult.qrCode && (
+                <div className="mt-2">
+                  <img
+                    src={paymentResult.qrCode}
+                    alt="QR Code"
+                    className="h-32"
+                  />
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

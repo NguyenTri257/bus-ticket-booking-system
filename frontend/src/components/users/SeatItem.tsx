@@ -72,7 +72,11 @@ export function SeatItem({
       return 'seat-available'
     }
 
-    // Priority 1: Backend status takes precedence
+    // Priority 1: If locked by "booking", always show as locked (pending booking state)
+    if (seat.locked_by === 'booking' && !hasExpiredLock) {
+      return 'seat-locked'
+    }
+    // Priority 2: Backend status takes precedence
     if (seat.status === 'occupied') return 'seat-occupied'
     if (seat.status === 'locked') {
       // If locked, check if it's locked by current user
@@ -86,11 +90,6 @@ export function SeatItem({
     }
     if (seat.status === 'available') {
       return isSelected ? 'seat-selected' : 'seat-available'
-    }
-
-    // Priority 2: If locked by "booking", always show as locked (pending booking state)
-    if (seat.locked_by === 'booking' && !hasExpiredLock) {
-      return 'seat-locked'
     }
 
     // Fallback
@@ -108,7 +107,11 @@ export function SeatItem({
     }
 
     // Show checkmark for selected seats
-    if (isSelected) {
+    if (
+      isSelected &&
+      seat.status !== 'occupied' &&
+      seat.locked_by !== 'booking'
+    ) {
       return <Check className="w-4 h-4" />
     }
     // Show checkmark for seats locked by current user (only if lock is valid and backend agrees)

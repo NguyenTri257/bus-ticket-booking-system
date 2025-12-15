@@ -21,21 +21,28 @@ const generateBookingConfirmationTemplate = (bookingData) => {
 
   // Format currency
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(amount);
+    if (!amount || isNaN(amount)) return '0 đ';
+    return Math.round(amount).toLocaleString() + ' đ';
   };
 
   // Format date/time
   const formatDateTime = (dateTime) => {
-    return new Date(dateTime).toLocaleString('vi-VN', {
+    if (!dateTime) return 'N/A';
+    const date = new Date(dateTime);
+    if (isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      hour12: true,
     });
+  };
+
+  // Safe get passenger name
+  const getPassengerName = (passenger) => {
+    return passenger?.fullName || 'Passenger';
   };
 
   const passengersHtml = passengers
@@ -43,8 +50,8 @@ const generateBookingConfirmationTemplate = (bookingData) => {
       (p, idx) => `
     <tr style="border-bottom: 1px solid #e0e0e0;">
       <td style="padding: 12px; text-align: center; color: #666;">${idx + 1}</td>
-      <td style="padding: 12px; color: #333;">${p.fullName}</td>
-      <td style="padding: 12px; color: #333;">${p.documentId}</td>
+      <td style="padding: 12px; color: #333;">${getPassengerName(p)}</td>
+      <td style="padding: 12px; color: #333;">${p.documentId || 'N/A'}</td>
       <td style="padding: 12px; color: #333;">${p.seatCode}</td>
       <td style="padding: 12px; text-align: right; color: #333;">${formatCurrency(p.seatPrice)}</td>
     </tr>
@@ -333,7 +340,7 @@ const generateBookingConfirmationTemplate = (bookingData) => {
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>✓ Đặt Vé Thành Công</h1>
+            <h1>✓ Booking Confirmed</h1>
             <div class="booking-ref">${bookingReference}</div>
         </div>
 
@@ -341,48 +348,60 @@ const generateBookingConfirmationTemplate = (bookingData) => {
         <div class="content">
             <!-- Greeting -->
             <div class="greeting">
-                Xin chào <strong>${customerName}</strong>,<br>
-                Cảm ơn bạn đã đặt vé với chúng tôi! Đặt vé của bạn đã được xác nhận thành công.
+                Hello <strong>${customerName || 'Valued Customer'}</strong>,<br>
+                Thank you for booking with us! Your booking has been successfully confirmed.
             </div>
 
             <!-- Success Badge -->
             <div class="success-badge">
-                ✓ Thanh toán đã được xác nhận - Vé của bạn đã được bảo lưu
+                ✓ Payment Confirmed - Your ticket is reserved
             </div>
 
             <!-- Trip Details Section -->
-            <div class="section-title">📍 Chi Tiết Chuyến Xe</div>
+            <div class="section-title">Trip Details</div>
             <div class="trip-header">
                 <div class="trip-route">
-                    ${tripDetails.origin} → ${tripDetails.destination}
+                    ${tripDetails.origin || 'Origin'} → ${tripDetails.destination || 'Destination'}
                 </div>
                 <div class="trip-time">
-                    <strong>Khởi hành:</strong> ${formatDateTime(tripDetails.departureTime)}<br>
-                    <strong>Dự kiến đến:</strong> ${formatDateTime(tripDetails.arrivalTime)}<br>
-                    <strong>Nhà xe:</strong> ${tripDetails.operatorName} (${tripDetails.busModel})
+                    <strong>Departure:</strong> ${formatDateTime(tripDetails.departureTime)}<br>
+                    <strong>Arrival:</strong> ${formatDateTime(tripDetails.arrivalTime)}<br>
+                    <strong>Bus Operator:</strong> ${tripDetails.operatorName} (${tripDetails.busModel})
                 </div>
+            </div>
+
+            <!-- Customer Contact Information -->
+            <div class="section-title">Contact Information</div>
+            <div class="info-row">
+                <div class="info-label">Email:</div>
+                <div class="info-value">${customerEmail || 'N/A'}</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Phone:</div>
+                <div class="info-value">${customerPhone || 'N/A'}</div>
             </div>
 
             <!-- Pickup & Dropoff Points -->
+            <div class="section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 8px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#667eea"/></svg> Pickup & Drop-off Information</div>
             <div class="info-row">
-                <div class="info-label">📍 Điểm đón:</div>
-                <div class="info-value">${tripDetails.pickupPoint}</div>
+                <div class="info-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 6px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#666"/></svg> Pickup Point:</div>
+                <div class="info-value">${tripDetails.pickupPoint || 'TBD'}</div>
             </div>
             <div class="info-row">
-                <div class="info-label">📍 Điểm trả:</div>
-                <div class="info-value">${tripDetails.dropoffPoint}</div>
+                <div class="info-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 6px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="#666"/></svg> Drop-off Point:</div>
+                <div class="info-value">${tripDetails.dropoffPoint || 'TBD'}</div>
             </div>
 
             <!-- Passengers Section -->
-            <div class="section-title">👥 Danh Sách Hành Khách</div>
+            <div class="section-title">Passenger List</div>
             <table class="passenger-table">
                 <thead>
                     <tr>
-                        <th style="width: 8%;">TT</th>
-                        <th style="width: 30%;">Họ Tên</th>
-                        <th style="width: 28%;">CMND/CCCD</th>
-                        <th style="width: 15%;">Ghế</th>
-                        <th style="width: 19%;">Giá</th>
+                        <th style="width: 8%;">No.</th>
+                        <th style="width: 30%;">Full Name</th>
+                        <th style="width: 28%;">ID/Passport</th>
+                        <th style="width: 15%;">Seat</th>
+                        <th style="width: 19%;">Price</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -391,94 +410,94 @@ const generateBookingConfirmationTemplate = (bookingData) => {
             </table>
 
             <!-- Pricing Section -->
-            <div class="section-title">💰 Chi Tiết Giá Vé</div>
+            <div class="section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 8px;"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z" fill="#667eea"/></svg> Pricing Details</div>
             <div class="pricing-box">
                 <div class="price-row">
-                    <span class="price-label">Giá vé (${passengers.length} chỗ × ${formatCurrency(pricing.basePrice)}):</span>
+                    <span class="price-label">Ticket Price (${passengers.length} seat${passengers.length !== 1 ? 's' : ''} × ${formatCurrency(pricing.basePrice)}):</span>
                     <span class="price-value">${formatCurrency(pricing.subtotal)}</span>
                 </div>
                 <div class="price-row">
-                    <span class="price-label">Phí dịch vụ:</span>
+                    <span class="price-label">Service Fee:</span>
                     <span class="price-value">${formatCurrency(pricing.serviceFee)}</span>
                 </div>
                 <div class="price-row">
-                    <span class="price-label">Phương thức thanh toán:</span>
-                    <span class="price-value">${pricing.paymentMethod}</span>
+                    <span class="price-label">Payment Method:</span>
+                    <span class="price-value">${pricing.paymentMethod || 'Unknown'}</span>
                 </div>
                 <div class="total-row">
-                    <span>Tổng cộng:</span>
+                    <span>Total Amount:</span>
                     <span class="total-value">${formatCurrency(pricing.total)}</span>
                 </div>
             </div>
 
             <!-- Payment Information -->
-            <div class="section-title">💳 Thông Tin Thanh Toán</div>
+            <div class="section-title">Payment Information</div>
             <div class="info-row">
-                <div class="info-label">Trạng thái:</div>
-                <div class="info-value" style="color: #28a745; font-weight: bold;">✓ Đã thanh toán</div>
+                <div class="info-label">Status:</div>
+                <div class="info-value" style="color: #28a745; font-weight: bold;">✓ Payment Confirmed</div>
             </div>
             <div class="info-row">
-                <div class="info-label">Mã giao dịch:</div>
+                <div class="info-label">Transaction ID:</div>
                 <div class="info-value">${bookingReference}</div>
             </div>
 
             <!-- CTA Buttons -->
             <div class="cta-buttons">
-                <a href="${eTicketUrl}" class="btn btn-primary">📥 Tải Vé Điện Tử</a>
-                <a href="${bookingDetailsUrl}" class="btn btn-secondary">👁️ Xem Chi Tiết</a>
+                <a href="${eTicketUrl}" class="btn btn-primary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 8px;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" fill="white"/></svg>Download E-Ticket</a>
+                <a href="${bookingDetailsUrl}" class="btn btn-secondary"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 8px;"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" fill="#333"/></svg>View Details</a>
             </div>
 
             <!-- QR Code -->
             <div class="qr-section">
-                <p style="color: #666; margin-bottom: 10px;">Mã QR của bạn:</p>
+                <p style="color: #666; margin-bottom: 10px;">Your QR Code:</p>
                 <img src="${qrCodeUrl}" alt="QR Code" class="qr-image">
             </div>
 
             <!-- Cancellation Policy -->
-            <div class="section-title">📋 Chính Sách Hủy Vé</div>
+            <div class="section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 8px;"><path d="M16 4h-2l-1-1h-4L8 4H6c-.55 0-1 .45-1 1s.45 1 1 1v12c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V6c.55 0 1-.45 1-1s-.45-1-1-1zM9 3h6l1 1H8l1-1zM6 6h12v12c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1V6z" fill="#667eea"/></svg> Cancellation Policy</div>
             <div class="policy-box">
-                <strong>Chính sách hủy vé:</strong><br>
-                ${cancellationPolicy}
+                <strong>Cancellation Terms:</strong><br>
+                ${cancellationPolicy || 'Please contact the bus operator for cancellation details'}
                 <br><br>
-                <strong>Lưu ý:</strong> Vui lòng đến trạm xe 30 phút trước giờ khởi hành. 
-                Bạn có thể kiểm tra trạng thái chuyến xe và liên hệ với nhà xe qua thông tin dưới đây.
+                <strong>Important:</strong> Please arrive at the station at least 30 minutes before departure. 
+                You can check trip status and contact the bus operator using the information below.
             </div>
 
             <!-- Contact Information -->
-            <div class="section-title">📞 Thông Tin Liên Hệ</div>
+            <div class="section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 8px;"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="#667eea"/></svg> Contact Information</div>
             <div class="contact-info">
-                <div class="contact-info-title">Nhà Xe: ${tripDetails.operatorName}</div>
+                <div class="contact-info-title">Bus Operator: ${tripDetails.operatorName}</div>
                 <div class="contact-info-text">
-                    <strong>Điện thoại:</strong> ${operatorContact.phone}<br>
-                    <strong>Email:</strong> ${operatorContact.email}<br>
+                    <strong>Phone:</strong> ${operatorContact.phone || 'N/A'}<br>
+                    <strong>Email:</strong> ${operatorContact.email || 'N/A'}<br>
                     <strong>Website:</strong> ${operatorContact.website || 'N/A'}
                 </div>
             </div>
 
             <!-- Instructions -->
-            <div class="section-title">ℹ️ Hướng Dẫn</div>
+            <div class="section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle; margin-right: 8px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" fill="#667eea"/></svg> Instructions</div>
             <div style="background-color: #f9f9f9; padding: 15px; border-radius: 4px; color: #666; font-size: 13px; line-height: 1.8;">
-                <strong>1. Tải vé điện tử:</strong> Nhấp vào nút "Tải Vé Điện Tử" hoặc mở email để tải PDF<br>
-                <strong>2. Kiểm tra thông tin:</strong> Đảm bảo tất cả thông tin hành khách chính xác<br>
-                <strong>3. Đến trạm sớm:</strong> Vui lòng đến 30 phút trước giờ khởi hành<br>
-                <strong>4. Mang theo vé:</strong> In vé hoặc hiển thị trên điện thoại khi lên xe<br>
-                <strong>5. Theo dõi chuyến:</strong> Kiểm tra thường xuyên để nhận thông báo cập nhật chuyến xe
+                <strong>1. Download Your Ticket:</strong> Click the "Download E-Ticket" button or check your email for PDF<br>
+                <strong>2. Verify Information:</strong> Ensure all passenger details are correct<br>
+                <strong>3. Arrive Early:</strong> Please arrive 30 minutes before departure<br>
+                <strong>4. Present Your Ticket:</strong> Print or show it on your phone when boarding<br>
+                <strong>5. Monitor Your Trip:</strong> Check regularly for trip status updates
             </div>
         </div>
 
         <!-- Footer -->
         <div class="footer">
             <p>
-                Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ với chúng tôi:
+                If you have any questions, please contact us:
                 <a href="mailto:support@busticket.com" class="footer-link">support@busticket.com</a> 
-                hoặc gọi <strong>1800-XXXX</strong>
+                or call <strong>1800-XXXX</strong>
             </p>
             <p style="margin-top: 15px;">
-                <a href="https://busticket.com/terms" class="footer-link">Điều Khoản &amp; Điều Kiện</a> | 
-                <a href="https://busticket.com/privacy" class="footer-link">Chính Sách Bảo Mật</a>
+                <a href="https://busticket.com/terms" class="footer-link">Terms & Conditions</a> | 
+                <a href="https://busticket.com/privacy" class="footer-link">Privacy Policy</a>
             </p>
             <p style="margin-top: 15px; color: #ccc;">
-                © 2025 Bus Ticket Booking System. Tất cả quyền được bảo lưu.
+                © 2025 Bus Ticket Booking System. All rights reserved.
             </p>
         </div>
     </div>

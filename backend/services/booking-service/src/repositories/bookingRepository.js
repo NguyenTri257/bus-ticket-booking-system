@@ -111,9 +111,9 @@ class BookingRepository {
     const createdBooking = mapToBooking(result.rows[0]);
 
     console.log('[BookingRepository] Booking created:', {
-      bookingId: createdBooking.bookingId,
-      userId: createdBooking.userId,
-      bookingReference: createdBooking.bookingReference,
+      booking_id: createdBooking.booking_id,
+      user_id: createdBooking.user_id,
+      booking_reference: createdBooking.booking_reference,
     });
 
     return createdBooking;
@@ -451,12 +451,12 @@ class BookingRepository {
         b.payment_status,
         b.total_price,
         b.currency,
-        t.schedule->>'departureTime' as departure_time
+        t.departure_time
       FROM bookings b
       INNER JOIN trips t ON b.trip_id = t.trip_id
       WHERE b.status = 'confirmed'
       AND b.payment_status = 'paid'
-      AND (t.schedule->>'departureTime')::timestamp BETWEEN $1 AND $2
+      AND t.departure_time BETWEEN $1 AND $2
       AND b.contact_phone IS NOT NULL
       AND b.contact_phone != ''
     `;

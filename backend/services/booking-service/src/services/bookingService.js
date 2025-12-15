@@ -90,9 +90,9 @@ class BookingService {
       contactPhone,
       status: 'pending',
       lockedUntil: calculateLockExpiration(),
-      subtotal: formatPrice(subtotal),
-      serviceFee: formatPrice(serviceFee),
-      totalPrice: formatPrice(totalPrice),
+      subtotal: subtotal,
+      serviceFee: serviceFee,
+      totalPrice: totalPrice,
       currency: 'VND',
     });
 
@@ -347,10 +347,43 @@ class BookingService {
       paidAt: new Date(),
     });
 
+    // Read the updated booking to ensure transaction visibility
+    const verifiedBooking = await bookingRepository.findById(bookingId);
+    console.log(
+      `✅ Booking ${bookingId} status verified: ${verifiedBooking.status}, payment: ${verifiedBooking.payment.status}`
+    );
+
     // Clear expiration from Redis
     await redisClient.del(`booking:expiration:${bookingId}`);
 
-    // Send comprehensive booking confirmation email with user preferences check
+    // Clear Redis seat locks for this booking
+    try {
+      const passengers = await passengerRepository.findByBookingId(bookingId);
+      console.log(`🔍 Found ${passengers.length} passengers for booking ${bookingId}`);
+      const seatCodes = passengers.map((p) => p.seat_code);
+      console.log(`🎫 Seat codes to unlock: ${seatCodes.join(', ')}`);
+
+      if (seatCodes.length > 0) {
+        // Get trip ID from booking
+        const tripId = updatedBooking.trip_id;
+        const lockKeyPrefix = `seat:lock:${tripId}`;
+
+        // Delete all seat locks for this booking
+        const lockKeys = seatCodes.map((seatCode) => `${lockKeyPrefix}:${seatCode}`);
+        console.log(`🔑 Redis keys to delete: ${lockKeys.join(', ')}`);
+        if (lockKeys.length > 0) {
+          const deletedCount = await redisClient.del(...lockKeys);
+          console.log(`✅ Cleared ${deletedCount} Redis seat locks for booking ${bookingId}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error clearing Redis seat locks:', error);
+      // Don't throw - booking confirmation should succeed even if Redis cleanup fails
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Send comprehensive booking confirmation email
     await this.sendBookingConfirmationEmail(updatedBooking, paymentData);
 
     return updatedBooking;
@@ -587,59 +620,37 @@ class BookingService {
       // 2. Get passengers
       const passengers = await passengerRepository.findByBookingId(booking.booking_id);
 
-      // 3. Get user preferences (if logged-in user, otherwise use defaults)
-      let shouldSendEmail = true;
-      if (booking.user_id) {
-        try {
-          const authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:3001';
-          const userResponse = await axios.get(`${authServiceUrl}/users/${booking.user_id}`);
-          const userPreferences = userResponse.data?.data?.preferences;
+      console.log(
+        `[BookingService] Sending booking confirmation email for ${booking.booking_reference}`
+      );
 
-          if (userPreferences && userPreferences.notifications) {
-            shouldSendEmail = userPreferences.notifications.bookingConfirmations?.email !== false;
-          }
-        } catch (error) {
-          console.warn(
-            'Could not fetch user preferences, sending email by default:',
-            error.message
-          );
-        }
-      }
-
-      if (!shouldSendEmail) {
-        console.log(
-          `📧 Email skipped - user has disabled booking confirmation emails for booking ${booking.booking_reference}`
-        );
-        return;
-      }
-
-      // 4. Prepare comprehensive booking data
+      // 3. Prepare comprehensive booking data
       const bookingConfirmationData = {
         bookingReference: booking.booking_reference,
-        customerName: passengers[0]?.passenger_name || 'Valued Customer',
+        customerName: passengers[0]?.full_name || 'Valued Customer',
         customerEmail: booking.contact_email,
         customerPhone: booking.contact_phone,
         tripDetails: {
           origin: tripDetails.route?.origin || 'Unknown',
           destination: tripDetails.route?.destination || 'Unknown',
-          departureTime: tripDetails.schedule?.departureTime,
-          arrivalTime: tripDetails.schedule?.arrivalTime,
+          departureTime: tripDetails.schedule?.departure_time,
+          arrivalTime: tripDetails.schedule?.arrival_time,
           operatorName: tripDetails.operator?.name || 'Bus Operator',
           busModel: tripDetails.bus?.model || 'Bus',
-          pickupPoint: tripDetails.pickupPoints?.[0]?.name || 'TBD',
-          dropoffPoint: tripDetails.dropoffPoints?.[0]?.name || 'TBD',
+          pickupPoint: tripDetails.pickup_points?.[0]?.name || 'TBD',
+          dropoffPoint: tripDetails.dropoff_points?.[0]?.name || 'TBD',
         },
         passengers: passengers.map((p) => ({
-          fullName: p.passenger_name,
+          fullName: p.full_name,
           documentId: p.document_id,
           seatCode: p.seat_code,
-          seatPrice: tripDetails.pricing?.basePrice || 0,
+          seatPrice: parseFloat(tripDetails.pricing?.base_price) || 0,
         })),
         pricing: {
-          basePrice: tripDetails.pricing?.basePrice || 0,
-          subtotal: booking.subtotal,
-          serviceFee: booking.service_fee,
-          total: booking.total_price,
+          basePrice: parseFloat(tripDetails.pricing?.base_price) || 0,
+          subtotal: parseFloat(booking.pricing?.subtotal) || 0,
+          serviceFee: parseFloat(booking.pricing?.service_fee) || 0,
+          total: parseFloat(booking.pricing?.total) || 0,
           paymentMethod: paymentData?.paymentMethod || 'Unknown',
         },
         eTicketUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/bookings/${booking.booking_reference}/ticket`,
@@ -654,7 +665,7 @@ class BookingService {
         },
       };
 
-      // 5. Send email through notification service
+      // 4. Send email through notification service
       const notificationServiceUrl =
         process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3003';
       const response = await axios.post(`${notificationServiceUrl}/send-booking-confirmation`, {
@@ -668,13 +679,13 @@ class BookingService {
         );
       }
 
-      // 6. Send SMS confirmation if phone number is provided
+      // 5. Send SMS confirmation if phone number is provided
       if (booking.contact_phone) {
         try {
           const smsBookingData = {
             bookingReference: booking.booking_reference,
             tripName: `${tripDetails.route?.origin || 'Origin'} to ${tripDetails.route?.destination || 'Destination'}`,
-            departureTime: tripDetails.schedule?.departureTime || 'TBD',
+            departureTime: tripDetails.schedule?.departure_time || 'TBD',
             fromLocation: tripDetails.route?.origin || 'Origin',
             toLocation: tripDetails.route?.destination || 'Destination',
             seats: passengers.map((p) => p.seat_code),

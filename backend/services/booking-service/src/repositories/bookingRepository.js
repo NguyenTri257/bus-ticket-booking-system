@@ -425,6 +425,46 @@ class BookingRepository {
     const result = await db.query(query, [tripId, seatCodes]);
     return result.rows.map(row => row.seat_code);
   }
+
+  /**
+   * Update booking with modification fee
+   * @param {string} bookingId - Booking UUID
+   * @param {object} data - Modification fee data
+   * @returns {Promise<object>} Updated booking
+   */
+  async updateModificationFee(bookingId, data) {
+    const query = `
+      UPDATE bookings
+      SET 
+        total_price = $1,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE booking_id = $2
+      RETURNING *
+    `;
+
+    const result = await db.query(query, [data.newTotalPrice, bookingId]);
+    return result.rows[0] ? mapToBooking(result.rows[0]) : null;
+  }
+
+  /**
+   * Update ticket URL after regeneration
+   * @param {string} bookingId - Booking UUID
+   * @param {string} ticketUrl - New ticket URL
+   * @returns {Promise<object>} Updated booking
+   */
+  async updateTicketUrl(bookingId, ticketUrl) {
+    const query = `
+      UPDATE bookings
+      SET 
+        ticket_url = $1,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE booking_id = $2
+      RETURNING *
+    `;
+
+    const result = await db.query(query, [ticketUrl, bookingId]);
+    return result.rows[0] ? mapToBooking(result.rows[0]) : null;
+  }
 }
 
 module.exports = new BookingRepository();

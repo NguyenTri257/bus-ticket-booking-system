@@ -470,15 +470,18 @@ class BookingRepository {
         b.booking_id,
         b.booking_reference,
         b.trip_id,
+        b.user_id,
         b.contact_email,
         b.contact_phone,
         b.status,
         b.payment_status,
         b.total_price,
         b.currency,
-        t.departure_time
+        t.departure_time,
+        u.preferences
       FROM bookings b
       INNER JOIN trips t ON b.trip_id = t.trip_id
+      LEFT JOIN users u ON b.user_id = u.user_id
       WHERE b.status = 'confirmed'
       AND b.payment_status = 'paid'
       AND t.departure_time BETWEEN $1 AND $2
@@ -491,6 +494,7 @@ class BookingRepository {
       booking_id: row.booking_id,
       booking_reference: row.booking_reference,
       trip_id: row.trip_id,
+      user_id: row.user_id,
       contact_email: row.contact_email,
       contact_phone: row.contact_phone,
       status: row.status,
@@ -498,6 +502,7 @@ class BookingRepository {
       total_price: row.total_price,
       currency: row.currency,
       departure_time: row.departure_time,
+      preferences: row.preferences || {},
     }));
   }
 }

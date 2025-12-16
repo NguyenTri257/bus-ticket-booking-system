@@ -79,6 +79,11 @@ class TripReminderJob {
    */
   async sendRemindersForHours(hoursUntilDeparture) {
     try {
+      // TODO: Timezone Support - Convert reminder window to user's local timezone
+      // Current implementation uses server UTC time
+      // Future: Fetch user timezone from preferences and adjust calculation accordingly
+      // Example: new Date(now.getTime() + (userTimezoneOffset * 60 * 60 * 1000))
+
       // Calculate target departure time window
       const now = new Date();
       const targetTimeStart = new Date(
@@ -120,14 +125,6 @@ class TripReminderJob {
    */
   async sendTripReminder(booking, hoursUntilDeparture) {
     try {
-      // Skip if no phone number
-      if (!booking.contact_phone) {
-        console.log(
-          `📱 Skipping SMS reminder for booking ${booking.booking_reference} - no phone number`
-        );
-        return;
-      }
-
       // Get trip details
       const tripDetails = await this.getTripDetails(booking.trip_id);
       if (!tripDetails) {
@@ -139,30 +136,127 @@ class TripReminderJob {
       const passengers = await passengerRepository.findByBookingId(booking.booking_id);
 
       // Prepare reminder data
+      // TODO: Pickup/Dropoff points - extract from booking data
+      const firstPickupPoint =
+        tripDetails.pickup_points && tripDetails.pickup_points.length > 0
+          ? tripDetails.pickup_points[0].name
+          : 'TBD';
+      const lastDropoffPoint =
+        tripDetails.dropoff_points && tripDetails.dropoff_points.length > 0
+          ? tripDetails.dropoff_points[tripDetails.dropoff_points.length - 1].name
+          : 'TBD';
+
       const reminderData = {
         bookingReference: booking.booking_reference,
+        customerEmail: booking.contact_email,
+        customerPhone: booking.contact_phone,
         tripName: `${tripDetails.route?.origin || 'Origin'} to ${tripDetails.route?.destination || 'Destination'}`,
-        departureTime: tripDetails.schedule?.departureTime || 'TBD',
+        // Extract times from schedule object
+        departureTime: tripDetails.schedule?.departure_time || 'TBD',
+        arrivalTime: tripDetails.schedule?.arrival_time || 'TBD',
         fromLocation: tripDetails.route?.origin || 'Origin',
         toLocation: tripDetails.route?.destination || 'Destination',
         seats: passengers.map((p) => p.seat_code),
+        totalPrice: booking.total_price || '0',
+        currency: booking.currency || 'VND',
+        // Contact information
+        contactEmail: tripDetails.operator?.contact_email || 'support@busticket.com',
+        contactPhone: tripDetails.operator?.contact_phone || '+84-1800-TICKET',
+        eTicketUrl: booking.eTicketUrl, // Add if available from booking
+        passengers: passengers.map((p) => ({
+          full_name: p.full_name || p.name || 'Passenger',
+          seat_code: p.seat_code,
+          phone: p.phone,
+          document_id: p.document_id,
+        })),
+        operatorName: tripDetails.operator?.name || 'Bus Operator',
+        busModel: tripDetails.bus?.model || 'Standard Bus',
+        // Pickup and dropoff points from trip details
+        pickupPoint: firstPickupPoint,
+        dropoffPoint: lastDropoffPoint,
       };
 
-      // Send SMS reminder
-      const response = await axios.post(`${this.notificationServiceUrl}/send-sms-trip-reminder`, {
-        phoneNumber: booking.contact_phone,
-        tripData: reminderData,
-        hoursUntilDeparture,
-      });
+      // Extract user preferences (with defaults for guest bookings)
+      const userPreferences = booking.preferences || {};
+      const notificationPrefs = userPreferences.notifications || {
+        tripReminders: { email: true, sms: false },
+      };
+      const tripReminderPrefs = notificationPrefs.tripReminders || { email: true, sms: false };
 
-      if (response.data?.success) {
+      // Check if user has enabled SMS reminders
+      const shouldSendSms = tripReminderPrefs.sms === true;
+
+      // Send SMS reminder if user preference enabled and phone number exists
+      if (shouldSendSms && booking.contact_phone) {
+        try {
+          const smsResponse = await axios.post(
+            `${this.notificationServiceUrl}/send-sms-trip-reminder`,
+            {
+              phoneNumber: booking.contact_phone,
+              tripData: reminderData,
+              hoursUntilDeparture,
+            }
+          );
+
+          if (smsResponse.data?.success) {
+            console.log(
+              `📱 Trip reminder SMS sent to ${booking.contact_phone} for ${booking.booking_reference} (${hoursUntilDeparture}h)`
+            );
+          }
+        } catch (smsError) {
+          console.error(
+            `❌ Failed to send SMS for booking ${booking.booking_reference}:`,
+            smsError.message
+          );
+        }
+      } else if (!shouldSendSms) {
         console.log(
-          `📱 Trip reminder SMS sent to ${booking.contact_phone} for ${booking.booking_reference} (${hoursUntilDeparture}h)`
+          `📱 Skipping SMS reminder for booking ${booking.booking_reference} - user opted out`
+        );
+      } else {
+        console.log(
+          `📱 Skipping SMS reminder for booking ${booking.booking_reference} - no phone number`
+        );
+      }
+
+      // Check if user has enabled email reminders
+      const shouldSendEmail = tripReminderPrefs.email === true;
+
+      // Send Email reminder if user preference enabled and email exists
+      if (shouldSendEmail && booking.contact_email) {
+        try {
+          const emailResponse = await axios.post(
+            `${this.notificationServiceUrl}/send-email-trip-reminder`,
+            {
+              email: booking.contact_email,
+              tripData: reminderData,
+              hoursUntilDeparture,
+            }
+          );
+
+          if (emailResponse.data?.success) {
+            console.log(
+              `📧 Trip reminder email sent to ${booking.contact_email} for ${booking.booking_reference} (${hoursUntilDeparture}h)`
+            );
+          }
+        } catch (emailError) {
+          console.error(
+            `❌ Failed to send email for booking ${booking.booking_reference}:`,
+            emailError.message
+          );
+        }
+      } else if (!shouldSendEmail) {
+        console.log(
+          `📧 Skipping email reminder for booking ${booking.booking_reference} - user opted out`
+        );
+      } else {
+        console.log(
+          `📧 Skipping email reminder for booking ${booking.booking_reference} - no email address`
         );
       }
     } catch (error) {
       console.error(
-        `❌ Error sending trip reminder for booking ${booking.booking_reference}:`,
+        `❌ Error processing trip reminder for booking ${booking.booking_reference}:`,
         error.message
       );
       throw error;
@@ -177,7 +271,7 @@ class TripReminderJob {
   async getTripDetails(tripId) {
     try {
       const tripServiceUrl = process.env.TRIP_SERVICE_URL || 'http://localhost:3002';
-      const response = await axios.get(`${tripServiceUrl}/api/trips/${tripId}`);
+      const response = await axios.get(`${tripServiceUrl}/${tripId}`);
       return response.data?.data || null;
     } catch (error) {
       console.error('Error fetching trip details:', error.message);

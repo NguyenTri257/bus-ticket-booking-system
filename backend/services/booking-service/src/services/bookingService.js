@@ -827,40 +827,57 @@ class BookingService {
         );
       }
 
-      // 5. Send SMS confirmation if phone number is provided
-      if (booking.contact_phone) {
-        try {
-          const smsBookingData = {
-            bookingReference: booking.booking_reference,
-            tripName: `${tripDetails.route?.origin || 'Origin'} to ${tripDetails.route?.destination || 'Destination'}`,
-            departureTime: tripDetails.schedule?.departure_time || 'TBD',
-            fromLocation: tripDetails.route?.origin || 'Origin',
-            toLocation: tripDetails.route?.destination || 'Destination',
-            seats: passengers.map((p) => p.seat_code),
-            totalPrice: booking.total_price,
-            currency: booking.currency || 'VND',
-          };
+      // 5. Send SMS confirmation if phone number is provided and user has opted in
+      let smsEnabled = false;
 
-          const smsResponse = await axios.post(
-            `${notificationServiceUrl}/send-sms-booking-confirmation`,
-            {
-              phoneNumber: booking.contact_phone,
-              bookingData: smsBookingData,
+      try {
+        if (booking && booking.user_id) {
+          const authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
+          // Call auth service; supply userId as a query param for internal service lookup.
+          const profileRes = await axios.get(`${authServiceUrl}/auth/me`, {
+            params: { userId: booking.user_id },
+            timeout: 3000,
+          });
+
+          if (profileRes && profileRes.data && profileRes.data.data) {
+            const userProfile = profileRes.data.data;
+            if (
+              userProfile.preferences &&
+              (userProfile.preferences.send_sms === true ||
+                userProfile.nces?.receive_sms_notifications === true)
+            ) {
+              smsEnabled = true;
+            } else if (userProfile.preferences && userProfile.preferences.send_sms === false) {
+              smsEnabled = false;
             }
-          );
-
-          if (smsResponse.data?.success) {
-            console.log(
-              `📱 Booking confirmation SMS sent to ${booking.contact_phone} for ${booking.booking_reference}`
-            );
           }
-        } catch (smsError) {
-          console.error(
-            `❌ Error sending booking confirmation SMS for ${booking.booking_reference}:`,
-            smsError.message
-          );
-          // Don't fail booking confirmation if SMS sending fails
         }
+      } catch (err) {
+        console.warn(
+          `[BookingService] Could not fetch user profile for sms preference (userId=${booking && booking.user_id}): ${err.message}`
+        );
+      }
+
+      // Send SMS if enabled and phone number available
+      try {
+        if (smsEnabled && booking.contact_phone) {
+          const smsPayload = {
+            to: booking.contact_phone,
+            template: 'booking-confirmation-sms',
+            data: {
+              bookingReference: booking.booking_reference,
+              departureTime: tripDetails.schedule?.departure_time,
+              origin: tripDetails.route?.origin,
+              destination: tripDetails.route?.destination,
+            },
+          };
+          await axios.post(`${notificationServiceUrl}/send-sms`, smsPayload);
+          console.log(`✅ SMS booking confirmation sent to ${booking.contact_phone}`);
+        } else {
+          console.log('ℹ️ SMS not sent: not enabled or phone number missing');
+        }
+      } catch (err) {
+        console.warn(`⚠️ Failed to send SMS confirmation: ${err.message || err}`);
       }
     } catch (error) {
       console.error(

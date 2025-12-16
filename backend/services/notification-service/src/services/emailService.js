@@ -2,6 +2,7 @@ const sgMail = require('@sendgrid/mail');
 const fetch = require('node-fetch');
 const { generateTicketEmailTemplate } = require('../templates/ticketEmailTemplate');
 const { generateBookingConfirmationTemplate } = require('../templates/bookingConfirmationTemplate');
+const { generateTripReminderTemplate } = require('../templates/tripReminderEmailTemplate');
 
 // Only set API key if it's provided
 if (process.env.SENDGRID_API_KEY) {
@@ -206,7 +207,9 @@ class EmailService {
 
       if (bookingData.qrCodeUrl) {
         try {
-          const dataUrlMatch = String(bookingData.qrCodeUrl).match(/^data:(image\/[^;]+);base64,(.+)$/);
+          const dataUrlMatch = String(bookingData.qrCodeUrl).match(
+            /^data:(image\/[^;]+);base64,(.+)$/
+          );
           if (dataUrlMatch) {
             const mime = dataUrlMatch[1];
             const base64 = dataUrlMatch[2];
@@ -237,7 +240,9 @@ class EmailService {
               });
               qrForTemplate = `cid:${cid}`;
             } else {
-              console.warn(`⚠️ Unable to fetch QR image from ${bookingData.qrCodeUrl} - status ${resQr.status}`);
+              console.warn(
+                `⚠️ Unable to fetch QR image from ${bookingData.qrCodeUrl} - status ${resQr.status}`
+              );
             }
           }
         } catch (err) {
@@ -430,6 +435,37 @@ class EmailService {
       console.error('⚠️ Error sending ticket email:', error);
       console.error('⚠️ SendGrid response:', error.response?.body || error.message);
       throw new Error('Failed to send ticket email');
+    }
+  }
+
+  async sendTripReminderEmail(email, tripData, hoursUntilDeparture) {
+    // Check if SendGrid is configured
+    if (!process.env.SENDGRID_API_KEY) {
+      console.log(
+        `📧 [DEV MODE] Trip reminder email would be sent to ${email} for booking ${tripData.bookingReference}`
+      );
+      return { success: true, mode: 'development' };
+    }
+
+    const htmlContent = await generateTripReminderTemplate(tripData, hoursUntilDeparture);
+
+    const msg = {
+      to: email,
+      from: DEFAULT_EMAIL_FROM,
+      subject: `Trip Reminder - ${tripData.tripName} (${hoursUntilDeparture}h)`,
+      html: htmlContent,
+    };
+
+    try {
+      await sgMail.send(msg);
+      console.log(
+        `📧 Trip reminder email sent to ${email} for booking ${tripData.bookingReference} (${hoursUntilDeparture}h)`
+      );
+      return { success: true };
+    } catch (error) {
+      console.error('⚠️ Error sending trip reminder email:', error);
+      console.error('⚠️ SendGrid response:', error.response?.body || error.message);
+      throw new Error('Failed to send trip reminder email');
     }
   }
 }

@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   avatar VARCHAR(500),
   email_verified BOOLEAN DEFAULT FALSE,
   phone_verified BOOLEAN DEFAULT FALSE,
-  preferences JSONB DEFAULT '{"notifications":{"bookingConfirmations":{"email":true,"sms":true},"tripReminders":{"email":true,"sms":false},"tripUpdates":{"email":true,"sms":true},"promotionalEmails":false}}'::jsonb,
+  preferences JSONB DEFAULT '{"notifications":{"bookingConfirmations":{"email":true,"sms":false},"tripReminders":{"email":true,"sms":false},"tripUpdates":{"email":true,"sms":false}},"promotionalEmails":false}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );

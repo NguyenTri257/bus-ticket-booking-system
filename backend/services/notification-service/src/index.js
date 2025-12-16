@@ -330,6 +330,41 @@ app.post('/send-sms-trip-reminder', async (req, res) => {
   }
 });
 
+app.post('/send-email-trip-reminder', async (req, res) => {
+  try {
+    const { email, tripData, hoursUntilDeparture } = req.body;
+
+    if (!email || !tripData || hoursUntilDeparture === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VAL_001',
+          message: 'Email, tripData, and hoursUntilDeparture are required',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    await emailService.sendTripReminderEmail(email, tripData, hoursUntilDeparture);
+
+    res.json({
+      success: true,
+      message: 'Trip reminder email sent successfully',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Error sending trip reminder email:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'EMAIL_003',
+        message: error.message || 'Failed to send trip reminder email',
+      },
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 app.post('/send-sms-booking-cancellation', async (req, res) => {
   try {
     const { phoneNumber, bookingData } = req.body;

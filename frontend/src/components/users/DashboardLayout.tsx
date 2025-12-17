@@ -24,7 +24,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 h-[var(--header-height)] bg-card border-b border-border z-50">
+      <header className="fixed top-0 left-0 right-0 h-(--header-height) bg-card border-b border-border z-50">
         <div className="h-full px-6 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-3">
@@ -59,9 +59,9 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       </header>
 
       {/* Page layout */}
-      <div className="flex pt-[var(--header-height)]">
+      <div className="flex pt-(--header-height)">
         {/* Sidebar */}
-        <aside className="fixed left-0 bottom-0 top-[var(--header-height)] w-[var(--sidebar-width)] bg-card border-r border-border">
+        <aside className="fixed left-0 bottom-0 top-(--header-height) w-(--sidebar-width) bg-card border-r border-border">
           <nav className="p-4 space-y-2">
             <p className="px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
               Navigation
@@ -71,6 +71,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               <NavLink
                 key={item.path}
                 to={item.path}
+                end={item.path === '/dashboard'}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                 activeClassName="bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary font-medium"
               >
@@ -82,7 +83,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 ml-[var(--sidebar-width)] p-6">{children}</main>
+        <main className="flex-1 ml-(--sidebar-width) p-6">{children}</main>
       </div>
     </div>
   )

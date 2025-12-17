@@ -243,6 +243,56 @@ app.use('/trips', async (req, res) => {
   }
 });
 
+// Analytics service routes (Admin only)
+app.use('/analytics', authenticate, authorize(['admin']), async (req, res) => {
+  try {
+    const analyticsServiceUrl = process.env.ANALYTICS_SERVICE_URL || 'http://localhost:3006';
+    const queryString = Object.keys(req.query).length
+      ? '?' + new URLSearchParams(req.query).toString()
+      : '';
+
+    console.log(
+      `🔄 Proxying ${req.method} ${req.originalUrl} to ${analyticsServiceUrl}${req.path}${queryString}`
+    );
+
+    const response = await axios({
+      method: req.method,
+      url: `${analyticsServiceUrl}${req.path}${queryString}`,
+      data: req.body,
+      headers: {
+        authorization: req.headers.authorization,
+        'x-user-id': req.user?.userId,
+        'x-user-role': req.user?.role,
+        'content-type': 'application/json',
+      },
+      timeout: 30000, // Analytics queries may take longer
+    });
+
+    console.log(`✅ Analytics service responded with status ${response.status}`);
+
+    // Forward response headers
+    Object.keys(response.headers).forEach((key) => {
+      if (key !== 'transfer-encoding') res.setHeader(key, response.headers[key]);
+    });
+
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(`❌ Analytics service error:`, error.message);
+
+    if (error.response) {
+      console.log(`❌ Analytics service responded with error status ${error.response.status}`);
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      console.log(`❌ Analytics service unavailable or timeout`);
+      res.status(503).json({
+        success: false,
+        error: { code: 'GATEWAY_005', message: 'Analytics service unavailable' },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+});
+
 // Dashboard routes (API composition - aggregates data from multiple services)
 app.get('/dashboard/summary', authenticate, async (req, res) => {
   try {
@@ -704,9 +754,15 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`🚀 API Gateway running on port ${PORT}`);
     console.log(`📊 Health check: http://localhost:${PORT}/health`);
     console.log(`🔗 Auth Service: ${process.env.AUTH_SERVICE_URL || 'http://localhost:3001'}`);
-    console.log(`📧 Trip Service: ${process.env.TRIP_SERVICE_URL || 'http://localhost:3002'}`);
+    console.log(`� Trip Service: ${process.env.TRIP_SERVICE_URL || 'http://localhost:3002'}`);
     console.log(
       `📧 Notification Service: ${process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3003'}`
+    );
+    console.log(
+      `📦 Booking Service: ${process.env.BOOKING_SERVICE_URL || 'http://localhost:3004'}`
+    );
+    console.log(
+      `📊 Analytics Service: ${process.env.ANALYTICS_SERVICE_URL || 'http://localhost:3006'}`
     );
   });
 }

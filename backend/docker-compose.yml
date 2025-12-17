@@ -155,6 +155,29 @@ services:
       - ./services/booking-service:/app
       - /app/node_modules
 
+  # Analytics Service
+  analytics-service:
+    build:
+      context: ./services/analytics-service
+      dockerfile: Dockerfile
+    container_name: bus-ticket-analytics-service
+    environment:
+      - NODE_ENV=development
+      - PORT=3006
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=bus_ticket_dev
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bus-ticket-network
+    volumes:
+      - ./services/analytics-service:/app
+      - /app/node_modules
+
   # API Gateway
   api-gateway:
     build:
@@ -168,6 +191,7 @@ services:
       - TRIP_SERVICE_URL=http://trip-service:3002
       - NOTIFICATION_SERVICE_URL=http://notification-service:3003
       - BOOKING_SERVICE_URL=http://booking-service:3004
+      - ANALYTICS_SERVICE_URL=http://analytics-service:3006
       - JWT_SECRET=${JWT_SECRET:-default-jwt-secret}
     ports:
       - "3000:3000"

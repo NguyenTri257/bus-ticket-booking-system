@@ -61,14 +61,20 @@ export function SeatItem({
   const hasExpiredLock =
     seat.locked_until && new Date(seat.locked_until) <= new Date()
 
+  // Check if user lock has expired
+  const hasExpiredUserLock = userLock && isLockExpired
+
   // Determine seat status class
   const getSeatStatusClass = () => {
-    // Check if the seat has an expired lock based on locked_until
+    // Check if the seat has an expired lock based on locked_until (for backend data)
     const hasExpiredLock =
       seat.locked_until && new Date(seat.locked_until) <= new Date()
 
-    // If lock has expired, treat as available regardless of backend status
-    if (hasExpiredLock) {
+    // Check if user lock has expired
+    const hasExpiredUserLock = userLock && isLockExpired
+
+    // If any lock has expired, treat as available regardless of other state
+    if (hasExpiredLock || hasExpiredUserLock) {
       return 'seat-available'
     }
 
@@ -101,8 +107,15 @@ export function SeatItem({
 
   // Get seat icon based on status
   const getSeatIcon = () => {
-    // If lock has expired, don't show any icon (treat as available)
-    if (hasExpiredLock) {
+    // Check if the seat has an expired lock based on locked_until (for backend data)
+    const hasExpiredLock =
+      seat.locked_until && new Date(seat.locked_until) <= new Date()
+
+    // Check if user lock has expired
+    const hasExpiredUserLock = userLock && isLockExpired
+
+    // If any lock has expired, don't show any icon (treat as available)
+    if (hasExpiredLock || hasExpiredUserLock) {
       return null
     }
 
@@ -171,7 +184,8 @@ export function SeatItem({
               seat.locked_by === currentUserId &&
               !isLockExpired)) &&
           (userLock?.expires_at || seat.locked_until) &&
-          !hasExpiredLock && (
+          !hasExpiredLock &&
+          !hasExpiredUserLock && (
             <div className="seat-countdown">
               <CountdownTimer
                 expiresAt={userLock?.expires_at || seat.locked_until || ''}

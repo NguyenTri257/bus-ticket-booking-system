@@ -84,6 +84,9 @@ export function SeatSelection() {
   const [error, setError] = useState<string | null>(null)
   const [operationInProgress, setOperationInProgress] = useState(false)
   const [showGuestCheckout, setShowGuestCheckout] = useState(false)
+  const [activeTab, setActiveTab] = useState<'seats' | 'pickup-dropoff'>(
+    'seats'
+  )
   const refreshTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const transferInProgressRef = useRef(false)
   const [seatMapLoading, setSeatMapLoading] = useState(false)
@@ -603,6 +606,11 @@ export function SeatSelection() {
       return
     }
 
+    // Switch to pickup/dropoff tab
+    setActiveTab('pickup-dropoff')
+  }
+
+  const handleCheckout = () => {
     // Require pickup/dropoff selection if route defines points
     const requiresPickup = !!(
       trip?.pickup_points && trip.pickup_points.length > 0
@@ -808,51 +816,103 @@ export function SeatSelection() {
             </Card>
           )}
 
+          {/* Tab Navigation */}
+          <div className="mb-6 border-b border-border">
+            <div className="flex gap-4">
+              <button
+                onClick={() => setActiveTab('seats')}
+                className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
+                  activeTab === 'seats'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold">
+                    1
+                  </span>
+                  Select Seats
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedSeats.length === 0) {
+                    setError('Please select at least one seat first')
+                    return
+                  }
+                  setActiveTab('pickup-dropoff')
+                }}
+                disabled={selectedSeats.length === 0}
+                className={`px-4 py-3 font-medium text-sm border-b-2 transition-colors ${
+                  activeTab === 'pickup-dropoff'
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed'
+                }`}
+              >
+                <span className="flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold">
+                    2
+                  </span>
+                  Pickup & Dropoff
+                </span>
+              </button>
+            </div>
+          </div>
+
           {/* Main Content Layout */}
           <div className="flex flex-col lg:flex-row gap-6">
-            {/* Left Column - Seat Map and Pickup/Dropoff */}
+            {/* Left Column - Tab Content */}
             <div className="flex-1 space-y-4">
-              {/* Seat Map Component */}
-              {seatMapData && (
-                <div className="relative">
-                  {seatMapLoading && (
-                    <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center z-50">
-                      <div className="text-center">
-                        <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                        <p className="text-white text-sm font-medium">
-                          Updating seats...
-                        </p>
-                      </div>
+              {/* Tab 1: Seat Selection */}
+              {activeTab === 'seats' && (
+                <>
+                  {/* Seat Map Component */}
+                  {seatMapData && (
+                    <div className="relative">
+                      {seatMapLoading && (
+                        <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center z-50">
+                          <div className="text-center">
+                            <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                            <p className="text-white text-sm font-medium">
+                              Updating seats...
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      <SeatMap
+                        seatMapData={seatMapData}
+                        selectedSeats={selectedSeats}
+                        onSeatSelect={handleSeatSelect}
+                        maxSelectable={MAX_SELECTABLE_SEATS}
+                        operationInProgress={operationInProgress}
+                        userLocks={userLocks}
+                        onLockExpire={handleLockExpire}
+                        currentUserId={
+                          user?.userId.toString() || guestSessionId || undefined
+                        }
+                      />
                     </div>
                   )}
-                  <SeatMap
-                    seatMapData={seatMapData}
-                    selectedSeats={selectedSeats}
-                    onSeatSelect={handleSeatSelect}
-                    maxSelectable={MAX_SELECTABLE_SEATS}
-                    operationInProgress={operationInProgress}
-                    userLocks={userLocks}
-                    onLockExpire={handleLockExpire}
-                    currentUserId={
-                      user?.userId.toString() || guestSessionId || undefined
-                    }
-                  />
-                </div>
+                </>
               )}
 
-              {/* Pickup and Dropoff Selector Component */}
-              {trip && trip.pickup_points && trip.dropoff_points && (
-                <PickupDropoffSelector
-                  pickupPoints={trip.pickup_points}
-                  dropoffPoints={trip.dropoff_points}
-                  selectedPickup={selectedPickup}
-                  selectedDropoff={selectedDropoff}
-                  onPickupSelect={setSelectedPickup}
-                  onDropoffSelect={setSelectedDropoff}
-                  isActive={true}
-                  seatsSelected={getFilteredSelectedSeats().length}
-                  minSeatsRequired={1}
-                />
+              {/* Tab 2: Pickup and Dropoff Selection */}
+              {activeTab === 'pickup-dropoff' && (
+                <>
+                  {trip && trip.pickup_points && trip.dropoff_points && (
+                    <PickupDropoffSelector
+                      pickupPoints={trip.pickup_points}
+                      dropoffPoints={trip.dropoff_points}
+                      selectedPickup={selectedPickup}
+                      selectedDropoff={selectedDropoff}
+                      onPickupSelect={setSelectedPickup}
+                      onDropoffSelect={setSelectedDropoff}
+                      isActive={true}
+                      seatsSelected={getFilteredSelectedSeats().length}
+                      minSeatsRequired={1}
+                    />
+                  )}
+                </>
               )}
             </div>
 
@@ -930,20 +990,42 @@ export function SeatSelection() {
                     </p>
                   </div>
 
-                  <Button
-                    onClick={handleContinue}
-                    disabled={
-                      getFilteredSelectedSeats().length === 0 ||
-                      ((trip?.pickup_points?.length ?? 0) > 0 &&
-                        !selectedPickup) ||
-                      ((trip?.dropoff_points?.length ?? 0) > 0 &&
-                        !selectedDropoff)
-                    }
-                    className="w-full mt-3"
-                    size="sm"
-                  >
-                    Continue to Checkout
-                  </Button>
+                  {activeTab === 'seats' && (
+                    <Button
+                      onClick={handleContinue}
+                      disabled={getFilteredSelectedSeats().length === 0}
+                      className="w-full mt-3"
+                      size="sm"
+                    >
+                      Continue to Pickup & Dropoff
+                    </Button>
+                  )}
+
+                  {activeTab === 'pickup-dropoff' && (
+                    <>
+                      <Button
+                        onClick={() => setActiveTab('seats')}
+                        variant="outline"
+                        className="w-full mt-3"
+                        size="sm"
+                      >
+                        Back to Seats
+                      </Button>
+                      <Button
+                        onClick={handleCheckout}
+                        disabled={
+                          ((trip?.pickup_points?.length ?? 0) > 0 &&
+                            !selectedPickup) ||
+                          ((trip?.dropoff_points?.length ?? 0) > 0 &&
+                            !selectedDropoff)
+                        }
+                        className="w-full mt-2"
+                        size="sm"
+                      >
+                        Continue to Checkout
+                      </Button>
+                    </>
+                  )}
                 </div>
               </Card>
             </div>

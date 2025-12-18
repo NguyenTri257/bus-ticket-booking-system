@@ -33,6 +33,7 @@ import { BookingReview } from './pages/BookingReview'
 import ETicketPreview from './pages/ETicketPreview'
 import GuestCheckout from '@/components/booking/GuestCheckout'
 import GuestConfirmation from './pages/GuestConfirmation'
+import RevenueAnalytics from '@/pages/admin/RevenueAnalytics'
 
 const queryClient = new QueryClient()
 
@@ -144,6 +145,11 @@ const App = () => (
                   element={<AdminOperatorManagement />}
                 />{' '}
                 {/* Operator Management */}
+                <Route
+                  path="/admin/analytics"
+                  element={<RevenueAnalytics />}
+                />{' '}
+                {/* Revenue Analytics */}
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />

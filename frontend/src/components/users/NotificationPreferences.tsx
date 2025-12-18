@@ -12,7 +12,7 @@ import {
   getUserProfile,
   updateUserProfile,
   getDefaultPreferences,
-} from '@/api/notificationApi'
+} from '@/api/userProfileApi'
 
 interface UserPreferences {
   notifications: {

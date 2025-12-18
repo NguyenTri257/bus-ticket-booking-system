@@ -18,6 +18,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
 } from 'recharts'
 import {
   Tooltip as UITooltip,
@@ -248,19 +249,8 @@ export function BookingStatusTable({ data }: BookingStatusChartProps) {
                 <Pie
                   data={rawData}
                   cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ percent, index }) => {
-                    if (index === undefined || !rawData[index]) return ''
-                    const status = rawData[index].status
-                    const statusText =
-                      status.charAt(0).toUpperCase() + status.slice(1)
-                    const percentText = percent
-                      ? `${(percent * 100).toFixed(0)}%`
-                      : '0%'
-                    return `${statusText} • ${percentText}`
-                  }}
-                  outerRadius={100}
+                  cy="45%"
+                  outerRadius={80}
                   fill="#8884d8"
                   dataKey={selectedMetric}
                   nameKey="status"
@@ -291,6 +281,20 @@ export function BookingStatusTable({ data }: BookingStatusChartProps) {
                     borderRadius: '6px',
                   }}
                   labelStyle={{ color: 'var(--foreground)' }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  height={36}
+                  formatter={(value) => (
+                    <span
+                      style={{
+                        color: 'var(--foreground)',
+                        fontSize: '0.875rem',
+                      }}
+                    >
+                      {formatStatusLabel(value)}
+                    </span>
+                  )}
                 />
               </PieChart>
             )}

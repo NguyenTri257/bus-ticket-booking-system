@@ -10,14 +10,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { RevenueSummaryCards } from '@/components/admin/analytics/RevenueSummaryCards'
-import { RevenueTrendChart } from '@/components/admin/analytics/RevenueTrendChart'
-import { RoutePerformanceChart } from '@/components/admin/analytics/RoutePerformanceChart'
-import { OperatorComparisonChart } from '@/components/admin/analytics/OperatorComparisonChart'
-import { BookingStatusTable } from '@/components/admin/analytics/BookingStatusChart'
-import { RevenueBreakdownTable } from '@/components/admin/analytics/RevenueBreakdownTable'
-import { DateRangeFilter } from '@/components/admin/analytics/DateRangeFilter'
-import { GrowthRateIndicators } from '@/components/admin/analytics/GrowthRateIndicators'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  RevenueSummaryCards,
+  RevenueTrendChart,
+  RoutePerformanceChart,
+  OperatorComparisonChart,
+  BookingStatusTable,
+  RevenueBreakdownTable,
+  DateRangeFilter,
+  GrowthRateIndicators,
+  BookingSummaryCards,
+  BookingStatusDistribution,
+  TopRoutesList,
+  CancellationStats,
+  BookingTrendsChart,
+} from '@/components/admin/analytics'
 import type { RevenueAnalyticsResponse } from '@/api/revenueAnalytics'
 import {
   fetchRevenueAnalytics,
@@ -25,11 +33,14 @@ import {
   fetchOperators,
   type Operator,
 } from '@/api/revenueAnalytics'
+import type { BookingAnalyticsResponse } from '@/api/bookingAnalytics'
+import { fetchBookingAnalytics } from '@/api/bookingAnalytics'
 import '@/styles/admin.css'
 
 type DateRange = 'week' | 'month' | 'quarter' | 'year' | 'custom'
 
 export default function RevenueAnalytics() {
+  const [activeTab, setActiveTab] = useState<'revenue' | 'booking'>('revenue')
   const [dateRange, setDateRange] = useState<DateRange>('month')
   const [selectedOperator, setSelectedOperator] = useState<string>('all')
   const [selectedGroupBy, setSelectedGroupBy] = useState<
@@ -41,6 +52,8 @@ export default function RevenueAnalytics() {
   })
   const [hasCustomDatesBeenSet, setHasCustomDatesBeenSet] = useState(false)
   const [data, setData] = useState<RevenueAnalyticsResponse | null>(null)
+  const [bookingData, setBookingData] =
+    useState<BookingAnalyticsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [operators, setOperators] = useState<Operator[]>([])
@@ -102,19 +115,30 @@ export default function RevenueAnalytics() {
           toDate = range.to
         }
 
-        const response = await fetchRevenueAnalytics({
-          fromDate,
-          toDate,
-          groupBy: selectedGroupBy,
-          operatorId: selectedOperator !== 'all' ? selectedOperator : undefined,
-        })
-
-        setData(response)
+        if (activeTab === 'revenue') {
+          const response = await fetchRevenueAnalytics({
+            fromDate,
+            toDate,
+            groupBy: selectedGroupBy,
+            operatorId:
+              selectedOperator !== 'all' ? selectedOperator : undefined,
+          })
+          setData(response)
+          setBookingData(null)
+        } else {
+          const response = await fetchBookingAnalytics({
+            fromDate,
+            toDate,
+            groupBy: selectedGroupBy,
+          })
+          setBookingData(response)
+          setData(null)
+        }
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : 'Failed to fetch revenue data'
+          err instanceof Error ? err.message : 'Failed to fetch analytics data'
         )
-        console.error('Error fetching revenue analytics:', err)
+        console.error('Error fetching analytics:', err)
       } finally {
         setLoading(false)
       }
@@ -128,6 +152,7 @@ export default function RevenueAnalytics() {
     hasCustomDatesBeenSet,
     customDateRange.from,
     customDateRange.to,
+    activeTab,
   ])
 
   // Fetch operators for filter dropdown
@@ -150,9 +175,8 @@ export default function RevenueAnalytics() {
   }, [])
 
   const handleExport = () => {
-    if (!data) return
+    if (!data && !bookingData) return
 
-    const { summary, trends, byRoute, byOperator, byStatus } = data.data
     const csvLines: string[] = []
 
     // Calculate the actual date range used
@@ -173,69 +197,139 @@ export default function RevenueAnalytics() {
     csvLines.push('setting,value')
     csvLines.push(`From Date,${exportFromDate}`)
     csvLines.push(`To Date,${exportToDate}`)
-    csvLines.push(`Operator,${selectedOperator}`)
     csvLines.push(`Group By,${selectedGroupBy}`)
+    if (activeTab === 'revenue') {
+      csvLines.push(`Operator,${selectedOperator}`)
+    }
+    csvLines.push(
+      `Analytics Type,${activeTab === 'revenue' ? 'Revenue' : 'Booking'}`
+    )
     csvLines.push(`Export Date,${new Date().toISOString().split('T')[0]}`)
     csvLines.push('')
 
-    // Add summary section (filtered totals)
-    csvLines.push('SUMMARY')
-    csvLines.push('metric,value')
-    csvLines.push(`Total Revenue,${summary.totalRevenue}`)
-    csvLines.push(`Total Bookings,${summary.totalBookings}`)
-    csvLines.push(`Average Booking Value,${summary.averageBookingValue}`)
-    csvLines.push(`Currency,${summary.currency}`)
-    csvLines.push('')
+    if (activeTab === 'revenue' && data) {
+      const { summary, trends, byRoute, byOperator, byStatus } = data.data
 
-    // Add revenue breakdown section (filtered data)
-    csvLines.push('REVENUE_BREAKDOWN')
-    csvLines.push('date,revenue,bookings,avg_price')
-    trends.forEach((row) => {
-      const avgPrice =
-        row.bookings > 0 ? (row.revenue / row.bookings).toFixed(2) : '0.00'
-      csvLines.push(`${row.period},${row.revenue},${row.bookings},${avgPrice}`)
-    })
-    csvLines.push('')
+      // Add summary section (filtered totals)
+      csvLines.push('SUMMARY')
+      csvLines.push('metric,value')
+      csvLines.push(`Total Revenue,${summary.totalRevenue}`)
+      csvLines.push(`Total Bookings,${summary.totalBookings}`)
+      csvLines.push(`Average Booking Value,${summary.averageBookingValue}`)
+      csvLines.push(`Currency,${summary.currency}`)
+      csvLines.push('')
 
-    // Add top routes section (filtered data)
-    csvLines.push('TOP_ROUTES')
-    csvLines.push('route,revenue,bookings,average_price')
-    byRoute.forEach((route) => {
+      // Add revenue breakdown section (filtered data)
+      csvLines.push('REVENUE_BREAKDOWN')
+      csvLines.push('date,revenue,bookings,avg_price')
+      trends.forEach((row) => {
+        const avgPrice =
+          row.bookings > 0 ? (row.revenue / row.bookings).toFixed(2) : '0.00'
+        csvLines.push(
+          `${row.period},${row.revenue},${row.bookings},${avgPrice}`
+        )
+      })
+      csvLines.push('')
+
+      // Add top routes section (filtered data)
+      csvLines.push('TOP_ROUTES')
+      csvLines.push('route,revenue,bookings,average_price')
+      byRoute.forEach((route) => {
+        csvLines.push(
+          `${route.route},${route.revenue},${route.bookings},${route.averagePrice}`
+        )
+      })
+      csvLines.push('')
+
+      // Add top operators section (filtered data)
+      csvLines.push('TOP_OPERATORS')
+      csvLines.push('operator_id,name,revenue,bookings')
+      byOperator.forEach((operator) => {
+        csvLines.push(
+          `${operator.operatorId || ''},${operator.operatorName},${operator.revenue},${operator.bookings}`
+        )
+      })
+      csvLines.push('')
+
+      // Add booking status breakdown section (filtered data)
+      csvLines.push('BOOKING_STATUS_BREAKDOWN')
+      csvLines.push('status,revenue,bookings,average_value')
+      byStatus.forEach((status) => {
+        csvLines.push(
+          `${status.status},${status.revenue},${status.bookings},${status.averageValue}`
+        )
+      })
+    } else if (activeTab === 'booking' && bookingData) {
+      const {
+        summary,
+        trends,
+        statusDistribution,
+        topRoutes,
+        cancellationStats,
+      } = bookingData.data
+
+      // Add summary section
+      csvLines.push('SUMMARY')
+      csvLines.push('metric,value')
+      csvLines.push(`Total Bookings,${summary.totalBookings}`)
+      csvLines.push(`Success Rate,${summary.successRate}%`)
+      csvLines.push(`Cancellation Rate,${summary.cancellationRate}%`)
+      csvLines.push(`Conversion Rate,${summary.conversionRate || 'N/A'}`)
+      csvLines.push('')
+
+      // Add booking trends section
+      csvLines.push('BOOKING_TRENDS')
+      csvLines.push('period,total_bookings,confirmed,cancelled,pending')
+      trends.forEach((trend) => {
+        csvLines.push(
+          `${trend.period},${trend.totalBookings},${trend.confirmedBookings},${trend.cancelledBookings},${trend.pendingBookings}`
+        )
+      })
+      csvLines.push('')
+
+      // Add status distribution section
+      csvLines.push('STATUS_DISTRIBUTION')
+      csvLines.push('status,count,percentage')
+      statusDistribution.forEach((status) => {
+        csvLines.push(`${status.status},${status.count},${status.percentage}`)
+      })
+      csvLines.push('')
+
+      // Add top routes section
+      csvLines.push('TOP_ROUTES')
       csvLines.push(
-        `${route.route},${route.revenue},${route.bookings},${route.averagePrice}`
+        'route_id,route,origin,destination,total_bookings,revenue,unique_trips'
       )
-    })
-    csvLines.push('')
+      topRoutes.forEach((route) => {
+        csvLines.push(
+          `${route.routeId},"${route.route}",${route.origin},${route.destination},${route.totalBookings},${route.revenue},${route.uniqueTrips}`
+        )
+      })
+      csvLines.push('')
 
-    // Add top operators section (filtered data)
-    csvLines.push('TOP_OPERATORS')
-    csvLines.push('operator_id,name,revenue,bookings')
-    byOperator.forEach((operator) => {
-      csvLines.push(
-        `${operator.operatorId || ''},${operator.operatorName},${operator.revenue},${operator.bookings}`
-      )
-    })
-    csvLines.push('')
-
-    // Add booking status breakdown section (filtered data)
-    csvLines.push('BOOKING_STATUS_BREAKDOWN')
-    csvLines.push('status,revenue,bookings,average_value')
-    byStatus.forEach((status) => {
-      csvLines.push(
-        `${status.status},${status.revenue},${status.bookings},${status.averageValue}`
-      )
-    })
+      // Add cancellation stats section
+      csvLines.push('CANCELLATION_STATS')
+      csvLines.push('metric,value')
+      csvLines.push(`Cancelled Bookings,${cancellationStats.cancelledBookings}`)
+      csvLines.push(`Confirmed Bookings,${cancellationStats.confirmedBookings}`)
+      csvLines.push(`Total Bookings,${cancellationStats.totalBookings}`)
+      csvLines.push(`Cancellation Rate,${cancellationStats.cancellationRate}%`)
+      csvLines.push(`Lost Revenue,${cancellationStats.lostRevenue}`)
+    }
 
     const csv = csvLines.join('\n')
+
+    // Add UTF-8 BOM to ensure proper Unicode character rendering in Excel and other CSV readers
+    const csvWithBOM = '\ufeff' + csv
 
     const element = document.createElement('a')
     element.setAttribute(
       'href',
-      `data:text/csv;charset=utf-8,${encodeURIComponent(csv)}`
+      `data:text/csv;charset=utf-8,${encodeURIComponent(csvWithBOM)}`
     )
     element.setAttribute(
       'download',
-      `revenue-analytics-${dateRange}-${selectedOperator}-${selectedGroupBy}-${new Date().toISOString().split('T')[0]}.csv`
+      `${activeTab}-analytics-${dateRange}-${selectedOperator}-${selectedGroupBy}-${new Date().toISOString().split('T')[0]}.csv`
     )
     element.style.display = 'none'
     document.body.appendChild(element)
@@ -250,7 +344,7 @@ export default function RevenueAnalytics() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex-1">
             <h1 className="text-4xl font-bold tracking-tight text-foreground">
-              Revenue Analytics
+              Analytics Dashboard
             </h1>
             <p className="text-sm text-muted-foreground mt-2">
               Track your financial performance and booking metrics
@@ -270,178 +364,339 @@ export default function RevenueAnalytics() {
           </div>
         </div>
 
-        {/* Content */}
-        {loading ? (
-          <Card className="border-border/50">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="w-8 h-8 rounded-full border-2 border-muted-foreground border-t-primary animate-spin mx-auto mb-3"></div>
-                  <p className="text-sm text-muted-foreground">
-                    Loading analytics...
+        {/* Tabs */}
+        <Tabs
+          value={activeTab}
+          onValueChange={(value) =>
+            setActiveTab(value as 'revenue' | 'booking')
+          }
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="revenue">Revenue Analytics</TabsTrigger>
+            <TabsTrigger value="booking">Booking Analytics</TabsTrigger>
+          </TabsList>
+
+          {/* Revenue Analytics Tab */}
+          <TabsContent value="revenue" className="space-y-6">
+            {/* Content */}
+            {loading ? (
+              <Card className="border-border/50">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="w-8 h-8 rounded-full border-2 border-muted-foreground border-t-primary animate-spin mx-auto mb-3"></div>
+                      <p className="text-sm text-muted-foreground">
+                        Loading analytics...
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : error ? (
+              <Card className="border-red-200/50 bg-red-50 dark:bg-red-950/20 dark:border-red-900/50">
+                <CardContent className="pt-6">
+                  <p className="text-red-700 dark:text-red-300 text-sm font-medium">
+                    {error}
                   </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : error ? (
-          <Card className="border-red-200/50 bg-red-50 dark:bg-red-950/20 dark:border-red-900/50">
-            <CardContent className="pt-6">
-              <p className="text-red-700 dark:text-red-300 text-sm font-medium">
-                {error}
-              </p>
-            </CardContent>
-          </Card>
-        ) : data ? (
-          <>
-            {/* Growth Indicators */}
-            <GrowthRateIndicators data={data} />
+                </CardContent>
+              </Card>
+            ) : data ? (
+              <>
+                {/* Growth Indicators */}
+                <GrowthRateIndicators data={data} />
 
-            {/* Filters Card */}
-            <Card className="border-border/50 bg-card">
-              <CardContent className="pt-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-                  <div className="flex-1">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                      Date Range
-                    </label>
-                    <Select
-                      value={dateRange}
-                      onValueChange={(value) =>
-                        setDateRange(value as DateRange)
-                      }
-                    >
-                      <SelectTrigger className="bg-background/50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="week">Last 7 Days</SelectItem>
-                        <SelectItem value="month">Last 30 Days</SelectItem>
-                        <SelectItem value="quarter">Last Quarter</SelectItem>
-                        <SelectItem value="year">This Year</SelectItem>
-                        <SelectItem value="custom">Custom Range</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {dateRange === 'custom' && (
-                    <DateRangeFilter
-                      dateRange={dateRange}
-                      customDateRange={customDateRange}
-                      onDateRangeChange={setDateRange}
-                      onCustomDateRangeChange={(range) => {
-                        setCustomDateRange(range)
-                        setHasCustomDatesBeenSet(true)
-                      }}
-                    />
-                  )}
-
-                  <div className="flex-1">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                      Group By
-                    </label>
-                    <Select
-                      value={selectedGroupBy}
-                      onValueChange={(value) =>
-                        setSelectedGroupBy(value as 'day' | 'week' | 'month')
-                      }
-                    >
-                      <SelectTrigger className="bg-background/50">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="day">Daily</SelectItem>
-                        <SelectItem value="week">Weekly</SelectItem>
-                        <SelectItem value="month">Monthly</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex-1">
-                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
-                      Operator
-                    </label>
-                    <Select
-                      value={selectedOperator}
-                      onValueChange={setSelectedOperator}
-                      disabled={operatorsLoading}
-                    >
-                      <SelectTrigger className="bg-background/50">
-                        <SelectValue
-                          placeholder={
-                            operatorsLoading ? 'Loading...' : 'All Operators'
+                {/* Filters Card */}
+                <Card className="border-border/50 bg-card">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                      <div className="flex-1">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                          Date Range
+                        </label>
+                        <Select
+                          value={dateRange}
+                          onValueChange={(value) =>
+                            setDateRange(value as DateRange)
                           }
+                        >
+                          <SelectTrigger className="bg-background/50">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="week">Last 7 Days</SelectItem>
+                            <SelectItem value="month">Last 30 Days</SelectItem>
+                            <SelectItem value="quarter">
+                              Last Quarter
+                            </SelectItem>
+                            <SelectItem value="year">This Year</SelectItem>
+                            <SelectItem value="custom">Custom Range</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {dateRange === 'custom' && (
+                        <DateRangeFilter
+                          dateRange={dateRange}
+                          customDateRange={customDateRange}
+                          onDateRangeChange={setDateRange}
+                          onCustomDateRangeChange={(range) => {
+                            setCustomDateRange(range)
+                            setHasCustomDatesBeenSet(true)
+                          }}
                         />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Operators</SelectItem>
-                        {operators.map((operator) => (
-                          <SelectItem
-                            key={operator.operatorId}
-                            value={operator.operatorId}
-                          >
-                            {operator.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      )}
+
+                      <div className="flex-1">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                          Group By
+                        </label>
+                        <Select
+                          value={selectedGroupBy}
+                          onValueChange={(value) =>
+                            setSelectedGroupBy(
+                              value as 'day' | 'week' | 'month'
+                            )
+                          }
+                        >
+                          <SelectTrigger className="bg-background/50">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="day">Daily</SelectItem>
+                            <SelectItem value="week">Weekly</SelectItem>
+                            <SelectItem value="month">Monthly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex-1">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                          Operator
+                        </label>
+                        <Select
+                          value={selectedOperator}
+                          onValueChange={setSelectedOperator}
+                          disabled={operatorsLoading}
+                        >
+                          <SelectTrigger className="bg-background/50">
+                            <SelectValue
+                              placeholder={
+                                operatorsLoading
+                                  ? 'Loading...'
+                                  : 'All Operators'
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Operators</SelectItem>
+                            {operators.map((operator) => (
+                              <SelectItem
+                                key={operator.operatorId}
+                                value={operator.operatorId}
+                              >
+                                {operator.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Summary Cards Grid */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Summary
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Key financial metrics and booking statistics
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <RevenueSummaryCards data={data} />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Summary Cards Grid */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Summary
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    Key financial metrics and booking statistics
-                  </p>
+                {/* Main Charts Grid */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Revenue Over Time */}
+                  <Card className="border-border/50 lg:col-span-2">
+                    <RevenueTrendChart data={data} />
+                  </Card>
+
+                  {/* Route Performance */}
+                  <Card className="border-border/50">
+                    <RoutePerformanceChart data={data} />
+                  </Card>
+
+                  {/* Operator Comparison */}
+                  <Card className="border-border/50">
+                    <OperatorComparisonChart data={data} />
+                  </Card>
+
+                  {/* Booking Status Breakdown */}
+                  <Card className="border-border/50 lg:col-span-2">
+                    <BookingStatusTable data={data} />
+                  </Card>
                 </div>
-              </div>
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <RevenueSummaryCards data={data} />
-              </div>
-            </div>
 
-            {/* Main Charts Grid */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              {/* Revenue Over Time */}
-              <Card className="border-border/50 lg:col-span-2">
-                <RevenueTrendChart data={data} />
-              </Card>
-
-              {/* Route Performance */}
+                {/* Revenue Breakdown Table */}
+                <RevenueBreakdownTable data={data} />
+              </>
+            ) : (
               <Card className="border-border/50">
-                <RoutePerformanceChart data={data} />
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No data available for the selected period.
+                  </p>
+                </CardContent>
               </Card>
+            )}
+          </TabsContent>
 
-              {/* Operator Comparison */}
+          {/* Booking Analytics Tab */}
+          <TabsContent value="booking" className="space-y-6">
+            {/* Content */}
+            {loading ? (
               <Card className="border-border/50">
-                <OperatorComparisonChart data={data} />
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="w-8 h-8 rounded-full border-2 border-muted-foreground border-t-primary animate-spin mx-auto mb-3"></div>
+                      <p className="text-sm text-muted-foreground">
+                        Loading analytics...
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
               </Card>
-
-              {/* Booking Status Breakdown */}
-              <Card className="border-border/50 lg:col-span-2">
-                <BookingStatusTable data={data} />
+            ) : error ? (
+              <Card className="border-red-200/50 bg-red-50 dark:bg-red-950/20 dark:border-red-900/50">
+                <CardContent className="pt-6">
+                  <p className="text-red-700 dark:text-red-300 text-sm font-medium">
+                    {error}
+                  </p>
+                </CardContent>
               </Card>
-            </div>
+            ) : bookingData ? (
+              <>
+                {/* Filters Card */}
+                <Card className="border-border/50 bg-card">
+                  <CardContent className="pt-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                      <div className="flex-1">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                          Date Range
+                        </label>
+                        <Select
+                          value={dateRange}
+                          onValueChange={(value) =>
+                            setDateRange(value as DateRange)
+                          }
+                        >
+                          <SelectTrigger className="bg-background/50">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="week">Last 7 Days</SelectItem>
+                            <SelectItem value="month">Last 30 Days</SelectItem>
+                            <SelectItem value="quarter">
+                              Last Quarter
+                            </SelectItem>
+                            <SelectItem value="year">This Year</SelectItem>
+                            <SelectItem value="custom">Custom Range</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-            {/* Revenue Breakdown Table */}
-            <RevenueBreakdownTable data={data} />
-          </>
-        ) : (
-          <Card className="border-border/50">
-            <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground text-center py-8">
-                No data available for the selected period.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+                      {dateRange === 'custom' && (
+                        <DateRangeFilter
+                          dateRange={dateRange}
+                          customDateRange={customDateRange}
+                          onDateRangeChange={setDateRange}
+                          onCustomDateRangeChange={(range) => {
+                            setCustomDateRange(range)
+                            setHasCustomDatesBeenSet(true)
+                          }}
+                        />
+                      )}
+
+                      <div className="flex-1">
+                        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2 block">
+                          Group By
+                        </label>
+                        <Select
+                          value={selectedGroupBy}
+                          onValueChange={(value) =>
+                            setSelectedGroupBy(
+                              value as 'day' | 'week' | 'month'
+                            )
+                          }
+                        >
+                          <SelectTrigger className="bg-background/50">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="day">Daily</SelectItem>
+                            <SelectItem value="week">Weekly</SelectItem>
+                            <SelectItem value="month">Monthly</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Summary Cards Grid */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">
+                        Summary
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        Key booking metrics and performance indicators
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <BookingSummaryCards data={bookingData} />
+                  </div>
+                </div>
+
+                {/* Charts Grid */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Booking Trends Chart */}
+                  <Card className="border-border/50 lg:col-span-2">
+                    <BookingTrendsChart data={bookingData} />
+                  </Card>
+
+                  {/* Status Distribution */}
+                  <BookingStatusDistribution data={bookingData} />
+
+                  {/* Top Routes */}
+                  <TopRoutesList data={bookingData} />
+
+                  {/* Cancellation Stats */}
+                  <CancellationStats data={bookingData} />
+                </div>
+              </>
+            ) : (
+              <Card className="border-border/50">
+                <CardContent className="pt-6">
+                  <p className="text-sm text-muted-foreground text-center py-8">
+                    No data available for the selected period.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   )

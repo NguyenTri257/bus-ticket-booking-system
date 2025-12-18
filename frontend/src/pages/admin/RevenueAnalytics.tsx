@@ -403,9 +403,6 @@ export default function RevenueAnalytics() {
               </Card>
             ) : data ? (
               <>
-                {/* Growth Indicators */}
-                <GrowthRateIndicators data={data} />
-
                 {/* Filters Card */}
                 <Card className="border-border/50 bg-card">
                   <CardContent className="pt-6">
@@ -521,6 +518,9 @@ export default function RevenueAnalytics() {
                     <RevenueSummaryCards data={data} />
                   </div>
                 </div>
+
+                {/* Growth Indicators */}
+                <GrowthRateIndicators data={data} />
 
                 {/* Main Charts Grid */}
                 <div className="grid gap-6 lg:grid-cols-2">

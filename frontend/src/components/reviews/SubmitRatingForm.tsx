@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
-import { Upload, X, AlertCircle } from 'lucide-react'
+import React, { useState, useRef, useEffect } from 'react'
+import { Upload, X, AlertCircle, CheckCircle, PartyPopper } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { StarRating } from './StarRating'
@@ -8,6 +8,7 @@ import type { RatingSubmission, RatingFormState } from './reviews.types'
 
 interface SubmitRatingFormProps {
   bookingId: string
+  bookingReference: string
   tripReference: string
   onSubmit: (ratingData: RatingSubmission) => Promise<void>
   onCancel?: () => void
@@ -31,6 +32,7 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
 export function SubmitRatingForm({
   bookingId,
+  bookingReference,
   tripReference,
   onSubmit,
   onCancel,
@@ -47,12 +49,19 @@ export function SubmitRatingForm({
   const [photoPreview, setPhotoPreview] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [submittedData, setSubmittedData] = useState<RatingSubmission | null>(
+    null
+  )
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Save state changes
   useEffect(() => {
-    if (onStateChange) {
-      onStateChange({ ratings, review: reviewText, photos })
+    try {
+      if (onStateChange) {
+        onStateChange({ ratings, review: reviewText, photos })
+      }
+    } catch {
+      console.error('Error in onStateChange callback')
     }
   }, [ratings, reviewText, photos, onStateChange])
 
@@ -93,11 +102,18 @@ export function SubmitRatingForm({
 
     // Create preview URLs
     selectedFiles.forEach((file) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setPhotoPreview((prev) => [...prev, reader.result as string])
+      try {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          setPhotoPreview((prev) => [...prev, reader.result as string])
+        }
+        reader.onerror = () => {
+          setError('Failed to read photo file. Please try again.')
+        }
+        reader.readAsDataURL(file)
+      } catch {
+        setError('Failed to process photo file. Please try again.')
       }
-      reader.readAsDataURL(file)
     })
   }
 
@@ -117,107 +133,86 @@ export function SubmitRatingForm({
       return
     }
 
-    try {
-      await onSubmit({
-        bookingId,
-        tripId: tripReference,
-        ratings,
-        review: reviewText.trim() || undefined,
-        photos: photos.length > 0 ? photos : undefined,
-        submittedAt: new Date(),
-      })
-      setSubmitted(true)
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to submit rating. Please try again.'
-      )
+    const ratingData: RatingSubmission = {
+      bookingId,
+      tripId: tripReference,
+      ratings,
+      review: reviewText.trim() || undefined,
+      photos: photos.length > 0 ? photos : undefined,
+      submittedAt: new Date(),
     }
+
+    setSubmittedData(ratingData)
+    setSubmitted(true)
   }
 
   if (submitted) {
     return (
-      <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800 p-8 shadow-lg">
+      <Card className="bg-linear-to-br from-slate-50 to-gray-50 dark:from-slate-950/20 dark:to-gray-950/20 border-slate-200 dark:border-slate-800 p-8 shadow-lg">
         <div className="text-center space-y-6">
           {/* Success Icon */}
           <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full">
-            <svg
-              className="w-10 h-10 text-green-600 dark:text-green-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
+            <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
           </div>
 
           {/* Success Message */}
           <div className="space-y-2">
-            <h3 className="text-2xl font-bold text-green-800 dark:text-green-200">
-              🎉 Review Submitted Successfully!
+            <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200 flex items-center justify-center gap-2">
+              <PartyPopper className="w-8 h-8" />
+              Review Submitted Successfully!
             </h3>
-            <p className="text-green-700 dark:text-green-300 text-lg">
+            <p className="text-slate-700 dark:text-slate-300 text-lg">
               Thank you for your valuable feedback!
             </p>
           </div>
 
           {/* Details */}
-          <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4 space-y-2">
-            <div className="flex items-center justify-center gap-2 text-sm text-green-700 dark:text-green-300">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
+          <div className="space-y-2">
+            <div className="flex items-center justify-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+              <CheckCircle className="w-4 h-4" />
               <span>Your rating has been recorded</span>
             </div>
-            <div className="flex items-center justify-center gap-2 text-sm text-green-700 dark:text-green-300">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span>Photos uploaded successfully</span>
-            </div>
-            <div className="flex items-center justify-center gap-2 text-sm text-green-700 dark:text-green-300">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
+            {submittedData?.photos && submittedData.photos.length > 0 && (
+              <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4 flex items-center justify-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                <CheckCircle className="w-4 h-4" />
+                <span>Photos uploaded successfully</span>
+              </div>
+            )}
+            <div className="flex items-center justify-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+              <CheckCircle className="w-4 h-4" />
               <span>Review will be published after moderation</span>
             </div>
           </div>
 
           {/* Additional Info */}
           <div className="text-center space-y-2">
-            <p className="text-sm text-green-600 dark:text-green-400">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Your feedback helps improve our service and assists other
               travelers in making informed decisions.
             </p>
-            <p className="text-xs text-green-500 dark:text-green-500">
+            <p className="text-xs text-slate-500 dark:text-slate-500">
               Booking Reference:{' '}
-              <span className="font-mono font-semibold">{tripReference}</span>
+              <span className="font-mono font-semibold">
+                {bookingReference}
+              </span>
             </p>
           </div>
 
           {/* Action Button */}
           <Button
             variant="outline"
-            onClick={onCancel}
-            className="border-green-300 text-green-700 hover:bg-green-50 dark:border-green-700 dark:text-green-300 dark:hover:bg-green-900/20"
+            onClick={async () => {
+              if (!submittedData) return
+              try {
+                await onSubmit(submittedData)
+                onCancel?.()
+              } catch {
+                setSubmitted(false)
+                setSubmittedData(null)
+                setError('Failed to submit rating. Please try again.')
+              }
+            }}
+            className="border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-900/20"
           >
             Continue
           </Button>
@@ -372,5 +367,71 @@ export function SubmitRatingForm({
         )}
       </div>
     </form>
+  )
+}
+
+// Error Boundary wrapper for SubmitRatingForm
+class SubmitRatingFormErrorBoundary extends React.Component<
+  React.PropsWithChildren,
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: React.PropsWithChildren) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error(
+      'SubmitRatingForm Error Boundary caught an error:',
+      error,
+      errorInfo
+    )
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card className="p-6 border-destructive/50 bg-destructive/5">
+          <div className="text-center space-y-4">
+            <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-destructive">
+                Something went wrong
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                We encountered an error while loading the rating form. Please
+                try refreshing the page.
+              </p>
+            </div>
+            <Button
+              onClick={() =>
+                this.setState({ hasError: false, error: undefined })
+              }
+              variant="outline"
+              size="sm"
+            >
+              Try Again
+            </Button>
+          </div>
+        </Card>
+      )
+    }
+
+    return this.props.children
+  }
+}
+
+// Export wrapped component
+export function SubmitRatingFormWithErrorBoundary(
+  props: SubmitRatingFormProps
+) {
+  return (
+    <SubmitRatingFormErrorBoundary>
+      <SubmitRatingForm {...props} />
+    </SubmitRatingFormErrorBoundary>
   )
 }

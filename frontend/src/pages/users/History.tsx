@@ -721,6 +721,7 @@ const History = () => {
                 {/* Rating Form */}
                 <SubmitRatingForm
                   bookingId={selectedBookingForRating.booking_id}
+                  bookingReference={selectedBookingForRating.booking_reference}
                   tripReference={selectedBookingForRating.trip_id}
                   onSubmit={handleSubmitRating}
                   onCancel={handleCloseRating}

@@ -84,6 +84,85 @@ export interface TripSearchResponse {
   timestamp: string
 }
 
+// ============================================================================
+// RATING API INTERFACES AND FUNCTIONS
+// ============================================================================
+
+export interface RatingSubmission {
+  bookingId: string
+  tripId: string
+  ratings: Record<string, number>
+  review?: string
+  photos?: File[] // File objects for upload
+}
+
+export interface RatingAPIRequest {
+  bookingId: string
+  tripId: string
+  ratings: Record<string, number>
+  review?: string
+  photos?: string[] // base64 encoded images for API
+}
+
+export interface RatingResponse {
+  success: boolean
+  data: {
+    ratingId: string
+    message: string
+  }
+  timestamp: string
+}
+
+/**
+ * Submit a rating for a completed trip/booking
+ * Requires authentication
+ */
+export async function submitRating(
+  ratingData: RatingSubmission
+): Promise<RatingResponse> {
+  try {
+    // Convert File objects to base64 strings for API
+    let photosBase64: string[] | undefined
+    if (ratingData.photos && ratingData.photos.length > 0) {
+      photosBase64 = await Promise.all(
+        ratingData.photos.map((file) => {
+          return new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = reject
+            reader.readAsDataURL(file)
+          })
+        })
+      )
+    }
+
+    const apiData: RatingAPIRequest = {
+      bookingId: ratingData.bookingId,
+      tripId: ratingData.tripId,
+      ratings: ratingData.ratings,
+      review: ratingData.review,
+      photos: photosBase64,
+    }
+
+    const response = await apiRequest('/trips/ratings', {
+      method: 'POST',
+      body: apiData,
+    })
+    return response
+  } catch (error: uknown) {
+    // Re-throw with more context
+    if (
+      error.status === 401 ||
+      error.code === 'AUTH_001' ||
+      error.code === 'AUTH_002'
+    ) {
+      console.error('🔐 Authentication failed for ratings submission', error)
+      throw new Error('Please log in again to submit your review')
+    }
+    throw error
+  }
+}
+
 export async function searchTrips(
   params: TripSearchParams
 ): Promise<TripSearchResponse> {

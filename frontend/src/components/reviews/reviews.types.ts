@@ -22,14 +22,12 @@ export interface RatingSubmission {
   tripId: string
   ratings: Record<string, number>
   review?: string
-  photos?: File[]
   submittedAt: Date
 }
 
 export interface RatingFormState {
   ratings?: Record<string, number>
   review?: string
-  photos?: File[]
 }
 
 export interface SubmitRatingFormProps {

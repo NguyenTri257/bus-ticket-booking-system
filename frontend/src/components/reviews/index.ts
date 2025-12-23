@@ -1,9 +1,6 @@
 export { StarRating } from './StarRating'
-export {
-  SubmitRatingForm,
-  type RatingSubmission,
-  type RatingFormState,
-} from './SubmitRatingForm'
+export { SubmitRatingForm } from './SubmitRatingForm'
+export type { RatingSubmission, RatingFormState } from './reviews.types'
 export { ReviewCard, type ReviewData } from './ReviewCard'
 export { ReviewsList } from './ReviewsList'
 export { RatingStats, type RatingStatsData } from './RatingStats'

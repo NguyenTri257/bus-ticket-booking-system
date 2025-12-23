@@ -1,9 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { Upload, X, AlertCircle, CheckCircle, PartyPopper } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { AlertCircle, CheckCircle, PartyPopper } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { StarRating } from './StarRating'
-import { cn } from '@/lib/utils'
 import type { RatingSubmission, RatingFormState } from './reviews.types'
 
 interface SubmitRatingFormProps {
@@ -26,9 +25,7 @@ const RATING_CATEGORIES = [
   { id: 'value_for_money', label: 'Value for Money' },
 ]
 
-const MAX_PHOTOS = 5
 const MAX_REVIEW_CHARS = 500
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
 export function SubmitRatingForm({
   bookingId,
@@ -45,81 +42,25 @@ export function SubmitRatingForm({
       RATING_CATEGORIES.reduce((acc, cat) => ({ ...acc, [cat.id]: 0 }), {})
   )
   const [reviewText, setReviewText] = useState(initialValues?.review || '')
-  const [photos, setPhotos] = useState<File[]>(initialValues?.photos || [])
-  const [photoPreview, setPhotoPreview] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [submittedData, setSubmittedData] = useState<RatingSubmission | null>(
     null
   )
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Save state changes
   useEffect(() => {
     try {
       if (onStateChange) {
-        onStateChange({ ratings, review: reviewText, photos })
+        onStateChange({ ratings, review: reviewText })
       }
     } catch {
       console.error('Error in onStateChange callback')
     }
-  }, [ratings, reviewText, photos, onStateChange])
+  }, [ratings, reviewText, onStateChange])
 
   const handleRatingChange = (categoryId: string, value: number) => {
     setRatings((prev) => ({ ...prev, [categoryId]: value }))
-  }
-
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || [])
-    const currentCount = photos.length
-    const remainingSlots = MAX_PHOTOS - currentCount
-
-    if (selectedFiles.length > remainingSlots) {
-      setError(
-        `You can only upload ${MAX_PHOTOS} photos. ${remainingSlots} slot(s) remaining.`
-      )
-      return
-    }
-
-    // Validate file sizes
-    const invalidFiles = selectedFiles.filter((f) => f.size > MAX_FILE_SIZE)
-    if (invalidFiles.length > 0) {
-      setError('Some files exceed 5MB limit. Please select smaller files.')
-      return
-    }
-
-    // Validate file types
-    const invalidTypes = selectedFiles.filter(
-      (f) => !f.type.startsWith('image/')
-    )
-    if (invalidTypes.length > 0) {
-      setError('Only image files are allowed.')
-      return
-    }
-
-    setError(null)
-    setPhotos((prev) => [...prev, ...selectedFiles])
-
-    // Create preview URLs
-    selectedFiles.forEach((file) => {
-      try {
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          setPhotoPreview((prev) => [...prev, reader.result as string])
-        }
-        reader.onerror = () => {
-          setError('Failed to read photo file. Please try again.')
-        }
-        reader.readAsDataURL(file)
-      } catch {
-        setError('Failed to process photo file. Please try again.')
-      }
-    })
-  }
-
-  const removePhoto = (index: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== index))
-    setPhotoPreview((prev) => prev.filter((_, i) => i !== index))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -138,7 +79,6 @@ export function SubmitRatingForm({
       tripId: tripReference,
       ratings,
       review: reviewText.trim() || undefined,
-      photos: photos.length > 0 ? photos : undefined,
       submittedAt: new Date(),
     }
 
@@ -172,12 +112,6 @@ export function SubmitRatingForm({
               <CheckCircle className="w-4 h-4" />
               <span>Your rating has been recorded</span>
             </div>
-            {submittedData?.photos && submittedData.photos.length > 0 && (
-              <div className="bg-white/50 dark:bg-gray-800/50 rounded-lg p-4 flex items-center justify-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                <CheckCircle className="w-4 h-4" />
-                <span>Photos uploaded successfully</span>
-              </div>
-            )}
             <div className="flex items-center justify-center gap-2 text-sm text-slate-700 dark:text-slate-300">
               <CheckCircle className="w-4 h-4" />
               <span>Review will be published after moderation</span>
@@ -276,73 +210,6 @@ export function SubmitRatingForm({
         <p className="text-xs text-muted-foreground">
           Please follow our review guidelines and avoid inappropriate content.
         </p>
-      </div>
-
-      {/* Photo Upload */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <label className="font-semibold text-foreground">
-            Add Photos (Optional)
-          </label>
-          <span className="text-xs text-muted-foreground">
-            {photos.length}/{MAX_PHOTOS} photos
-          </span>
-        </div>
-
-        {photoPreview.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {photoPreview.map((preview, index) => (
-              <div
-                key={index}
-                className="relative aspect-square rounded-lg overflow-hidden border border-border bg-muted"
-              >
-                <img
-                  src={preview}
-                  alt={`Preview ${index + 1}`}
-                  className="w-full h-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => removePhoto(index)}
-                  className="absolute top-1 right-1 p-1 bg-destructive text-white rounded-full opacity-0 hover:opacity-100 transition-opacity"
-                  aria-label="Remove photo"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <div
-          onClick={() => fileInputRef.current?.click()}
-          className={cn(
-            'relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors',
-            photos.length < MAX_PHOTOS
-              ? 'border-border hover:border-primary/50 hover:bg-primary/5'
-              : 'border-border/50 bg-muted/30 cursor-not-allowed'
-          )}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handlePhotoSelect}
-            disabled={photos.length >= MAX_PHOTOS}
-            className="hidden"
-            aria-label="Upload photos"
-          />
-          <Upload className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-          <p className="text-sm font-medium text-foreground">
-            {photos.length >= MAX_PHOTOS
-              ? 'Maximum photos reached'
-              : 'Click to upload or drag and drop'}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">
-            PNG, JPG up to 5MB each
-          </p>
-        </div>
       </div>
 
       {/* Actions */}

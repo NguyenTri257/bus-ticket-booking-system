@@ -38,8 +38,12 @@ async function createZaloPayPayment({ amount, description, bookingId }) {
     const app_time = Date.now();
     const app_user = 'guest';
 
-    // embed_data: JSON string (dùng để map bookingId)
-    const embed_data = JSON.stringify({ bookingId });
+    // embed_data: JSON string (dùng để map bookingId và redirecturl)
+    const redirectUrl = process.env.ZALOPAY_REDIRECT_URL || 'http://localhost:5173/payment-result';
+    const embed_data = JSON.stringify({ 
+      bookingId, 
+      redirecturl: redirectUrl
+    });
     // item: bắt buộc là JSON array string
     const item = JSON.stringify([{ bookingId, amount: finalAmount }]);
 
@@ -55,7 +59,8 @@ async function createZaloPayPayment({ amount, description, bookingId }) {
     ].join('|');
     const mac = signHmacSHA256(key1, hmacInput);
 
-    const redirectUrl = process.env.ZALOPAY_REDIRECT_URL || 'https://test-ebooks-orbit.netlify.app/payment-result';
+    // callback_url: URL public để ZaloPay gọi webhook (không dùng localhost)
+    const callbackUrl = process.env.ZALOPAY_CALLBACK_URL || 'https://4zv68s3d-3005.asse.devtunnels.ms/api/payment/zalopay-webhook';
     const payload = {
       app_id: appId,
       app_trans_id,
@@ -68,6 +73,9 @@ async function createZaloPayPayment({ amount, description, bookingId }) {
       mac,
       redirect_url: `${redirectUrl}?bookingId=${bookingId}`
     };
+    if (callbackUrl) {
+      payload.callback_url = callbackUrl;
+    }
 
     // Sử dụng x-www-form-urlencoded
     console.log('[ZaloPay] payload gửi lên:', payload);

@@ -167,6 +167,8 @@ services:
       - NODE_ENV=development
       - PORT=3005
       # ... các biến môi trường khác
+    env_file:
+      - ./services/payment-service/.env
     networks:
       - bus-ticket-network
     volumes:

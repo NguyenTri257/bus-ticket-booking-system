@@ -47,7 +47,8 @@ async function createPayment(req, res) {
         return res.json({
           success: true,
           paymentUrl: zaloResult.payUrl,
-          qrCode: zaloResult.qrCodeUrl || undefined,
+          zpTransToken: zaloResult.zpTransToken,
+          appTransId: zaloResult.appTransId,
           ...zaloResult,
         });
       } else {

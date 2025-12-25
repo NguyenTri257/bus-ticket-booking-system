@@ -103,13 +103,81 @@ export function ReviewsList({
     return result
   }, [reviews, filterType, ratingFilter, selectedSeatType, selectedRoute])
 
+  // Show rating summary and empty state even when no reviews
   if (reviews.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground mb-2">No reviews yet</p>
-        <p className="text-sm text-muted-foreground">
-          Be the first to share your experience!
-        </p>
+      <div className="space-y-6">
+        {stats && (
+          <div className="bg-card border border-border/50 rounded-lg p-6 space-y-6">
+            <div className="flex items-start gap-6">
+              <div className="flex flex-col items-center">
+                <div className="text-4xl font-bold text-foreground mb-1">
+                  {stats.averageRating.toFixed(1)}
+                </div>
+                <div className="flex gap-1 mb-2">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      size={18}
+                      className={cn(
+                        'transition-colors',
+                        i < Math.round(stats.averageRating)
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'text-muted-foreground/30'
+                      )}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.totalRatings}{' '}
+                  {stats.totalRatings === 1 ? 'rating' : 'ratings'}
+                </p>
+              </div>
+
+              {Object.keys(stats.categoryAverages).length > 0 && (
+                <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Object.entries(stats.categoryAverages)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 6)
+                    .map(([category, rating]) => (
+                      <div
+                        key={category}
+                        className="p-3 bg-muted/30 dark:bg-muted/20 rounded-lg border border-border/50"
+                      >
+                        <p className="text-xs font-medium text-muted-foreground mb-1 capitalize">
+                          {category.replace(/_/g, ' & ')}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-foreground">
+                            {rating.toFixed(1)}
+                          </span>
+                          <div className="flex gap-0.5">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                size={12}
+                                className={cn(
+                                  i < Math.round(rating)
+                                    ? 'fill-amber-400 text-amber-400'
+                                    : 'text-muted-foreground/20'
+                                )}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        <div className="text-center py-12">
+          <p className="text-muted-foreground mb-2">No reviews yet</p>
+          <p className="text-sm text-muted-foreground">
+            Be the first to share your experience!
+          </p>
+        </div>
       </div>
     )
   }

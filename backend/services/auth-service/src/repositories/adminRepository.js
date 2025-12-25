@@ -28,7 +28,9 @@ class AdminRepository {
 
     // Search by name or email
     if (search) {
-      whereConditions.push(`(LOWER(full_name) LIKE $${paramCounter} OR LOWER(email) LIKE $${paramCounter})`);
+      whereConditions.push(
+        `(LOWER(full_name) LIKE $${paramCounter} OR LOWER(email) LIKE $${paramCounter})`
+      );
       queryParams.push(`%${search.toLowerCase()}%`);
       paramCounter++;
     }
@@ -66,7 +68,7 @@ class AdminRepository {
       LIMIT $${paramCounter} OFFSET $${paramCounter + 1}
     `;
     queryParams.push(limit, offset);
-    
+
     const dataResult = await pool.query(dataQuery, queryParams);
 
     return {
@@ -236,7 +238,7 @@ class AdminRepository {
   }
 
   /**
-   * Deactivate admin user (set password_hash to NULL)
+   * Deactivate admin user (set password_hash to NULL only)
    * @param {string} userId - User ID
    * @returns {Promise<Object|null>} Deactivated admin user or null
    */
@@ -255,7 +257,63 @@ class AdminRepository {
         role,
         email_verified,
         phone_verified,
-        CASE WHEN password_hash IS NOT NULL THEN true ELSE false END as is_active,
+        CASE WHEN password_hash IS NOT NULL AND (account_locked_until IS NULL OR account_locked_until < NOW()) THEN true ELSE false END as is_active,
+        created_at,
+        updated_at
+    `;
+    const result = await pool.query(query, [userId]);
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Deactivate/suspend a user (lock account only, keep password)
+   * @param {string} userId - User ID
+   * @returns {Promise<Object|null>} Deactivated user or null
+   */
+  async deactivateUser(userId) {
+    const query = `
+      UPDATE users
+      SET 
+        account_locked_until = '9999-12-31 23:59:59',
+        updated_at = NOW()
+      WHERE user_id = $1
+      RETURNING 
+        user_id,
+        email,
+        phone,
+        full_name,
+        role,
+        email_verified,
+        phone_verified,
+        CASE WHEN password_hash IS NOT NULL AND (account_locked_until IS NULL OR account_locked_until < NOW()) THEN true ELSE false END as is_active,
+        created_at,
+        updated_at
+    `;
+    const result = await pool.query(query, [userId]);
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Reactivate a user (clear account_locked_until)
+   * @param {string} userId - User ID
+   * @returns {Promise<Object|null>} Reactivated user or null
+   */
+  async reactivateUser(userId) {
+    const query = `
+      UPDATE users
+      SET 
+        account_locked_until = NULL,
+        updated_at = NOW()
+      WHERE user_id = $1
+      RETURNING 
+        user_id,
+        email,
+        phone,
+        full_name,
+        role,
+        email_verified,
+        phone_verified,
+        CASE WHEN password_hash IS NOT NULL AND (account_locked_until IS NULL OR account_locked_until < NOW()) THEN true ELSE false END as is_active,
         created_at,
         updated_at
     `;
@@ -307,7 +365,8 @@ class AdminRepository {
    * @returns {Promise<number>} Active admin count
    */
   async countActiveAdmins() {
-    const query = "SELECT COUNT(*) as total FROM users WHERE role = 'admin' AND password_hash IS NOT NULL";
+    const query =
+      "SELECT COUNT(*) as total FROM users WHERE role = 'admin' AND password_hash IS NOT NULL";
     const result = await pool.query(query);
     return parseInt(result.rows[0].total);
   }

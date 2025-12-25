@@ -142,21 +142,31 @@ app.put('/admin/accounts/:id', authenticate, authorize(['admin']), async (req, r
   }
 });
 
-app.post('/admin/accounts/:id/deactivate', authenticate, authorize(['admin']), async (req, res, next) => {
-  try {
-    await adminController.deactivateAdmin(req, res);
-  } catch (error) {
-    next(error);
+app.post(
+  '/admin/accounts/:id/deactivate',
+  authenticate,
+  authorize(['admin']),
+  async (req, res, next) => {
+    try {
+      await adminController.deactivateAdmin(req, res);
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
-app.post('/admin/accounts/:id/reactivate', authenticate, authorize(['admin']), async (req, res, next) => {
-  try {
-    await adminController.reactivateAdmin(req, res);
-  } catch (error) {
-    next(error);
+app.post(
+  '/admin/accounts/:id/reactivate',
+  authenticate,
+  authorize(['admin']),
+  async (req, res, next) => {
+    try {
+      await adminController.reactivateAdmin(req, res);
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 app.get('/admin/stats', authenticate, authorize(['admin']), async (req, res, next) => {
   try {
@@ -165,6 +175,54 @@ app.get('/admin/stats', authenticate, authorize(['admin']), async (req, res, nex
     next(error);
   }
 });
+
+// User Management Routes (Protected - Admin only)
+app.get('/admin/users', authenticate, authorize(['admin']), async (req, res, next) => {
+  try {
+    await adminController.getAllUsers(req, res);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post(
+  '/admin/users/:id/deactivate',
+  authenticate,
+  authorize(['admin']),
+  async (req, res, next) => {
+    try {
+      await adminController.deactivateUser(req, res);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+app.post(
+  '/admin/users/:id/reset-password',
+  authenticate,
+  authorize(['admin']),
+  async (req, res, next) => {
+    try {
+      await adminController.resetUserPassword(req, res);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+app.post(
+  '/admin/users/:id/reactivate',
+  authenticate,
+  authorize(['admin']),
+  async (req, res, next) => {
+    try {
+      await adminController.reactivateUser(req, res);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 // Error handling
 app.use((err, req, res, next) => {

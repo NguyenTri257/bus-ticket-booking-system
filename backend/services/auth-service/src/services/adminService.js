@@ -1,5 +1,25 @@
 const bcrypt = require('bcrypt');
 const adminRepository = require('../repositories/adminRepository');
+const userRepository = require('../userRepository');
+const axios = require('axios');
+
+// Notification service URL
+const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3003';
+
+/**
+ * Send email notification
+ * @param {Object} params - Email parameters
+ */
+const sendEmailNotification = async (params) => {
+  try {
+    await axios.post(`${NOTIFICATION_SERVICE_URL}/send-email`, params, {
+      timeout: 5000,
+    });
+  } catch (error) {
+    console.error('⚠️ Failed to send email notification:', error.message);
+    // Don't throw - email is non-critical
+  }
+};
 
 /**
  * Admin Service
@@ -36,6 +56,18 @@ class AdminService {
       phone: phone || null,
       passwordHash,
       fullName,
+    });
+
+    // Send welcome email with credentials
+    await sendEmailNotification({
+      to: email,
+      subject: 'Admin Account Created - Welcome to Bus Ticket System',
+      type: 'account-creation',
+      html: `<h2>Welcome, ${fullName}!</h2>
+        <p>Your admin account has been created successfully.</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Temporary Password:</strong> ${password}</p>
+        <p>Please log in and change your password immediately for security purposes.</p>`,
     });
 
     return {
@@ -96,7 +128,7 @@ class AdminService {
    */
   async getAdminById(userId) {
     const admin = await adminRepository.findAdminById(userId);
-    
+
     if (!admin) {
       const error = new Error('Admin account not found');
       error.code = 'ADMIN_002';
@@ -230,6 +262,17 @@ class AdminService {
       throw error;
     }
 
+    // Send deactivation notification email
+    await sendEmailNotification({
+      to: deactivatedAdmin.email,
+      subject: 'Admin Account Deactivated',
+      type: 'account-deactivation',
+      html: `<h2>Admin Account Deactivated</h2>
+        <p>Dear ${deactivatedAdmin.full_name},</p>
+        <p>Your admin account has been deactivated.</p>
+        <p>If you believe this is a mistake, please contact the system administrator.</p>`,
+    });
+
     return {
       userId: deactivatedAdmin.user_id,
       email: deactivatedAdmin.email,
@@ -283,6 +326,18 @@ class AdminService {
       throw error;
     }
 
+    // Send reactivation notification email
+    await sendEmailNotification({
+      to: reactivatedAdmin.email,
+      subject: 'Admin Account Reactivated',
+      type: 'account-reactivation',
+      html: `<h2>Admin Account Reactivated</h2>
+        <p>Dear ${reactivatedAdmin.full_name},</p>
+        <p>Your admin account has been reactivated successfully.</p>
+        <p> Your new password is: <strong>${newPassword}</strong></p>
+        <p>You can now log in with your new password.</p>`,
+    });
+
     return {
       userId: reactivatedAdmin.user_id,
       email: reactivatedAdmin.email,
@@ -298,6 +353,98 @@ class AdminService {
   }
 
   /**
+   * Deactivate a user account (set password_hash to NULL and lock account permanently)
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} Deactivated user
+   * @throws {Error} If user not found
+   */
+  async deactivateUser(userId) {
+    // Check if user exists
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      const error = new Error('User not found');
+      error.code = 'USER_001';
+      error.status = 404;
+      throw error;
+    }
+
+    // Deactivate the user account
+    const deactivatedUser = await adminRepository.deactivateUser(userId);
+
+    if (!deactivatedUser) {
+      const error = new Error('Failed to deactivate user account');
+      error.code = 'USER_002';
+      error.status = 500;
+      throw error;
+    }
+
+    // Send deactivation notification email
+    await sendEmailNotification({
+      to: deactivatedUser.email,
+      subject: 'Your Account Has Been Deactivated',
+      type: 'account-deactivation',
+      html: `<h2>Account Deactivated</h2>
+        <p>Dear ${deactivatedUser.full_name},</p>
+        <p>Your account has been deactivated.</p>
+        <p>If you believe this is a mistake, please contact the system administrator.</p>`,
+    });
+
+    return {
+      userId: deactivatedUser.user_id,
+      email: deactivatedUser.email,
+      fullName: deactivatedUser.full_name,
+      isActive: deactivatedUser.is_active,
+      message: 'User deactivated successfully',
+    };
+  }
+
+  /**
+   * Reactivate a user account (clear account_locked_until)
+   * @param {string} userId - User ID
+   * @returns {Promise<Object>} Reactivated user
+   * @throws {Error} If user not found
+   */
+  async reactivateUser(userId) {
+    // Check if user exists
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      const error = new Error('User not found');
+      error.code = 'USER_001';
+      error.status = 404;
+      throw error;
+    }
+
+    // Reactivate the user account
+    const reactivatedUser = await adminRepository.reactivateUser(userId);
+
+    if (!reactivatedUser) {
+      const error = new Error('Failed to reactivate user account');
+      error.code = 'USER_002';
+      error.status = 500;
+      throw error;
+    }
+
+    // Send reactivation notification email
+    await sendEmailNotification({
+      to: reactivatedUser.email,
+      subject: 'Your Account Has Been Reactivated',
+      type: 'account-reactivation',
+      html: `<h2>Account Reactivated</h2>
+        <p>Dear ${reactivatedUser.full_name},</p>
+        <p>Your account has been reactivated successfully.</p>
+        <p>You can now log in with your existing credentials.</p>`,
+    });
+
+    return {
+      userId: reactivatedUser.user_id,
+      email: reactivatedUser.email,
+      fullName: reactivatedUser.full_name,
+      isActive: reactivatedUser.is_active,
+      message: 'User reactivated successfully',
+    };
+  }
+
+  /**
    * Get admin statistics
    * @returns {Promise<Object>} Admin statistics
    */
@@ -309,6 +456,89 @@ class AdminService {
       totalAdmins,
       activeAdmins,
       inactiveAdmins: totalAdmins - activeAdmins,
+    };
+  }
+
+  /**
+   * Get all users with pagination and filtering
+   * @param {Object} options - Query options
+   * @param {number} options.page - Page number (1-based)
+   * @param {number} options.limit - Number of users per page
+   * @param {string} options.status - Filter by status ('active' or 'inactive')
+   * @param {string} options.search - Search term for email or full name
+   * @param {string} options.role - Filter by role ('admin' or 'passenger')
+   * @returns {Promise<Object>} Users with pagination info
+   */
+  async getAllUsers({ page = 1, limit = 10, status, search, role }) {
+    const result = await userRepository.getAllUsers({
+      page,
+      limit,
+      status,
+      search,
+      role,
+    });
+
+    return {
+      users: result.data.map((user) => ({
+        userId: user.user_id,
+        email: user.email,
+        phone: user.phone,
+        fullName: user.full_name,
+        role: user.role,
+        emailVerified: user.email_verified,
+        phoneVerified: user.phone_verified,
+        isActive: user.is_active,
+        createdAt: user.created_at,
+        updatedAt: user.updated_at,
+        failedLoginAttempts: user.failed_login_attempts,
+        accountLockedUntil: user.account_locked_until,
+      })),
+      pagination: result.pagination,
+    };
+  }
+
+  /**
+   * Reset a user's password
+   * @param {string} userId - User ID
+   * @param {string} newPassword - New password
+   * @returns {Promise<Object>} Updated user info
+   * @throws {Error} If user not found
+   */
+  async resetUserPassword(userId, newPassword) {
+    // Check if user exists
+    const user = await userRepository.findById(userId);
+    if (!user) {
+      const error = new Error('User not found');
+      error.code = 'USER_001';
+      error.status = 404;
+      throw error;
+    }
+
+    // Hash the new password
+    const saltRounds = 12;
+    const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update the password
+    const updatedUser = await userRepository.updatePassword(userId, passwordHash);
+
+    // Send password reset notification email
+    await sendEmailNotification({
+      to: updatedUser.email,
+      subject: 'Your Password Has Been Reset',
+      type: 'password-reset-notification',
+      html: `<h2>Password Reset Confirmation</h2>
+        <p>Dear ${updatedUser.full_name},</p>
+        <p>Your password has been reset by an administrator.</p>
+        <p>Your new temporary password is: <strong>${newPassword}</strong></p>
+        <p>Please log in and change your password immediately for security purposes.</p>
+        <p>If you did not request this password reset, please contact support immediately.</p>`,
+    });
+
+    return {
+      userId: updatedUser.user_id,
+      email: updatedUser.email,
+      fullName: updatedUser.full_name,
+      message: 'Password reset successfully',
     };
   }
 }

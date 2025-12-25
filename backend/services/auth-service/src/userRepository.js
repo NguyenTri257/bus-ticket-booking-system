@@ -38,6 +38,111 @@ class UserRepository {
     return result.rows[0];
   }
 
+  async getAllUsers({ page = 1, limit = 50, status, search, role }) {
+    let whereConditions = [];
+    const queryParams = [];
+    let paramCounter = 1;
+
+    // Filter by active/inactive status
+    if (status === 'active') {
+      whereConditions.push(
+        'password_hash IS NOT NULL AND (account_locked_until IS NULL OR account_locked_until < NOW())'
+      );
+    } else if (status === 'inactive') {
+      whereConditions.push(
+        'password_hash IS NULL OR (account_locked_until IS NOT NULL AND account_locked_until >= NOW())'
+      );
+    }
+
+    // Filter by role
+    if (role) {
+      whereConditions.push(`role = $${paramCounter}`);
+      queryParams.push(role);
+      paramCounter++;
+    }
+
+    // Search by name or email
+    if (search) {
+      whereConditions.push(
+        `(LOWER(full_name) LIKE $${paramCounter} OR LOWER(email) LIKE $${paramCounter})`
+      );
+      queryParams.push(`%${search.toLowerCase()}%`);
+      paramCounter++;
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // Count total matching records
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM users
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Calculate offset
+    const offset = (page - 1) * limit;
+
+    // Fetch paginated data
+    const dataQuery = `
+      SELECT 
+        user_id,
+        email,
+        phone,
+        full_name,
+        role,
+        email_verified,
+        phone_verified,
+        CASE 
+          WHEN password_hash IS NOT NULL AND (account_locked_until IS NULL OR account_locked_until < NOW()) THEN true 
+          ELSE false 
+        END as is_active,
+        created_at,
+        updated_at,
+        failed_login_attempts,
+        account_locked_until
+      FROM users
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT $${paramCounter} OFFSET $${paramCounter + 1}
+    `;
+    queryParams.push(limit, offset);
+
+    const dataResult = await pool.query(dataQuery, queryParams);
+
+    return {
+      data: dataResult.rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getUsersCount(search = '', role = '') {
+    let query = 'SELECT COUNT(*) as count FROM users WHERE 1=1';
+    const values = [];
+    let paramIndex = 1;
+
+    if (search) {
+      query += ` AND (email ILIKE $${paramIndex} OR full_name ILIKE $${paramIndex})`;
+      values.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    if (role) {
+      query += ` AND role = $${paramIndex}`;
+      values.push(role);
+      paramIndex++;
+    }
+
+    const result = await pool.query(query, values);
+    return parseInt(result.rows[0].count);
+  }
+
   async findByGoogleId(googleId) {
     const query = 'SELECT * FROM users WHERE google_id = $1';
     const result = await pool.query(query, [googleId]);

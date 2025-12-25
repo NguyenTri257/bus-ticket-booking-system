@@ -147,8 +147,7 @@ class AuthController {
           success: false,
           error: {
             code: 'AUTH_010',
-            message:
-              'Account is temporarily locked due to too many failed login attempts. Please try again later.',
+            message: 'Account is temporarily locked. Please try again later.',
           },
           timestamp: new Date().toISOString(),
         });

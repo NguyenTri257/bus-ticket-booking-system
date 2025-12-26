@@ -4,6 +4,8 @@ const {
   updateAdminSchema,
   reactivateAdminSchema,
   paginationSchema,
+  userPaginationSchema,
+  resetUserPasswordSchema,
 } = require('../validators/adminValidators');
 
 /**
@@ -55,7 +57,7 @@ class AdminController {
       console.error('❌ Create admin error:', error);
 
       // Handle specific error codes
-      if (error.code === 'ADMIN_001') {
+      if (error.code === 'ADMIN_001' || error.code === 'ADMIN_012') {
         return res.status(error.status || 409).json({
           success: false,
           error: {
@@ -368,6 +370,202 @@ class AdminController {
         error: {
           code: 'SYS_001',
           message: 'Failed to retrieve admin statistics',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Get all users
+   * GET /admin/users
+   * @query {page, limit, search, status}
+   */
+  async getAllUsers(req, res) {
+    try {
+      // Validate query parameters
+      const { error, value } = userPaginationSchema.validate(req.query);
+      if (error) {
+        return res.status(422).json({
+          success: false,
+          error: {
+            code: 'VAL_001',
+            message: 'Validation error',
+            details: error.details.map((d) => ({
+              field: d.path.join('.'),
+              message: d.message,
+            })),
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const { page, limit, search, status, role } = value;
+
+      const result = await adminService.getAllUsers({
+        page,
+        limit,
+        search,
+        status,
+        role,
+      });
+
+      console.log('🔍 Get all users result:', JSON.stringify(result, null, 2));
+
+      return res.status(200).json({
+        success: true,
+        data: result.users,
+        pagination: result.pagination,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('❌ Get all users error:', error);
+
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYS_001',
+          message: 'Failed to retrieve users',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Reset user password
+   * POST /admin/users/:id/reset-password
+   * @body {newPassword}
+   */
+  async resetUserPassword(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Validate request body
+      const { error, value } = resetUserPasswordSchema.validate(req.body);
+      if (error) {
+        return res.status(422).json({
+          success: false,
+          error: {
+            code: 'VAL_001',
+            message: 'Validation error',
+            details: error.details.map((d) => ({
+              field: d.path.join('.'),
+              message: d.message,
+            })),
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const { newPassword } = value;
+
+      const result = await adminService.resetUserPassword(id, newPassword);
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('❌ Reset user password error:', error);
+
+      if (error.status) {
+        return res.status(error.status).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYS_001',
+          message: 'Failed to reset user password',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Deactivate user account
+   * POST /admin/users/:id/deactivate
+   */
+  async deactivateUser(req, res) {
+    try {
+      const { id } = req.params;
+
+      const result = await adminService.deactivateUser(id);
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('❌ Deactivate user error:', error);
+
+      if (error.status) {
+        return res.status(error.status).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYS_001',
+          message: 'Failed to deactivate user',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Reactivate user account
+   * POST /admin/users/:id/reactivate
+   */
+  async reactivateUser(req, res) {
+    try {
+      const { id } = req.params;
+
+      const result = await adminService.reactivateUser(id);
+
+      return res.status(200).json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('❌ Reactivate user error:', error);
+
+      if (error.status) {
+        return res.status(error.status).json({
+          success: false,
+          error: {
+            code: error.code,
+            message: error.message,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYS_001',
+          message: 'Failed to reactivate user',
         },
         timestamp: new Date().toISOString(),
       });

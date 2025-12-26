@@ -35,6 +35,7 @@ import ETicketPreview from './pages/ETicketPreview'
 import GuestCheckout from '@/components/booking/GuestCheckout'
 import GuestConfirmation from './pages/GuestConfirmation'
 import RevenueAnalytics from '@/pages/admin/RevenueAnalytics'
+import AdminAccountManagement from '@/pages/admin/AdminAccountManagement'
 import { ChatbotProvider } from './context/ChatbotContext'
 import { ChatbotWidget } from './components/chatbot'
 
@@ -149,6 +150,11 @@ const App = () => (
                     element={<AdminOperatorManagement />}
                   />{' '}
                   {/* Operator Management */}
+                  <Route
+                    path="/admin/users"
+                    element={<AdminAccountManagement />}
+                  />{' '}
+                  {/* Admin Account Management */}
                   <Route
                     path="/admin/analytics"
                     element={<RevenueAnalytics />}

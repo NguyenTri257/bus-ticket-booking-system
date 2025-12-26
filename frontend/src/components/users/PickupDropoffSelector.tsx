@@ -39,23 +39,35 @@ export function PickupDropoffSelector({
 
   const canSelect = isActive && seatsSelected >= minSeatsRequired
 
-  const formatTime = (dateString: string, includeDate = true): string => {
-    try {
-      const d = new Date(dateString)
-      if (Number.isNaN(d.getTime())) return dateString
+  // const formatTime = (
+  //   dateString: string | undefined,
+  //   includeDate = true
+  // ): string => {
+  //   if (!dateString) return 'N/A'
+  //   try {
+  //     const d = new Date(dateString)
+  //     if (Number.isNaN(d.getTime())) return dateString
 
-      const hh = String(d.getHours()).padStart(2, '0')
-      const mm = String(d.getMinutes()).padStart(2, '0')
-      const time = `${hh}:${mm}` // 24-hour format
+  //     const hh = String(d.getHours()).padStart(2, '0')
+  //     const mm = String(d.getMinutes()).padStart(2, '0')
+  //     const time = `${hh}:${mm}` // 24-hour format
 
-      if (!includeDate) return time
+  //     if (!includeDate) return time
 
-      const day = String(d.getDate()).padStart(2, '0')
-      const month = String(d.getMonth() + 1).padStart(2, '0')
-      return `${time} (${day}/${month})` // e.g. "23:05 (17/12)"
-    } catch {
-      return dateString
-    }
+  //     const day = String(d.getDate()).padStart(2, '0')
+  //     const month = String(d.getMonth() + 1).padStart(2, '0')
+  //     return `${time} (${day}/${month})` // e.g. "23:05 (17/12)"
+  //   } catch {
+  //     return dateString || 'N/A'
+  //   }
+  // }
+
+  const formatOffset = (offsetMinutes: number): string => {
+    const sign = offsetMinutes >= 0 ? '+' : '-'
+    const absOffset = Math.abs(offsetMinutes)
+    const hours = Math.floor(absOffset / 60)
+    const minutes = absOffset % 60
+    return `${sign}${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
   }
 
   if (!canSelect) {
@@ -96,7 +108,8 @@ export function PickupDropoffSelector({
             </span>
             {selectedPickup && (
               <span className="text-xs text-muted-foreground">
-                {selectedPickup.name} • {formatTime(selectedPickup.time)}
+                {selectedPickup.name} •{' '}
+                {formatOffset(selectedPickup.departure_offset_minutes)}
               </span>
             )}
           </div>
@@ -131,7 +144,7 @@ export function PickupDropoffSelector({
 
                     <div className="flex items-center gap-4 w-full">
                       <div className="w-28 shrink-0 text-sm font-semibold text-foreground">
-                        {formatTime(point.time)}
+                        {formatOffset(point.departure_offset_minutes)}
                       </div>
 
                       <div className="flex-1 flex flex-col">
@@ -178,7 +191,8 @@ export function PickupDropoffSelector({
             </span>
             {selectedDropoff && (
               <span className="text-xs text-muted-foreground">
-                {selectedDropoff.name} • {formatTime(selectedDropoff.time)}
+                {selectedDropoff.name} •{' '}
+                {formatOffset(selectedDropoff.departure_offset_minutes)}
               </span>
             )}
           </div>
@@ -213,7 +227,7 @@ export function PickupDropoffSelector({
 
                     <div className="flex items-center gap-4 w-full">
                       <div className="w-28 shrink-0 text-sm font-semibold text-foreground">
-                        {formatTime(point.time)}
+                        {formatOffset(point.departure_offset_minutes)}
                       </div>
 
                       <div className="flex-1 flex flex-col">

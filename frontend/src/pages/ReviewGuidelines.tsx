@@ -1,6 +1,9 @@
 import { Card } from '@/components/ui/card'
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { AlertTriangle, CheckCircle, MessageSquare } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle,
+  //MessageSquare
+} from 'lucide-react'
 import { Header } from '@/components/landing/Header'
 import { Footer } from '@/components/landing/Footer'
 

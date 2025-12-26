@@ -74,7 +74,7 @@ WITH r AS (
   SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Nang' LIMIT 1
 )
 INSERT INTO route_points (route_id, sequence, name, address, departure_offset_minutes, arrival_offset_minutes, is_pickup, is_dropoff)
-SELECT r.route_id, 2, 'Nha Trang Bus Station', 'Bến xe Nha Trang, Đường Lê Lợi, Phường Lộc Thọ, Nha Trang, Khánh Hòa', 360, 360, TRUE, TRUE
+SELECT r.route_id, 2, 'Nha Trang Bus Station', 'Bến xe Nha Trang, Đường Lê Lợi, Phường Lộc Thọ, Nha Trang, Khánh Hòa', 360, 360, TRUE, FALSE
 FROM r
 WHERE r.route_id IS NOT NULL
 ON CONFLICT DO NOTHING;

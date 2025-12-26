@@ -129,7 +129,8 @@ export interface PickupPoint {
   point_id: string
   name: string
   address: string
-  time: string // ISO 8601 format
+  time?: string // ISO 8601 format - optional for backward compatibility
+  departure_offset_minutes: number
 }
 
 /**
@@ -140,7 +141,8 @@ export interface DropoffPoint {
   point_id: string
   name: string
   address: string
-  time: string // ISO 8601 format
+  time?: string // ISO 8601 format - optional for backward compatibility
+  departure_offset_minutes: number
 }
 
 /**
@@ -153,7 +155,6 @@ export interface RouteStop {
   stop_name: string
   sequence: number
   arrival_offset_minutes?: number
-  departure_offset_minutes?: number
   address?: string
 }
 

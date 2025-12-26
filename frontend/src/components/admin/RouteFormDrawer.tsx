@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'
+import { ChevronUp, ChevronDown, Trash2, Plus, Loader } from 'lucide-react'
 import type { RouteAdminData } from '@/types/trip.types'
-import { Loader, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { CustomDropdown } from '@/components/ui/custom-dropdown'
+import { validateCreateRoute, validateUpdateRoute } from '@/lib/validation'
 
 const emptyForm: Omit<RouteAdminData, 'route_id' | 'created_at'> = {
   operator_id: 'default-operator',
@@ -8,8 +10,12 @@ const emptyForm: Omit<RouteAdminData, 'route_id' | 'created_at'> = {
   destination: '',
   distance_km: 0,
   estimated_minutes: 0,
-  pickup_points: [{ point_id: '', name: '', address: '', time: '' }],
-  dropoff_points: [{ point_id: '', name: '', address: '', time: '' }],
+  pickup_points: [
+    { point_id: '', name: '', address: '', departure_offset_minutes: 0 },
+  ],
+  dropoff_points: [
+    { point_id: '', name: '', address: '', departure_offset_minutes: 0 },
+  ],
   route_stops: [],
 }
 
@@ -18,6 +24,7 @@ interface RouteFormDrawerProps {
   onClose: () => void
   initialRoute: RouteAdminData | null
   onSave: (values: Omit<RouteAdminData, 'route_id' | 'created_at'>) => void
+  operators?: Array<{ operator_id: string; name?: string }>
 }
 
 export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
@@ -25,10 +32,26 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
   onClose,
   initialRoute,
   onSave,
+  operators = [],
 }) => {
   const [form, setForm] =
     useState<Omit<RouteAdminData, 'route_id' | 'created_at'>>(emptyForm)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const handleChange = (field: string, value: unknown) => {
+    setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  // Auto-clear errors after 5 seconds
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      const timer = setTimeout(() => {
+        setErrors({})
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [errors])
 
   useEffect(() => {
     if (initialRoute) {
@@ -47,16 +70,12 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
     }
   }, [initialRoute, open])
 
-  const handleChange = (field: keyof typeof form, value: unknown) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
-  }
-
   const addPoint = (type: 'pickup' | 'dropoff') => {
     setForm((prev) => ({
       ...prev,
       [type === 'pickup' ? 'pickup_points' : 'dropoff_points']: [
         ...prev[type === 'pickup' ? 'pickup_points' : 'dropoff_points'],
-        { pointId: '', name: '', address: '', time: '' },
+        { point_id: '', name: '', address: '', departure_offset_minutes: 0 },
       ],
     }))
   }
@@ -64,8 +83,8 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
   const updatePointField = (
     type: 'pickup' | 'dropoff',
     index: number,
-    field: 'name' | 'address' | 'time',
-    value: string
+    field: 'name' | 'address' | 'departure_offset_minutes',
+    value: string | number
   ) => {
     setForm((prev) => {
       const key = type === 'pickup' ? 'pickup_points' : 'dropoff_points'
@@ -96,12 +115,7 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
 
   const updateStopField = (
     index: number,
-    field:
-      | 'stop_name'
-      | 'sequence'
-      | 'arrival_offset_minutes'
-      | 'departure_offset_minutes'
-      | 'address',
+    field: 'stop_name' | 'sequence' | 'arrival_offset_minutes' | 'address',
     value: string | number
   ) => {
     setForm((prev) => {
@@ -143,6 +157,35 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Use validator from lib/validation.ts
+    const validationErrors = initialRoute
+      ? validateUpdateRoute({
+          operator_id: form.operator_id,
+          origin: form.origin,
+          destination: form.destination,
+          distance_km: form.distance_km,
+          estimated_minutes: form.estimated_minutes,
+          pickup_points: form.pickup_points,
+          dropoff_points: form.dropoff_points,
+          route_stops: form.route_stops,
+        })
+      : validateCreateRoute({
+          operator_id: form.operator_id,
+          origin: form.origin,
+          destination: form.destination,
+          distance_km: form.distance_km,
+          estimated_minutes: form.estimated_minutes,
+          pickup_points: form.pickup_points,
+          dropoff_points: form.dropoff_points,
+          route_stops: form.route_stops,
+        })
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      return
+    }
+
     setIsSubmitting(true)
     try {
       await onSave(form)
@@ -214,6 +257,32 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
         >
           {/* Route Info */}
           <div className="space-y-3">
+            <div>
+              <label
+                className="block text-xs font-medium"
+                style={{ color: 'var(--foreground)' }}
+              >
+                Operator *
+              </label>
+              <CustomDropdown
+                options={[
+                  { id: '', label: 'Select Operator' },
+                  ...operators.map((op) => ({
+                    id: op.operator_id,
+                    label: op.name || op.operator_id,
+                  })),
+                ]}
+                value={form.operator_id}
+                onChange={(value) => handleChange('operator_id', value)}
+                placeholder="Select Operator"
+              />
+              {errors.operator_id && (
+                <p className="mt-1 text-xs text-red-500">
+                  {errors.operator_id}
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label
@@ -235,6 +304,9 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
                   onChange={(e) => handleChange('origin', e.target.value)}
                   placeholder="Origin city"
                 />
+                {errors.origin && (
+                  <p className="mt-1 text-xs text-red-500">{errors.origin}</p>
+                )}
               </div>
               <div>
                 <label
@@ -256,6 +328,11 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
                   onChange={(e) => handleChange('destination', e.target.value)}
                   placeholder="Destination city"
                 />
+                {errors.destination && (
+                  <p className="mt-1 text-xs text-red-500">
+                    {errors.destination}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -277,11 +354,32 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
                     backgroundColor: 'var(--card)',
                     color: 'var(--foreground)',
                   }}
-                  value={form.distance_km}
-                  onChange={(e) =>
-                    handleChange('distance_km', Number(e.target.value))
-                  }
+                  value={form.distance_km || ''}
+                  onInput={(e) => {
+                    const input = e.target as HTMLInputElement
+                    let value = input.value
+
+                    // If the value starts with 0 and has more digits, remove leading zeros
+                    if (
+                      value.startsWith('0') &&
+                      value.length > 1 &&
+                      !value.includes('.')
+                    ) {
+                      value = value.replace(/^0+/, '')
+                      input.value = value
+                    }
+
+                    handleChange(
+                      'distance_km',
+                      value === '' ? 0 : Number(value)
+                    )
+                  }}
                 />
+                {errors.distance_km && (
+                  <p className="mt-1 text-xs text-red-500">
+                    {errors.distance_km}
+                  </p>
+                )}
               </div>
               <div>
                 <label
@@ -300,11 +398,32 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
                     backgroundColor: 'var(--card)',
                     color: 'var(--foreground)',
                   }}
-                  value={form.estimated_minutes}
-                  onChange={(e) =>
-                    handleChange('estimated_minutes', Number(e.target.value))
-                  }
+                  value={form.estimated_minutes || ''}
+                  onInput={(e) => {
+                    const input = e.target as HTMLInputElement
+                    let value = input.value
+
+                    // If the value starts with 0 and has more digits, remove leading zeros
+                    if (
+                      value.startsWith('0') &&
+                      value.length > 1 &&
+                      !value.includes('.')
+                    ) {
+                      value = value.replace(/^0+/, '')
+                      input.value = value
+                    }
+
+                    handleChange(
+                      'estimated_minutes',
+                      value === '' ? 0 : Number(value)
+                    )
+                  }}
                 />
+                {errors.estimated_minutes && (
+                  <p className="mt-1 text-xs text-red-500">
+                    {errors.estimated_minutes}
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -321,124 +440,142 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
               <div className="absolute left-16 top-0 bottom-0 w-0.5 bg-border"></div>
               <div className="space-y-3">
                 {(form.route_stops || []).map((stop, idx) => (
-                  <div key={idx} className="flex items-center gap-3 relative">
-                    <span className="text-xs text-muted-foreground font-medium min-w-10 text-right">
-                      {stop.sequence}
-                    </span>
-                    <div className="flex flex-col items-center gap-1 relative">
-                      <div className="w-6 h-6 rounded-full bg-primary border-2 border-white shadow-sm flex items-center justify-center relative z-10">
-                        <div className="w-2 h-2 rounded-full bg-white"></div>
-                      </div>
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <input
-                        type="text"
-                        value={stop.stop_name}
-                        onChange={(e) =>
-                          updateStopField(idx, 'stop_name', e.target.value)
-                        }
-                        placeholder="Stop name"
-                        className="w-full rounded px-2 py-1 text-xs"
-                        style={{
-                          border: '1px solid var(--border)',
-                          backgroundColor: 'var(--card)',
-                          color: 'var(--foreground)',
-                        }}
-                      />
-                      <input
-                        type="text"
-                        value={stop.address || ''}
-                        onChange={(e) =>
-                          updateStopField(idx, 'address', e.target.value)
-                        }
-                        placeholder="Address"
-                        className="w-full rounded px-2 py-1 text-xs"
-                        style={{
-                          border: '1px solid var(--border)',
-                          backgroundColor: 'var(--card)',
-                          color: 'var(--foreground)',
-                        }}
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block text-xs text-muted-foreground mb-1">
-                            Arrival offset (min)
-                          </label>
-                          <input
-                            type="number"
-                            value={stop.arrival_offset_minutes || 0}
-                            onChange={(e) =>
-                              updateStopField(
-                                idx,
-                                'arrival_offset_minutes',
-                                Number(e.target.value)
-                              )
-                            }
-                            min="0"
-                            placeholder="0"
-                            className="w-full rounded px-2 py-1 text-xs"
-                            style={{
-                              border: '1px solid var(--border)',
-                              backgroundColor: 'var(--card)',
-                              color: 'var(--foreground)',
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-muted-foreground mb-1">
-                            Departure offset (min)
-                          </label>
-                          <input
-                            type="number"
-                            value={stop.departure_offset_minutes || 0}
-                            onChange={(e) =>
-                              updateStopField(
-                                idx,
-                                'departure_offset_minutes',
-                                Number(e.target.value)
-                              )
-                            }
-                            min="0"
-                            placeholder="0"
-                            className="w-full rounded px-2 py-1 text-xs"
-                            style={{
-                              border: '1px solid var(--border)',
-                              backgroundColor: 'var(--card)',
-                              color: 'var(--foreground)',
-                            }}
-                          />
+                  <React.Fragment key={idx}>
+                    <div className="flex items-center gap-3 relative">
+                      <span className="text-xs text-muted-foreground font-medium min-w-10 text-right">
+                        {stop.sequence}
+                      </span>
+                      <div className="flex flex-col items-center gap-1 relative">
+                        <div className="w-6 h-6 rounded-full bg-primary border-2 border-white shadow-sm flex items-center justify-center relative z-10">
+                          <div className="w-2 h-2 rounded-full bg-white"></div>
                         </div>
                       </div>
+                      <div className="flex-1 space-y-2">
+                        <input
+                          type="text"
+                          value={stop.stop_name}
+                          onChange={(e) =>
+                            updateStopField(idx, 'stop_name', e.target.value)
+                          }
+                          placeholder="Stop name"
+                          className="w-full rounded px-2 py-1 text-xs"
+                          style={{
+                            border: '1px solid var(--border)',
+                            backgroundColor: 'var(--card)',
+                            color: 'var(--foreground)',
+                          }}
+                        />
+                        <input
+                          type="text"
+                          value={stop.address || ''}
+                          onChange={(e) =>
+                            updateStopField(idx, 'address', e.target.value)
+                          }
+                          placeholder="Address"
+                          className="w-full rounded px-2 py-1 text-xs"
+                          style={{
+                            border: '1px solid var(--border)',
+                            backgroundColor: 'var(--card)',
+                            color: 'var(--foreground)',
+                          }}
+                        />
+                        <div className="grid grid-cols-1 gap-2">
+                          <div>
+                            <label className="block text-xs text-muted-foreground mb-1">
+                              Arrival Offset (min)
+                            </label>
+                            <input
+                              type="number"
+                              value={stop.arrival_offset_minutes || 0}
+                              onInput={(e) => {
+                                const input = e.target as HTMLInputElement
+                                let value = input.value
+                                if (
+                                  value.startsWith('0') &&
+                                  value.length > 1 &&
+                                  !value.includes('.')
+                                ) {
+                                  value = value.replace(/^0+/, '')
+                                  input.value = value
+                                }
+                                updateStopField(
+                                  idx,
+                                  'arrival_offset_minutes',
+                                  value === '' ? 0 : Number(value)
+                                )
+                              }}
+                              min="0"
+                              placeholder="0"
+                              className="w-full rounded px-2 py-1 text-xs"
+                              style={{
+                                border: '1px solid var(--border)',
+                                backgroundColor: 'var(--card)',
+                                color: 'var(--foreground)',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveStop(idx, 'up')}
+                          disabled={idx === 0}
+                          className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Move up"
+                        >
+                          <ChevronUp className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveStop(idx, 'down')}
+                          disabled={idx === (form.route_stops || []).length - 1}
+                          className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+                          title="Move down"
+                        >
+                          <ChevronDown className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeStop(idx)}
+                          className="p-1 text-destructive hover:text-destructive/80"
+                          title="Remove stop"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <button
-                        type="button"
-                        onClick={() => moveStop(idx, 'up')}
-                        disabled={idx === 0}
-                        className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Move up"
-                      >
-                        <ChevronUp className="h-3 w-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => moveStop(idx, 'down')}
-                        disabled={idx === (form.route_stops || []).length - 1}
-                        className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Move down"
-                      >
-                        <ChevronDown className="h-3 w-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeStop(idx)}
-                        className="p-1 text-destructive hover:text-destructive/80"
-                        title="Remove stop"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
+                    {/* Display errors for this stop */}
+                    {(errors['route_stops.' + idx + '.stop_name'] ||
+                      errors['route_stops.' + idx + '.sequence'] ||
+                      errors[
+                        'route_stops.' + idx + '.arrival_offset_minutes'
+                      ]) && (
+                      <div className="ml-16 space-y-1">
+                        {errors['route_stops.' + idx + '.stop_name'] && (
+                          <p className="text-xs text-red-500">
+                            {errors['route_stops.' + idx + '.stop_name']}
+                          </p>
+                        )}
+                        {errors['route_stops.' + idx + '.sequence'] && (
+                          <p className="text-xs text-red-500">
+                            {errors['route_stops.' + idx + '.sequence']}
+                          </p>
+                        )}
+                        {errors[
+                          'route_stops.' + idx + '.arrival_offset_minutes'
+                        ] && (
+                          <p className="text-xs text-red-500">
+                            {
+                              errors[
+                                'route_stops.' + idx + '.arrival_offset_minutes'
+                              ]
+                            }
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </React.Fragment>
                 ))}
               </div>
             </div>
@@ -495,11 +632,17 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
                   }}
                 />
                 <input
-                  type="time"
-                  value={point.time}
+                  type="number"
+                  value={point.departure_offset_minutes || ''}
                   onChange={(e) =>
-                    updatePointField('pickup', idx, 'time', e.target.value)
+                    updatePointField(
+                      'pickup',
+                      idx,
+                      'departure_offset_minutes',
+                      Number(e.target.value) || 0
+                    )
                   }
+                  placeholder="Arrival Offset (min)"
                   className="w-full rounded px-2 py-1 text-xs"
                   style={{
                     border: '1px solid var(--border)',
@@ -572,11 +715,17 @@ export const RouteFormDrawer: React.FC<RouteFormDrawerProps> = ({
                   }}
                 />
                 <input
-                  type="time"
-                  value={point.time}
+                  type="number"
+                  value={point.departure_offset_minutes || ''}
                   onChange={(e) =>
-                    updatePointField('dropoff', idx, 'time', e.target.value)
+                    updatePointField(
+                      'dropoff',
+                      idx,
+                      'departure_offset_minutes',
+                      Number(e.target.value) || 0
+                    )
                   }
+                  placeholder="Departure Offset (min)"
                   className="w-full rounded px-2 py-1 text-xs"
                   style={{
                     border: '1px solid var(--border)',

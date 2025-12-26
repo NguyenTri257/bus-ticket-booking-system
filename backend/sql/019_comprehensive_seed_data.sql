@@ -231,48 +231,95 @@ INSERT INTO routes (operator_id, origin, destination, distance_km, estimated_min
  'Ho Chi Minh City', 'Can Tho', 169, 150),
 
 ((SELECT operator_id FROM operators WHERE name = 'Sao Viet' LIMIT 1),
- 'Da Nang', 'Quang Ngai', 150, 120)
+ 'Da Nang', 'Quang Ngai', 150, 120),
+
+((SELECT operator_id FROM operators WHERE name = 'Sapaco Tourist' LIMIT 1),
+ 'Ho Chi Minh City', 'Da Lat', 306, 360)
 ON CONFLICT DO NOTHING;
 
 -- 6. Route Stops
 -- Insert stops with explicit pickup/dropoff flags.
 -- Rule: origin = pickup only, destination = dropoff only, intermediate stops allow both pickup and dropoff.
-INSERT INTO route_stops (route_id, stop_name, sequence, arrival_offset_minutes, departure_offset_minutes, is_pickup, is_dropoff) VALUES
+INSERT INTO route_stops (route_id, stop_name, sequence, arrival_offset_minutes, departure_offset_minutes, address, is_pickup, is_dropoff) VALUES
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Hanoi' LIMIT 1),
- 'Ho Chi Minh City', 1, 0, 0, TRUE, FALSE),
+ 'Ho Chi Minh City', 1, 0, 0, '292 Đinh Bộ Lĩnh, Phường 26, Bình Thạnh, Thành phố Hồ Chí Minh', TRUE, FALSE),
 
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Hanoi' LIMIT 1),
- 'Da Nang', 2, 540, 550, TRUE, TRUE),
+ 'Da Nang', 2, 540, 550, 'Ga Đà Nẵng, 791 Hải Phòng, Thanh Khê, Đà Nẵng', TRUE, TRUE),
 
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Hanoi' LIMIT 1),
- 'Hanoi', 3, 1080, 1080, FALSE, TRUE),
+ 'Hanoi', 3, 1080, 1080, 'Bến xe Mỹ Đình, Phạm Hùng, Nam Từ Liêm, Hà Nội', FALSE, TRUE),
 
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Nang' LIMIT 1),
- 'Ho Chi Minh City', 1, 0, 0, TRUE, FALSE),
+ 'Ho Chi Minh City', 1, 0, 0, '292 Đinh Bộ Lĩnh, Phường 26, Bình Thạnh, Thành phố Hồ Chí Minh', TRUE, FALSE),
 
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Nang' LIMIT 1),
- 'Da Nang', 2, 540, 540, FALSE, TRUE),
+ 'Da Nang', 2, 540, 540, 'Ga Đà Nẵng, 791 Hải Phòng, Thanh Khê, Đà Nẵng', FALSE, TRUE),
 
 ((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Da Nang' LIMIT 1),
- 'Hanoi', 1, 0, 0, TRUE, FALSE),
+ 'Hanoi', 1, 0, 0, 'Bến xe Mỹ Đình, Phạm Hùng, Nam Từ Liêm, Hà Nội', TRUE, FALSE),
 
 ((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Da Nang' LIMIT 1),
- 'Da Nang', 2, 360, 360, FALSE, TRUE),
+ 'Da Nang', 2, 360, 360, 'Ga Đà Nẵng, 791 Hải Phòng, Thanh Khê, Đà Nẵng', FALSE, TRUE),
 
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Hue' LIMIT 1),
- 'Ho Chi Minh City', 1, 0, 0, TRUE, FALSE),
+ 'Ho Chi Minh City', 1, 0, 0, '292 Đinh Bộ Lĩnh, Phường 26, Bình Thạnh, Thành phố Hồ Chí Minh', TRUE, FALSE),
 
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Hue' LIMIT 1),
- 'Hue', 2, 600, 600, FALSE, TRUE),
+ 'Hue', 2, 600, 600, 'Bến xe Huế, 6 Bùi Thị Xuân, Phú Hội, Thành phố Huế, Thừa Thiên Huế', FALSE, TRUE),
 
 ((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Ho Chi Minh City' LIMIT 1),
- 'Hanoi', 1, 0, 0, TRUE, FALSE),
+ 'Hanoi', 1, 0, 0, 'Bến xe Mỹ Đình, Phạm Hùng, Nam Từ Liêm, Hà Nội', TRUE, FALSE),
 
 ((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Ho Chi Minh City' LIMIT 1),
- 'Da Nang', 2, 360, 370, TRUE, TRUE),
+ 'Da Nang', 2, 360, 370, 'Ga Đà Nẵng, 791 Hải Phòng, Thanh Khê, Đà Nẵng', TRUE, TRUE),
 
 ((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Ho Chi Minh City' LIMIT 1),
- 'Ho Chi Minh City', 3, 1080, 1080, FALSE, TRUE)
+ 'Ho Chi Minh City', 3, 1080, 1080, '292 Đinh Bộ Lĩnh, Phường 26, Bình Thạnh, Thành phố Hồ Chí Minh', FALSE, TRUE),
+
+-- Additional route stops for other major routes
+((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Sapa' LIMIT 1),
+ 'Hanoi', 1, 0, 0, 'Bến xe Mỹ Đình, Phạm Hùng, Nam Từ Liêm, Hà Nội', TRUE, FALSE),
+
+((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Sapa' LIMIT 1),
+ 'Sapa', 2, 288, 288, 'Bến xe Sapa, 1 Cầu Mây, Sa Pa, Lào Cai', FALSE, TRUE),
+
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Nha Trang' LIMIT 1),
+ 'Ho Chi Minh City', 1, 0, 0, '292 Đinh Bộ Lĩnh, Phường 26, Bình Thạnh, Thành phố Hồ Chí Minh', TRUE, FALSE),
+
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Nha Trang' LIMIT 1),
+ 'Nha Trang', 2, 252, 252, 'Bến xe Nha Trang, 17 Thái Nguyên, Phước Tân, Thành phố Nha Trang, Khánh Hòa', FALSE, TRUE),
+
+((SELECT route_id FROM routes WHERE origin = 'Da Nang' AND destination = 'Hanoi' LIMIT 1),
+ 'Da Nang', 1, 0, 0, 'Ga Đà Nẵng, 791 Hải Phòng, Thanh Khê, Đà Nẵng', TRUE, FALSE),
+
+((SELECT route_id FROM routes WHERE origin = 'Da Nang' AND destination = 'Hanoi' LIMIT 1),
+ 'Hanoi', 2, 432, 432, 'Bến xe Mỹ Đình, Phạm Hùng, Nam Từ Liêm, Hà Nội', FALSE, TRUE),
+
+((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Hai Phong' LIMIT 1),
+ 'Hanoi', 1, 0, 0, 'Bến xe Mỹ Đình, Phạm Hùng, Nam Từ Liêm, Hà Nội', TRUE, FALSE),
+
+((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Hai Phong' LIMIT 1),
+ 'Hai Phong', 2, 54, 54, 'Bến xe Hải Phòng, Đường 5, Vĩnh Niệm, Lê Chân, Hải Phòng', FALSE, TRUE),
+
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Can Tho' LIMIT 1),
+ 'Ho Chi Minh City', 1, 0, 0, '292 Đinh Bộ Lĩnh, Phường 26, Bình Thạnh, Thành phố Hồ Chí Minh', TRUE, FALSE),
+
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Can Tho' LIMIT 1),
+ 'Can Tho', 2, 90, 90, 'Bến xe Cần Thơ, 123 Đường 30/4, Xuân Khánh, Ninh Kiều, Cần Thơ', FALSE, TRUE),
+
+((SELECT route_id FROM routes WHERE origin = 'Da Nang' AND destination = 'Quang Ngai' LIMIT 1),
+ 'Da Nang', 1, 0, 0, 'Ga Đà Nẵng, 791 Hải Phòng, Thanh Khê, Đà Nẵng', TRUE, FALSE),
+
+((SELECT route_id FROM routes WHERE origin = 'Da Nang' AND destination = 'Quang Ngai' LIMIT 1),
+ 'Quang Ngai', 2, 72, 72, 'Bến xe Quảng Ngãi, 1 Đường 24/3, Nghĩa Chánh, Quảng Ngãi', FALSE, TRUE),
+
+-- Da Lat route stops
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Lat' LIMIT 1),
+ 'Ho Chi Minh City', 1, 0, 0, '292 Đinh Bộ Lĩnh, Phường 26, Bình Thạnh, Thành phố Hồ Chí Minh', TRUE, FALSE),
+
+((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Lat' LIMIT 1),
+ 'Da Lat', 2, 360, 360, 'Bến xe Đà Lạt, 1 Đường 3/2, Phường 1, Thành phố Đà Lạt, Lâm Đồng', FALSE, TRUE)
 ON CONFLICT DO NOTHING;
 
 -- 7. Trips

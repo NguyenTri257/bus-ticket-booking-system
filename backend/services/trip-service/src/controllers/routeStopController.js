@@ -9,9 +9,20 @@ class RouteStopController {
     try {
       const { error, value } = addStopSchema.validate(req.body);
       if (error) {
+        // Format validation errors for better frontend consumption
+        const formattedErrors = error.details.map((detail) => ({
+          field: detail.path.join('.'),
+          message: detail.message,
+          value: detail.context?.value,
+        }));
+
         return res.status(422).json({
           success: false,
-          error: { code: 'VAL_001', message: error.details[0].message },
+          error: {
+            code: 'VAL_001',
+            message: 'Validation failed',
+            details: formattedErrors,
+          },
         });
       }
 
@@ -33,11 +44,11 @@ class RouteStopController {
       }
 
       const stop = await routeStopRepository.create(routeId, value);
-    return res.status(201).json({
-      success: true,
-      data: mapToRouteStop(stop), // Use mapper
-      message: 'Thêm điểm dừng thành công',
-    });
+      return res.status(201).json({
+        success: true,
+        data: mapToRouteStop(stop), // Use mapper
+        message: 'Thêm điểm dừng thành công',
+      });
     } catch (err) {
       console.error('Error creating route stop:', err);
       return res.status(500).json({

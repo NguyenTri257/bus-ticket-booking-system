@@ -20,7 +20,7 @@ export interface CreateBookingRequest {
 
 export interface Pricing {
   subtotal: number
-  serviceFee: number
+  service_fee: number
   total: number
   currency: string
 }

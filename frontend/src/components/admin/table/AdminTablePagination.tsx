@@ -20,7 +20,7 @@ export const AdminTablePagination: React.FC<AdminTablePaginationProps> = ({
 
   return (
     <div className="px-6 py-4 border-t border-border flex items-center justify-between">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground mr-2">
         Page {currentPage} of {totalPages} • {total} total results
       </p>
       <div className="flex gap-2">

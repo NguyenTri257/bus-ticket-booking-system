@@ -25,6 +25,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ErrorModal } from '@/components/ui/error-modal'
 import { SearchInput } from '@/components/ui/search-input'
 import { CustomDropdown } from '@/components/ui/custom-dropdown'
+import { AdminLoadingSpinner } from '@/components/admin/AdminLoadingSpinner'
 
 const AMENITIES_LABELS: Record<string, string> = {
   wifi: 'WiFi',
@@ -324,221 +325,225 @@ const AdminBusManagement: React.FC = () => {
         </div>
 
         {/* Buses List */}
-        <div className="bg-card rounded-lg border border-border overflow-hidden">
-          <AdminTable
-            columns={[
-              { key: 'busDetails', label: 'Bus Details' },
-              { key: 'type', label: 'Type' },
-              { key: 'capacity', label: 'Capacity' },
-              { key: 'amenities', label: 'Amenities' },
-              { key: 'status', label: 'Status' },
-              { key: 'actions', label: 'Actions', align: 'right' },
-            ]}
-            isLoading={isLoading}
-            isEmpty={buses.length === 0}
-            emptyMessage="No buses available."
-          >
-            {buses.map((bus) => (
-              <React.Fragment key={bus.bus_id}>
-                <AdminTableRow
-                  isHoverable={true}
-                  className="cursor-pointer"
-                  onClick={() => handleRowClick(bus)}
-                >
-                  <AdminTableCell>
-                    <div className="flex items-center">
-                      <div className="mr-3">
-                        {expandedBusId === bus.bus_id ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+        {isLoading && buses.length === 0 ? (
+          <AdminLoadingSpinner message="Loading buses..." />
+        ) : (
+          <div className="bg-card rounded-lg border border-border overflow-hidden">
+            <AdminTable
+              columns={[
+                { key: 'busDetails', label: 'Bus Details' },
+                { key: 'type', label: 'Type' },
+                { key: 'capacity', label: 'Capacity' },
+                { key: 'amenities', label: 'Amenities' },
+                { key: 'status', label: 'Status' },
+                { key: 'actions', label: 'Actions', align: 'right' },
+              ]}
+              isLoading={isLoading}
+              isEmpty={buses.length === 0}
+              emptyMessage="No buses available."
+            >
+              {buses.map((bus) => (
+                <React.Fragment key={bus.bus_id}>
+                  <AdminTableRow
+                    isHoverable={true}
+                    className="cursor-pointer"
+                    onClick={() => handleRowClick(bus)}
+                  >
+                    <AdminTableCell>
+                      <div className="flex items-center">
+                        <div className="mr-3">
+                          {expandedBusId === bus.bus_id ? (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          )}
+                        </div>
+                        {bus.image_urls && bus.image_urls.length > 0 ? (
+                          <img
+                            src={bus.image_urls[0]}
+                            alt={bus.name}
+                            className="h-8 w-8 rounded object-cover mr-3"
+                          />
+                        ) : bus.image_url ? (
+                          <img
+                            src={bus.image_url}
+                            alt={bus.name}
+                            className="h-8 w-8 rounded object-cover mr-3"
+                          />
                         ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                          <BusIcon className="h-8 w-8 text-muted-foreground mr-3" />
                         )}
-                      </div>
-                      {bus.image_urls && bus.image_urls.length > 0 ? (
-                        <img
-                          src={bus.image_urls[0]}
-                          alt={bus.name}
-                          className="h-8 w-8 rounded object-cover mr-3"
-                        />
-                      ) : bus.image_url ? (
-                        <img
-                          src={bus.image_url}
-                          alt={bus.name}
-                          className="h-8 w-8 rounded object-cover mr-3"
-                        />
-                      ) : (
-                        <BusIcon className="h-8 w-8 text-muted-foreground mr-3" />
-                      )}
-                      <div>
-                        <div className="text-sm font-medium text-foreground">
-                          {bus.name}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {bus.model} • {bus.plate_number}
+                        <div>
+                          <div className="text-sm font-medium text-foreground">
+                            {bus.name}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {bus.model} • {bus.plate_number}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </AdminTableCell>
-                  <AdminTableCell>
-                    <StatusBadge status="default" label={bus.type} />
-                  </AdminTableCell>
-                  <AdminTableCell className="text-sm text-muted-foreground">
-                    {bus.capacity} seats
-                  </AdminTableCell>
-                  <AdminTableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {bus.amenities.map((amenity, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex px-2 py-1 text-xs bg-muted rounded"
-                        >
-                          {AMENITIES_LABELS[amenity] || amenity}
-                        </span>
-                      ))}
-                    </div>
-                  </AdminTableCell>
-                  <AdminTableCell>
-                    <StatusBadge
-                      status={
-                        bus.status === 'active'
-                          ? 'success'
-                          : bus.status === 'maintenance' ||
-                              bus.status === 'inactive'
-                            ? 'warning'
-                            : 'default'
-                      }
-                      label={
-                        bus.status === 'active'
-                          ? 'Active'
-                          : bus.status === 'maintenance' ||
-                              bus.status === 'inactive'
-                            ? 'Inactive'
-                            : bus.status
-                      }
-                    />
-                  </AdminTableCell>
-                  <AdminTableCell align="right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleEditBus(bus)
-                        }}
-                        style={{ color: 'var(--primary)' }}
-                        className="hover:opacity-80 disabled:opacity-50"
-                        title="Edit bus"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      {bus.status === 'active' ? (
+                    </AdminTableCell>
+                    <AdminTableCell>
+                      <StatusBadge status="default" label={bus.type} />
+                    </AdminTableCell>
+                    <AdminTableCell className="text-sm text-muted-foreground">
+                      {bus.capacity} seats
+                    </AdminTableCell>
+                    <AdminTableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {bus.amenities.map((amenity, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex px-2 py-1 text-xs bg-muted rounded"
+                          >
+                            {AMENITIES_LABELS[amenity] || amenity}
+                          </span>
+                        ))}
+                      </div>
+                    </AdminTableCell>
+                    <AdminTableCell>
+                      <StatusBadge
+                        status={
+                          bus.status === 'active'
+                            ? 'success'
+                            : bus.status === 'maintenance' ||
+                                bus.status === 'inactive'
+                              ? 'warning'
+                              : 'default'
+                        }
+                        label={
+                          bus.status === 'active'
+                            ? 'Active'
+                            : bus.status === 'maintenance' ||
+                                bus.status === 'inactive'
+                              ? 'Inactive'
+                              : bus.status
+                        }
+                      />
+                    </AdminTableCell>
+                    <AdminTableCell align="right">
+                      <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleDeactivateBus(bus)
-                          }}
-                          style={{ color: 'var(--destructive)' }}
-                          className="hover:opacity-80 disabled:opacity-50"
-                          title="Deactivate bus"
-                        >
-                          <PowerOff className="h-4 w-4" />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleActivateBus(bus)
+                            handleEditBus(bus)
                           }}
                           style={{ color: 'var(--primary)' }}
                           className="hover:opacity-80 disabled:opacity-50"
-                          title="Activate bus"
+                          title="Edit bus"
                         >
-                          <PowerOff className="h-4 w-4" />
+                          <Edit className="h-4 w-4" />
                         </button>
-                      )}
-                    </div>
-                  </AdminTableCell>
-                </AdminTableRow>
-
-                {/* Expanded Images Row */}
-                {expandedBusId === bus.bus_id && (
-                  <tr>
-                    <td colSpan={6} className="bg-muted/50 px-4 py-4">
-                      <div className="space-y-3">
-                        <h4 className="text-sm font-medium text-foreground">
-                          Bus Images (
-                          {bus.image_urls?.length || (bus.image_url ? 1 : 0)})
-                        </h4>
-                        {bus.image_urls && bus.image_urls.length > 0 ? (
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {bus.image_urls.map((url, index) => (
-                              <div
-                                key={index}
-                                className="relative group cursor-pointer"
-                                onClick={() =>
-                                  handleImageClick(
-                                    url,
-                                    `${bus.name} - Image ${index + 1}`
-                                  )
-                                }
-                              >
-                                <img
-                                  src={url}
-                                  alt={`${bus.name} - Image ${index + 1}`}
-                                  className="w-full h-24 object-cover rounded-lg border border-border hover:opacity-90 transition-opacity"
-                                />
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center">
-                                  <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                                    Click to view full size
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : bus.image_url ? (
-                          <div
-                            className="relative group inline-block cursor-pointer"
-                            onClick={() =>
-                              handleImageClick(
-                                bus.image_url!,
-                                `${bus.name} - Image`
-                              )
-                            }
+                        {bus.status === 'active' ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeactivateBus(bus)
+                            }}
+                            style={{ color: 'var(--destructive)' }}
+                            className="hover:opacity-80 disabled:opacity-50"
+                            title="Deactivate bus"
                           >
-                            <img
-                              src={bus.image_url}
-                              alt={`${bus.name} - Image`}
-                              className="w-32 h-24 object-cover rounded-lg border border-border hover:opacity-90 transition-opacity"
-                            />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center">
-                              <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                                Click to view full size
-                              </span>
-                            </div>
-                          </div>
+                            <PowerOff className="h-4 w-4" />
+                          </button>
                         ) : (
-                          <div className="text-sm text-muted-foreground italic">
-                            No images available for this bus.
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleActivateBus(bus)
+                            }}
+                            style={{ color: 'var(--primary)' }}
+                            className="hover:opacity-80 disabled:opacity-50"
+                            title="Activate bus"
+                          >
+                            <PowerOff className="h-4 w-4" />
+                          </button>
                         )}
                       </div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            ))}
-          </AdminTable>
+                    </AdminTableCell>
+                  </AdminTableRow>
 
-          {/* Pagination */}
-          <div className="flex justify-center">
-            <AdminTablePagination
-              currentPage={pagination.page}
-              totalPages={pagination.totalPages}
-              total={pagination.total}
-              onPageChange={handlePageChange}
-              isLoading={isLoading}
-            />
+                  {/* Expanded Images Row */}
+                  {expandedBusId === bus.bus_id && (
+                    <tr>
+                      <td colSpan={6} className="bg-muted/50 px-4 py-4">
+                        <div className="space-y-3">
+                          <h4 className="text-sm font-medium text-foreground">
+                            Bus Images (
+                            {bus.image_urls?.length || (bus.image_url ? 1 : 0)})
+                          </h4>
+                          {bus.image_urls && bus.image_urls.length > 0 ? (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                              {bus.image_urls.map((url, index) => (
+                                <div
+                                  key={index}
+                                  className="relative group cursor-pointer"
+                                  onClick={() =>
+                                    handleImageClick(
+                                      url,
+                                      `${bus.name} - Image ${index + 1}`
+                                    )
+                                  }
+                                >
+                                  <img
+                                    src={url}
+                                    alt={`${bus.name} - Image ${index + 1}`}
+                                    className="w-full h-24 object-cover rounded-lg border border-border hover:opacity-90 transition-opacity"
+                                  />
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center">
+                                    <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                      Click to view full size
+                                    </span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : bus.image_url ? (
+                            <div
+                              className="relative group inline-block cursor-pointer"
+                              onClick={() =>
+                                handleImageClick(
+                                  bus.image_url!,
+                                  `${bus.name} - Image`
+                                )
+                              }
+                            >
+                              <img
+                                src={bus.image_url}
+                                alt={`${bus.name} - Image`}
+                                className="w-32 h-24 object-cover rounded-lg border border-border hover:opacity-90 transition-opacity"
+                              />
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center">
+                                <span className="text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                  Click to view full size
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-muted-foreground italic">
+                              No images available for this bus.
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </AdminTable>
+
+            {/* Pagination */}
+            <div className="flex justify-center">
+              <AdminTablePagination
+                currentPage={pagination.page}
+                totalPages={pagination.totalPages}
+                total={pagination.total}
+                onPageChange={handlePageChange}
+                isLoading={isLoading}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Bus Form Drawer */}
         <BusFormDrawer

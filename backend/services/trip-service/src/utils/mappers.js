@@ -1,20 +1,28 @@
-const mapToRouteAdminData = (routeData, stops = []) => {
+const mapToRouteAdminData = (routeData, stops = [], points = []) => {
   const mappedStops = stops.map((stop) => ({
     stop_id: stop.stop_id,
     route_id: stop.route_id,
     stop_name: stop.stop_name,
     sequence: stop.sequence,
     arrival_offset_minutes: stop.arrival_offset_minutes,
-    departure_offset_minutes: stop.departure_offset_minutes,
     address: stop.address || '',
   }));
 
-  const pickup_points = mappedStops.filter(
-    (s) => stops.find((orig) => orig.stop_id === s.stop_id)?.is_pickup ?? true
-  );
-  const dropoff_points = mappedStops.filter(
-    (s) => stops.find((orig) => orig.stop_id === s.stop_id)?.is_dropoff ?? true
-  );
+  // Map route points to pickup/dropoff format
+  const mappedPoints = points.map((point) => ({
+    point_id: point.point_id,
+    route_id: point.route_id,
+    name: point.name,
+    address: point.address || '',
+    sequence: point.sequence,
+    arrival_offset_minutes: point.arrival_offset_minutes,
+    departure_offset_minutes: point.departure_offset_minutes,
+    is_pickup: point.is_pickup,
+    is_dropoff: point.is_dropoff,
+  }));
+
+  const pickup_points = mappedPoints.filter((p) => p.is_pickup);
+  const dropoff_points = mappedPoints.filter((p) => p.is_dropoff);
 
   return {
     route_id: routeData.route_id,
@@ -38,10 +46,6 @@ const mapToRouteStop = (stopData) => ({
   arrival_offset_minutes:
     stopData.arrival_offset_minutes !== undefined
       ? Number(stopData.arrival_offset_minutes)
-      : undefined,
-  departure_offset_minutes:
-    stopData.departure_offset_minutes !== undefined
-      ? Number(stopData.departure_offset_minutes)
       : undefined,
   address: stopData.address || undefined,
 });

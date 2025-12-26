@@ -4,6 +4,16 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 type Json = Record<string, unknown>
 
+type ApiErrorResponse = {
+  message?: string
+  error?: { details?: unknown; code?: string }
+}
+
+type ErrorWithDetails = Error & {
+  details?: unknown
+  code?: string
+}
+
 export async function postJSON<T extends Json = Json>(
   path: string,
   payload?: Json,
@@ -21,12 +31,17 @@ export async function postJSON<T extends Json = Json>(
     ...init,
   })
 
-  const data = (await response.json().catch(() => ({}))) as T & {
-    message?: string
-  }
+  const data = (await response.json().catch(() => ({}))) as T & ApiErrorResponse
 
   if (!response.ok) {
-    throw new Error(data?.message ?? 'Something went wrong. Please try again.')
+    console.log('API Error Response:', { status: response.status, data })
+    const error = new Error(
+      data?.message ?? 'Something went wrong. Please try again.'
+    ) as ErrorWithDetails
+    error.details = data?.error?.details
+    error.code = data?.error?.code
+    console.log('Throwing error with details:', error.details)
+    throw error
   }
 
   return data

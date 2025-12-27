@@ -167,12 +167,13 @@ class BusController {
           });
         }
         const modelRow = modelResult.rows[0];
-        if (value.capacity && Number(value.capacity) !== Number(modelRow.total_seats)) {
-          return res.status(400).json({
-            success: false,
-            error: { code: 'CAPACITY_MISMATCH', message: 'Capacity must match the bus model' },
-          });
-        }
+        // Note: Capacity validation removed - capacity is now auto-calculated from actual seats in layout
+        // if (value.capacity && Number(value.capacity) !== Number(modelRow.total_seats)) {
+        //   return res.status(400).json({
+        //     success: false,
+        //     error: { code: 'CAPACITY_MISMATCH', message: 'Capacity must match the bus model' },
+        //   });
+        // }
 
         // Cập nhật bus_model_id + các field khác
         await pool.query(

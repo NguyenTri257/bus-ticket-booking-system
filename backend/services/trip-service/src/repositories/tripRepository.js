@@ -22,7 +22,7 @@ class TripRepository {
         
         -- Bus info
         b.bus_id, b.plate_number, b.type as bus_type, bm.name as bus_model,
-        bm.total_seats, b.amenities::jsonb AS amenities,
+        b.seat_capacity, b.amenities::jsonb AS amenities,
         
         -- Availability (subquery for booked seats)
         (
@@ -142,7 +142,7 @@ class TripRepository {
       row.departure_time
     );
 
-    const total_seats = parseInt(row.total_seats);
+    const total_seats = parseInt(row.seat_capacity);
     const booked_seats = parseInt(row.booked_seats || 0);
     const available_seats = total_seats - booked_seats;
 

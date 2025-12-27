@@ -8,6 +8,8 @@ import type {
   SeatLayout,
 } from '@/types/seatMap'
 import { CustomDropdown } from '@/components/ui/custom-dropdown'
+import { ErrorModal } from '@/components/ui/error-modal'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   Table,
   TableBody,
@@ -59,6 +61,9 @@ const convertSeatLayoutToLayoutData = (seatLayout: SeatLayout): LayoutData => {
   const seats: Seat[] = []
   let totalSeats = 0
 
+  // Calculate rows per floor: total rows / number of floors
+  const rowsPerFloor = seatLayout.rows.length / (seatLayout.floors || 1)
+
   seatLayout.rows.forEach((rowData, rowIndex) => {
     if (rowData.seats && Array.isArray(rowData.seats)) {
       rowData.seats.forEach((seatData, colIndex) => {
@@ -73,10 +78,12 @@ const convertSeatLayoutToLayoutData = (seatLayout: SeatLayout): LayoutData => {
             // Determine seat type and set default price
             const isVip = seatCode.startsWith('VIP')
             price = isVip ? 50000 : 0
+            // Determine floor based on row index
+            floor = Math.floor(rowIndex / rowsPerFloor) + 1
           } else if (typeof seatData === 'object' && seatData.code) {
             seatCode = seatData.code
             price = seatData.price || 0
-            floor = seatData.floor || 1
+            floor = seatData.floor || Math.floor(rowIndex / rowsPerFloor) + 1
           } else {
             return // Skip invalid seat data
           }
@@ -84,10 +91,13 @@ const convertSeatLayoutToLayoutData = (seatLayout: SeatLayout): LayoutData => {
           // Determine seat type from seat code
           const isVip = seatCode.startsWith('VIP')
 
+          // Calculate row index within the floor
+          const rowWithinFloor = rowIndex % rowsPerFloor
+
           seats.push({
             seat_number: seatCode,
             floor: floor, // 1-based floor number
-            row: rowIndex, // 0-based row index
+            row: rowWithinFloor, // 0-based row index within floor
             col: colIndex, // 0-based column index
             type: isVip ? 'vip' : 'standard',
             price: price,
@@ -100,7 +110,7 @@ const convertSeatLayoutToLayoutData = (seatLayout: SeatLayout): LayoutData => {
 
   return {
     floors: seatLayout.floors || 1,
-    rows: seatLayout.rows.length,
+    rows: rowsPerFloor,
     columns: seatLayout.rows[0]?.seats?.length || 0,
     seats,
     total_seats: totalSeats,
@@ -111,8 +121,13 @@ const convertSeatLayoutToLayoutData = (seatLayout: SeatLayout): LayoutData => {
 const convertLayoutDataToSeatLayout = (layoutData: LayoutData): SeatLayout => {
   const rows: SeatLayout['rows'] = []
 
-  // Initialize rows array
-  for (let row = 0; row < layoutData.rows; row++) {
+  // Initialize rows array for all floors
+  // Total rows = layoutData.rows * layoutData.floors
+  // Floor 1: rows 0 to (layoutData.rows - 1)
+  // Floor 2: rows layoutData.rows to (layoutData.rows * 2 - 1)
+  const totalRows = layoutData.rows * layoutData.floors
+
+  for (let row = 0; row < totalRows; row++) {
     const seats: (
       | string
       | { code: string; price: number; floor?: number }
@@ -126,8 +141,16 @@ const convertLayoutDataToSeatLayout = (layoutData: LayoutData): SeatLayout => {
 
   // Fill in seats with code, price, and floor
   layoutData.seats.forEach((seat) => {
-    if (seat.row < rows.length && seat.col < rows[seat.row].seats.length) {
-      rows[seat.row].seats[seat.col] = {
+    // Calculate the actual row index in the layout array based on floor
+    // Floor 1 (floor=1): rows 0 to (layoutData.rows - 1)
+    // Floor 2 (floor=2): rows layoutData.rows to (layoutData.rows * 2 - 1)
+    const actualRowIndex = (seat.floor - 1) * layoutData.rows + seat.row
+
+    if (
+      actualRowIndex < rows.length &&
+      seat.col < rows[actualRowIndex].seats.length
+    ) {
+      rows[actualRowIndex].seats[seat.col] = {
         code: seat.seat_number,
         price: seat.price,
         floor: seat.floor, // Include floor information
@@ -184,6 +207,25 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [showPreview, setShowPreview] = useState(false)
   const [currentFloor, setCurrentFloor] = useState<number>(1) // Track which floor user is editing
+  const [errorModal, setErrorModal] = useState<{
+    open: boolean
+    title: string
+    message: string
+    details?: string
+  }>({ open: false, title: '', message: '' })
+  const [warningModal, setWarningModal] = useState<{
+    open: boolean
+    title: string
+    message: string
+    onConfirm: () => void
+    onCancel: () => void
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    onCancel: () => {},
+  })
 
   const generateSeatsFromTemplate = (templateName: string) => {
     const template = SEAT_TEMPLATES[templateName as keyof typeof SEAT_TEMPLATES]
@@ -251,11 +293,8 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
         ),
       })
     } else {
-      // Add new seat - find next available seat number for this floor
-      const seatsForFloor = (layoutData.seats || []).filter(
-        (s) => s.floor === currentFloor
-      )
-      const existingNumbers = seatsForFloor
+      // Add new seat - find next available seat number GLOBALLY (across all floors)
+      const existingNumbers = (layoutData.seats || [])
         .map((s) => {
           const num = s.seat_number.replace('VIP', '')
           return parseInt(num.match(/^\d+/)?.[0] || '0')
@@ -297,13 +336,48 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
     if ((layoutData.seats || []).length === 0) {
       return 'Layout must have at least one seat'
     }
+
+    // Check for duplicate seat codes
+    const seatCodes = (layoutData.seats || []).map((s) => s.seat_number)
+    const duplicates = seatCodes.filter(
+      (code, index) => seatCodes.indexOf(code) !== index
+    )
+    if (duplicates.length > 0) {
+      return `Duplicate seat codes found: ${[...new Set(duplicates)].join(', ')}`
+    }
+
+    // Validate floor consistency
+    const invalidSeats = (layoutData.seats || []).filter(
+      (s) => !s.floor || s.floor < 1 || s.floor > layoutData.floors
+    )
+    if (invalidSeats.length > 0) {
+      return `${invalidSeats.length} seat(s) have invalid floor assignment`
+    }
+
+    // Validate row consistency per floor
+    for (let floor = 1; floor <= layoutData.floors; floor++) {
+      const floorSeats = (layoutData.seats || []).filter(
+        (s) => s.floor === floor
+      )
+      const invalidRows = floorSeats.filter(
+        (s) => s.row < 0 || s.row >= layoutData.rows
+      )
+      if (invalidRows.length > 0) {
+        return `Floor ${floor}: ${invalidRows.length} seat(s) have invalid row index`
+      }
+    }
+
     return null
   }
 
   const handleSave = () => {
     const validationError = validateLayout()
     if (validationError) {
-      alert(validationError)
+      setErrorModal({
+        open: true,
+        title: 'Validation Error',
+        message: validationError,
+      })
       return
     }
     // Convert to database format before saving
@@ -379,6 +453,55 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
                     value={layoutData.floors}
                     onChange={(e) => {
                       const newFloors = Number(e.target.value)
+
+                      // Check if reducing floors and there are seats on removed floors
+                      if (newFloors < layoutData.floors) {
+                        const seatsOnRemovedFloors = (
+                          layoutData.seats || []
+                        ).filter((s) => s.floor > newFloors)
+
+                        if (seatsOnRemovedFloors.length > 0) {
+                          // Show warning and ask for confirmation
+                          setWarningModal({
+                            open: true,
+                            title: 'Remove Floors?',
+                            message: `You are reducing floors from ${layoutData.floors} to ${newFloors}. This will remove ${seatsOnRemovedFloors.length} seat(s) from floor(s) ${[...new Set(seatsOnRemovedFloors.map((s) => s.floor))].join(', ')}. Continue?`,
+                            onConfirm: () => {
+                              // Remove seats from removed floors
+                              const filteredSeats = (
+                                layoutData.seats || []
+                              ).filter((s) => s.floor <= newFloors)
+                              setLayoutData({
+                                ...layoutData,
+                                floors: newFloors,
+                                seats: filteredSeats,
+                                total_seats: filteredSeats.length,
+                              })
+                              if (layoutData.currentFloor > newFloors) {
+                                setCurrentFloor(newFloors)
+                              }
+                              setWarningModal({
+                                open: false,
+                                title: '',
+                                message: '',
+                                onConfirm: () => {},
+                                onCancel: () => {},
+                              })
+                            },
+                            onCancel: () => {
+                              setWarningModal({
+                                open: false,
+                                title: '',
+                                message: '',
+                                onConfirm: () => {},
+                                onCancel: () => {},
+                              })
+                            },
+                          })
+                          return
+                        }
+                      }
+
                       setLayoutData({
                         ...layoutData,
                         floors: newFloors,
@@ -737,6 +860,26 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Error Modal */}
+      <ErrorModal
+        open={errorModal.open}
+        onClose={() => setErrorModal({ open: false, title: '', message: '' })}
+        title={errorModal.title}
+        message={errorModal.message}
+        details={errorModal.details}
+      />
+
+      {/* Warning Modal for Floor Reduction */}
+      <ConfirmDialog
+        open={warningModal.open}
+        onClose={warningModal.onCancel}
+        onConfirm={warningModal.onConfirm}
+        title={warningModal.title}
+        message={warningModal.message}
+        confirmText="Remove & Continue"
+        cancelText="Cancel"
+      />
     </div>
   )
 }

@@ -17,7 +17,8 @@ class BusRepository {
     } = busData;
 
     const modelResult = await pool.query(
-      'SELECT bus_model_id, total_seats FROM bus_models WHERE name ILIKE $1',
+      //'SELECT bus_model_id, total_seats FROM bus_models WHERE name ILIKE $1',
+      'SELECT bus_model_id FROM bus_models WHERE name ILIKE $1',
       [model.trim()]
     );
     if (modelResult.rows.length === 0) {
@@ -89,7 +90,7 @@ class BusRepository {
         b.image_url,
         b.created_at,
         bm.name as model_name,
-        bm.total_seats,
+        --bm.total_seats,
         o.name as operator_name,
         CASE WHEN sl.layout_json IS NOT NULL THEN true ELSE false END as has_seat_layout
       FROM buses b
@@ -187,7 +188,7 @@ class BusRepository {
       b.*,
       b.operator_id,           -- thêm lại cho chắc
       bm.name as model_name,
-      bm.total_seats,
+      --bm.total_seats,
       sl.layout_json
     FROM buses b
     JOIN bus_models bm ON b.bus_model_id = bm.bus_model_id

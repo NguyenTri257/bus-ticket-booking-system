@@ -67,7 +67,7 @@ function transformSeatMapResponse(
     seats: (seatMapData.seats || []).map((seat) => ({
       ...seat,
       seat_type:
-        seat.seat_type === 'window' || seat.seat_type === 'aisle'
+        seat.position === 'window' || seat.position === 'aisle'
           ? 'standard'
           : (seat.seat_type as 'standard' | 'vip'),
       status:

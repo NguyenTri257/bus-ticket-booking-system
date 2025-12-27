@@ -13,11 +13,17 @@ export interface Bus {
   type: string
 }
 
+export interface SeatData {
+  code: string
+  floor?: number
+  price?: number
+}
+
 export interface SeatLayout {
   floors: number
   rows: Array<{
     row: number
-    seats: (string | null)[]
+    seats: (string | null | SeatData)[]
   }>
   type?: string
 }
@@ -26,7 +32,7 @@ export interface Seat {
   seat_number: string
   row: number
   col: number
-  type: 'standard' | 'vip'
+  type: 'standard' | 'vip' | 'window' | 'aisle'
   price_multiplier: number
   price?: number
 }

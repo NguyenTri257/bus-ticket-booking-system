@@ -250,6 +250,15 @@ const AdminAccountManagement: React.FC = () => {
   const handleReactivateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!reactivateId) {
+      setErrorModal({
+        open: true,
+        message: 'No account selected for reactivation',
+        title: 'Error',
+      })
+      return
+    }
+
     // For passenger accounts, no password needed
     if (currentAccount?.role === 'passenger') {
       try {

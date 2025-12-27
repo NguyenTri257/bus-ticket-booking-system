@@ -1,10 +1,16 @@
 // types/seatMap.ts
+export interface SeatData {
+  code: string
+  floor?: number
+  price?: number
+}
+
 export interface Seat {
   seat_number: string
   floor: number // 1-based floor number
   row: number
   col: number
-  type: 'standard' | 'vip'
+  type: 'standard' | 'vip' | 'window' | 'aisle'
   price: number
 }
 
@@ -18,7 +24,7 @@ export interface LayoutData {
 
 export interface BackendLayoutRow {
   row: number
-  seats: (string | null)[]
+  seats: (string | null | SeatData)[]
 }
 
 export interface BackendLayout {
@@ -31,7 +37,7 @@ export interface SeatLayout {
   floors: number
   rows: Array<{
     row: number
-    seats: (string | null)[]
+    seats: (string | null | SeatData)[]
   }>
   type?: string
 }

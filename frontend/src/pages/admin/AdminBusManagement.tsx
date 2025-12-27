@@ -423,8 +423,8 @@ const AdminBusManagement: React.FC = () => {
               <CustomDropdown
                 options={[
                   { id: '', label: 'All' },
-                  { id: 'true', label: 'Configured' },
-                  { id: 'false', label: 'Not Configured' },
+                  { id: 'true', label: 'Set' },
+                  { id: 'false', label: 'Not Set' },
                 ]}
                 value={filters.has_seat_layout}
                 onChange={(value) =>
@@ -522,9 +522,7 @@ const AdminBusManagement: React.FC = () => {
                     <AdminTableCell>
                       <StatusBadge
                         status={bus.has_seat_layout ? 'success' : 'warning'}
-                        label={
-                          bus.has_seat_layout ? 'Configured' : 'Not Configured'
-                        }
+                        label={bus.has_seat_layout ? 'Set' : 'Not Set'}
                       />
                     </AdminTableCell>
                     <AdminTableCell>

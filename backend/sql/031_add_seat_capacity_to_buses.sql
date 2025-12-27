@@ -1,11 +1,8 @@
 -- Add seat_capacity column to buses table
-ALTER TABLE buses ADD COLUMN seat_capacity INTEGER;
+ALTER TABLE buses ADD COLUMN seat_capacity INTEGER DEFAULT 0;
 
--- Update existing records to set seat_capacity from bus_models.total_seats
-UPDATE buses
-SET seat_capacity = bm.total_seats
-FROM bus_models bm
-WHERE buses.bus_model_id = bm.bus_model_id;
+-- Note: seat_capacity will be updated automatically when seats are regenerated from layouts
+-- in the regenerateSeatsFromLayout function in busModelRepository.js
 
--- Add check constraint to ensure seat_capacity is positive
-ALTER TABLE buses ADD CONSTRAINT check_seat_capacity_positive CHECK (seat_capacity > 0);
+-- Add check constraint to ensure seat_capacity is not negative
+ALTER TABLE buses ADD CONSTRAINT check_seat_capacity_not_negative CHECK (seat_capacity >= 0);

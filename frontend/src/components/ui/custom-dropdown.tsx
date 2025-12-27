@@ -40,7 +40,8 @@ export const CustomDropdown = React.forwardRef<
       width: 0,
     })
     const buttonRef = React.useRef<HTMLButtonElement>(null)
-    // Close dropdown on scroll or resize
+    // Close dropdown on resize only
+    // Don't close on scroll to allow scrollbar interaction
     useEffect(() => {
       if (!isOpen) return
 
@@ -49,14 +50,13 @@ export const CustomDropdown = React.forwardRef<
         onOpenChange?.(false)
       }
 
-      const handleScroll = () => handleClose()
       const handleResize = () => handleClose()
 
-      window.addEventListener('scroll', handleScroll, true)
+      // Only listen for resize, not scroll
+      // This allows users to scroll within dropdowns without closing them
       window.addEventListener('resize', handleResize)
 
       return () => {
-        window.removeEventListener('scroll', handleScroll, true)
         window.removeEventListener('resize', handleResize)
       }
     }, [isOpen, onOpenChange])

@@ -1,6 +1,7 @@
 // types/seatMap.ts
 export interface Seat {
   seat_number: string
+  floor: number // 1-based floor number
   row: number
   col: number
   type: 'standard' | 'vip'

@@ -77,25 +77,46 @@ class BusModelRepository {
     // Delete existing seats for this bus
     await pool.query('DELETE FROM seats WHERE bus_id = $1', [busId]);
 
-    // Generate seats based on layout_json
+    // First, get the layout to determine rows per floor
+    const layoutQuery = 'SELECT layout_json FROM seat_layouts WHERE bus_id = $1;';
+    const layoutResult = await pool.query(layoutQuery, [busId]);
+
+    if (!layoutResult.rows[0]) {
+      return 0; // No layout found
+    }
+
+    const layout = layoutResult.rows[0].layout_json;
+    const floors = layout.floors || 1;
+    const rowsPerFloor = Math.floor(layout.rows.length / floors);
+
+    // Generate seats based on layout_json with proper floor and row mapping
     const query = `
       INSERT INTO seats (bus_id, seat_code, seat_type, position, price, row_num, col_num, is_active)
       SELECT
         b.bus_id,
-        seat_element.value #>> '{}' as seat_code,
         CASE
-          WHEN seat_element.value #>> '{}' LIKE 'VIP%' THEN 'vip'
+          WHEN jsonb_typeof(seat_element.value) = 'string' THEN seat_element.value #>> '{}'
+          WHEN jsonb_typeof(seat_element.value) = 'object' THEN seat_element.value ->> 'code'
+          ELSE seat_element.value #>> '{}'
+        END as seat_code,
+        CASE
+          WHEN jsonb_typeof(seat_element.value) = 'string' AND seat_element.value #>> '{}' LIKE 'VIP%' THEN 'vip'
+          WHEN jsonb_typeof(seat_element.value) = 'object' AND seat_element.value ->> 'code' LIKE 'VIP%' THEN 'vip'
           ELSE 'standard'
         END as seat_type,
         CASE
-          WHEN seat_element.value #>> '{}' ~ '[A]$' THEN 'window'
+          WHEN jsonb_typeof(seat_element.value) = 'string' AND seat_element.value #>> '{}' ~ '[A-Z]$' THEN 'window'
+          WHEN jsonb_typeof(seat_element.value) = 'object' AND seat_element.value ->> 'code' ~ '[A-Z]$' THEN 'window'
           ELSE 'aisle'
         END as position,
         CASE
-          WHEN seat_element.value #>> '{}' LIKE 'VIP%' THEN 50000
+          WHEN jsonb_typeof(seat_element.value) = 'string' THEN
+            CASE WHEN seat_element.value #>> '{}' LIKE 'VIP%' THEN 50000 ELSE 0 END
+          WHEN jsonb_typeof(seat_element.value) = 'object' THEN
+            COALESCE((seat_element.value ->> 'price')::numeric, 0)
           ELSE 0
         END as price,
-        (row_data->>'row')::integer - 1 as row_num,
+        ((row_data->>'row')::integer - 1) % $2 as row_num,
         seat_element.column_index - 1 as col_num,
         true as is_active
       FROM buses b
@@ -104,10 +125,31 @@ class BusModelRepository {
       CROSS JOIN LATERAL jsonb_array_elements(row_data->'seats') WITH ORDINALITY as seat_element(value, column_index)
       WHERE b.bus_id = $1
         AND seat_element.value IS NOT NULL
-        AND seat_element.value #>> '{}' != 'null'
-      ON CONFLICT (bus_id, seat_code) DO NOTHING;
+        AND (
+          (jsonb_typeof(seat_element.value) = 'string' AND seat_element.value #>> '{}' != 'null') OR
+          (jsonb_typeof(seat_element.value) = 'object' AND seat_element.value ->> 'code' IS NOT NULL)
+        )
+      ON CONFLICT (bus_id, seat_code) DO UPDATE SET
+        seat_type = EXCLUDED.seat_type,
+        position = EXCLUDED.position,
+        price = EXCLUDED.price,
+        row_num = EXCLUDED.row_num,
+        col_num = EXCLUDED.col_num,
+        is_active = EXCLUDED.is_active;
     `;
-    const result = await pool.query(query, [busId]);
+    const result = await pool.query(query, [busId, rowsPerFloor]);
+
+    // Update seat_capacity based on actual seats generated
+    const updateCapacityQuery = `
+      UPDATE buses
+      SET seat_capacity = (
+        SELECT COUNT(*) FROM seats
+        WHERE bus_id = $1 AND is_active = true
+      )
+      WHERE bus_id = $1;
+    `;
+    await pool.query(updateCapacityQuery, [busId]);
+
     return result.rowCount;
   }
 

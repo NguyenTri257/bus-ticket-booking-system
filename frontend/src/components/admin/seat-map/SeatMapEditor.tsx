@@ -8,7 +8,14 @@ import type {
   SeatLayout,
 } from '@/types/seatMap'
 import { CustomDropdown } from '@/components/ui/custom-dropdown'
-import Input from '@/components/Input'
+import {
+  Table,
+  TableBody,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table'
 
 // Seat layout templates
 const SEAT_TEMPLATES: Record<string, SeatTemplate> = {
@@ -54,18 +61,36 @@ const convertSeatLayoutToLayoutData = (seatLayout: SeatLayout): LayoutData => {
 
   seatLayout.rows.forEach((rowData, rowIndex) => {
     if (rowData.seats && Array.isArray(rowData.seats)) {
-      rowData.seats.forEach((seatCode, colIndex) => {
-        if (seatCode) {
-          // Determine seat type and parse the seat code
-          // Format: "1A", "2B", "VIP1A", "VIP2B", etc.
+      rowData.seats.forEach((seatData, colIndex) => {
+        if (seatData) {
+          let seatCode: string
+          let price = 0
+          let floor = 1
+
+          // Handle both old format (string) and new format (object with code and price)
+          if (typeof seatData === 'string') {
+            seatCode = seatData
+            // Determine seat type and set default price
+            const isVip = seatCode.startsWith('VIP')
+            price = isVip ? 50000 : 0
+          } else if (typeof seatData === 'object' && seatData.code) {
+            seatCode = seatData.code
+            price = seatData.price || 0
+            floor = seatData.floor || 1
+          } else {
+            return // Skip invalid seat data
+          }
+
+          // Determine seat type from seat code
           const isVip = seatCode.startsWith('VIP')
 
           seats.push({
             seat_number: seatCode,
+            floor: floor, // 1-based floor number
             row: rowIndex, // 0-based row index
             col: colIndex, // 0-based column index
             type: isVip ? 'vip' : 'standard',
-            price: isVip ? 50000 : 0,
+            price: price,
           })
           totalSeats++
         }
@@ -74,7 +99,7 @@ const convertSeatLayoutToLayoutData = (seatLayout: SeatLayout): LayoutData => {
   })
 
   return {
-    floors: seatLayout.floors,
+    floors: seatLayout.floors || 1,
     rows: seatLayout.rows.length,
     columns: seatLayout.rows[0]?.seats?.length || 0,
     seats,
@@ -88,18 +113,25 @@ const convertLayoutDataToSeatLayout = (layoutData: LayoutData): SeatLayout => {
 
   // Initialize rows array
   for (let row = 0; row < layoutData.rows; row++) {
-    const seats: (string | null)[] = []
+    const seats: (
+      | string
+      | { code: string; price: number; floor?: number }
+      | null
+    )[] = []
     for (let col = 0; col < layoutData.columns; col++) {
       seats.push(null)
     }
     rows.push({ row: row + 1, seats }) // 1-based row number
   }
 
-  // Fill in seats
+  // Fill in seats with code, price, and floor
   layoutData.seats.forEach((seat) => {
     if (seat.row < rows.length && seat.col < rows[seat.row].seats.length) {
-      const seatCode = seat.seat_number
-      rows[seat.row].seats[seat.col] = seatCode
+      rows[seat.row].seats[seat.col] = {
+        code: seat.seat_number,
+        price: seat.price,
+        floor: seat.floor, // Include floor information
+      }
     }
   })
 
@@ -151,6 +183,7 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
 
   const [selectedTemplate, setSelectedTemplate] = useState<string>('')
   const [showPreview, setShowPreview] = useState(false)
+  const [currentFloor, setCurrentFloor] = useState<number>(1) // Track which floor user is editing
 
   const generateSeatsFromTemplate = (templateName: string) => {
     const template = SEAT_TEMPLATES[templateName as keyof typeof SEAT_TEMPLATES]
@@ -159,31 +192,35 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
     const seats: Seat[] = []
     let seatCounter = 1
 
-    for (let row = 0; row < template.rows; row++) {
-      for (let col = 0; col < template.columns; col++) {
-        // Skip some positions for aisles
-        if (
-          (template.columns === 4 && col === 2) ||
-          (template.columns === 5 && (col === 2 || col === 3))
-        ) {
-          continue
+    // Generate seats for all floors
+    for (let floor = 1; floor <= template.layout.floors; floor++) {
+      for (let row = 0; row < template.rows; row++) {
+        for (let col = 0; col < template.columns; col++) {
+          // Skip some positions for aisles
+          if (
+            (template.columns === 4 && col === 2) ||
+            (template.columns === 5 && (col === 2 || col === 3))
+          ) {
+            continue
+          }
+
+          // Generate seat code format: number + letter (e.g., "1A", "2B", "VIP1A")
+          const seatLetter = String.fromCharCode(65 + col) // A, B, C, D, E
+          const isVip = templateName.includes('VIP')
+          const seatCode = isVip
+            ? `VIP${seatCounter}${seatLetter}`
+            : `${seatCounter}${seatLetter}`
+
+          seats.push({
+            seat_number: seatCode,
+            floor: floor, // Track which floor this seat belongs to
+            row,
+            col,
+            type: isVip ? 'vip' : 'standard',
+            price: isVip ? 50000 : 0,
+          })
+          seatCounter++
         }
-
-        // Generate seat code format: number + letter (e.g., "1A", "2B", "VIP1A")
-        const seatLetter = String.fromCharCode(65 + col) // A, B, C, D, E
-        const isVip = templateName.includes('VIP')
-        const seatCode = isVip
-          ? `VIP${seatCounter}${seatLetter}`
-          : `${seatCounter}${seatLetter}`
-
-        seats.push({
-          seat_number: seatCode,
-          row,
-          col,
-          type: isVip ? 'vip' : 'standard',
-          price: isVip ? 50000 : 0,
-        })
-        seatCounter++
       }
     }
 
@@ -192,11 +229,12 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
       seats,
       total_seats: seats.length,
     })
+    setCurrentFloor(1) // Reset to floor 1 after generating
   }
 
   const handleSeatClick = (row: number, col: number) => {
     const existingSeat = (layoutData.seats || []).find(
-      (s: Seat) => s.row === row && s.col === col
+      (s: Seat) => s.floor === currentFloor && s.row === row && s.col === col
     )
     if (existingSeat) {
       // Edit existing seat - toggle between standard and VIP
@@ -207,14 +245,17 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
       setLayoutData({
         ...layoutData,
         seats: (layoutData.seats || []).map((s: Seat) =>
-          s.row === row && s.col === col
+          s.floor === currentFloor && s.row === row && s.col === col
             ? { ...s, type: newType, seat_number: newSeatCode }
             : s
         ),
       })
     } else {
-      // Add new seat - find next available seat number
-      const existingNumbers = (layoutData.seats || [])
+      // Add new seat - find next available seat number for this floor
+      const seatsForFloor = (layoutData.seats || []).filter(
+        (s) => s.floor === currentFloor
+      )
+      const existingNumbers = seatsForFloor
         .map((s) => {
           const num = s.seat_number.replace('VIP', '')
           return parseInt(num.match(/^\d+/)?.[0] || '0')
@@ -232,6 +273,7 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
           ...(layoutData.seats || []),
           {
             seat_number: seatCode,
+            floor: currentFloor, // Track which floor this seat is on
             row,
             col,
             type: 'standard',
@@ -335,12 +377,17 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
                   <input
                     type="number"
                     value={layoutData.floors}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const newFloors = Number(e.target.value)
                       setLayoutData({
                         ...layoutData,
-                        floors: Number(e.target.value),
+                        floors: newFloors,
                       })
-                    }
+                      // Reset to floor 1 if current floor exceeds new floor count
+                      if (currentFloor > newFloors) {
+                        setCurrentFloor(1)
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-border rounded-md text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     min="1"
                     max="2"
@@ -384,10 +431,37 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
                 </div>
               </div>
 
+              {/* Floor Selector - Only show if multiple floors */}
+              {layoutData.floors > 1 && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Select Floor
+                  </label>
+                  <div className="flex gap-2">
+                    {Array.from(
+                      { length: layoutData.floors },
+                      (_, i) => i + 1
+                    ).map((floor) => (
+                      <button
+                        key={floor}
+                        onClick={() => setCurrentFloor(floor)}
+                        className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                          currentFloor === floor
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        }`}
+                      >
+                        Floor {floor}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Visual Editor */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  Seat Layout (Click to add/edit seats)
+                  Seat Layout - Floor {currentFloor} (Click to add/edit seats)
                 </label>
                 <div className="border border-border rounded-md p-4 bg-muted/20">
                   <div
@@ -399,7 +473,10 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
                     {Array.from({ length: layoutData.rows }, (_, row) =>
                       Array.from({ length: layoutData.columns }, (_, col) => {
                         const seat = (layoutData.seats || []).find(
-                          (s: Seat) => s.row === row && s.col === col
+                          (s: Seat) =>
+                            s.floor === currentFloor &&
+                            s.row === row &&
+                            s.col === col
                         )
                         return (
                           <div
@@ -427,158 +504,216 @@ const SeatMapEditor: React.FC<SeatMapEditorProps> = ({
                 </div>
               </div>
 
-              {/* Seat Details */}
-              <div>
-                {layoutData?.seats?.length > 0 && (
-                  <h3 className="text-sm font-medium text-foreground mb-2">
-                    Seat Details
+              {/* Seat Details Table */}
+              {layoutData?.seats?.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-medium text-foreground mb-3">
+                    Seat Details - Floor {currentFloor} (
+                    {
+                      (layoutData?.seats || []).filter(
+                        (s) => s.floor === currentFloor
+                      ).length
+                    }{' '}
+                    seats)
                   </h3>
-                )}
-                <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {/* Column Headers */}
-                  {layoutData?.seats?.length > 0 && (
-                    <div className="flex items-center justify-between px-2 py-1 bg-muted/30 rounded text-xs font-medium text-muted-foreground">
-                      <span>Seat</span>
-                      <div className="flex items-center gap-2">
-                        <span className="w-16 text-center">Type</span>
-                        <span className="w-24 text-center">Price</span>
-                        <span className="w-10 text-center">Action</span>
-                      </div>
-                    </div>
-                  )}
-                  {(layoutData.seats || []).map((seat: Seat, index: number) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-2 bg-muted/50 rounded"
-                    >
-                      <span className="text-sm font-medium">
-                        {seat.seat_number}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <div>
-                          <CustomDropdown
-                            options={[
-                              {
-                                id: 'standard',
-                                label: 'Standard',
-                              },
-                              { id: 'vip', label: 'VIP' },
-                            ]}
-                            value={seat.type}
-                            onChange={(value) => {
-                              const newType = value as Seat['type']
-                              const seatNumber = seat.seat_number.replace(
-                                'VIP',
-                                ''
-                              )
-                              const newSeatCode =
-                                newType === 'vip'
-                                  ? `VIP${seatNumber}`
-                                  : seatNumber
+                  <div className="border border-border rounded-md overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50 hover:bg-muted/50">
+                          <TableHead className="font-semibold text-foreground text-center">
+                            Seat Code
+                          </TableHead>
+                          <TableHead className="font-semibold text-foreground text-center">
+                            Type
+                          </TableHead>
+                          <TableHead className="font-semibold text-foreground text-center">
+                            Price
+                          </TableHead>
+                          <TableHead className="font-semibold text-foreground text-center w-12">
+                            Action
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(layoutData.seats || [])
+                          .filter((seat) => seat.floor === currentFloor)
+                          .map((seat: Seat) => {
+                            const actualIndex = (
+                              layoutData.seats || []
+                            ).indexOf(seat)
+                            return (
+                              <TableRow
+                                key={actualIndex}
+                                className="hover:bg-muted/40 transition-colors"
+                              >
+                                <TableCell className="text-center">
+                                  <span
+                                    className={`inline-flex items-center px-2.5 py-1 rounded-md text-sm font-medium ${
+                                      seat.type === 'vip'
+                                        ? 'bg-yellow-100 text-yellow-800'
+                                        : 'bg-blue-100 text-blue-800'
+                                    }`}
+                                  >
+                                    {seat.seat_number}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <CustomDropdown
+                                    options={[
+                                      {
+                                        id: 'standard',
+                                        label: 'Standard',
+                                      },
+                                      { id: 'vip', label: 'VIP' },
+                                    ]}
+                                    value={seat.type}
+                                    onChange={(value) => {
+                                      const newType = value as Seat['type']
+                                      const seatNumber =
+                                        seat.seat_number.replace('VIP', '')
+                                      const newSeatCode =
+                                        newType === 'vip'
+                                          ? `VIP${seatNumber}`
+                                          : seatNumber
 
-                              setLayoutData({
-                                ...layoutData,
-                                seats: (layoutData.seats || []).map(
-                                  (s: Seat, i: number) =>
-                                    i === index
-                                      ? {
-                                          ...s,
-                                          type: newType,
-                                          seat_number: newSeatCode,
-                                        }
-                                      : s
-                                ),
-                              })
-                            }}
-                            className="mt-1 h-8 w-32"
-                          />
-                        </div>
-                        <div className="min-w-20 max-w-24">
-                          <Input
-                            label="Price"
-                            hideLabel={true}
-                            type="text"
-                            value={seat.price.toLocaleString()}
-                            onChange={(e) => {
-                              // Remove thousand separators and parse as number
-                              const numericValue = e.target.value.replace(
-                                /,/g,
-                                ''
-                              )
-                              const parsedValue = Number(numericValue) || 0
+                                      setLayoutData({
+                                        ...layoutData,
+                                        seats: (layoutData.seats || []).map(
+                                          (s: Seat, i: number) =>
+                                            i === actualIndex
+                                              ? {
+                                                  ...s,
+                                                  type: newType,
+                                                  seat_number: newSeatCode,
+                                                }
+                                              : s
+                                        ),
+                                      })
+                                    }}
+                                    className="h-8 w-28"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <input
+                                    type="text"
+                                    value={seat.price.toLocaleString('vi-VN')}
+                                    onChange={(e) => {
+                                      // Remove thousand separators and parse as number
+                                      const numericValue =
+                                        e.target.value.replace(/[^\d]/g, '')
+                                      const parsedValue =
+                                        Number(numericValue) || 0
 
-                              setLayoutData({
-                                ...layoutData,
-                                seats: (layoutData.seats || []).map(
-                                  (s: Seat, i: number) =>
-                                    i === index
-                                      ? {
-                                          ...s,
-                                          price: parsedValue,
-                                        }
-                                      : s
-                                ),
-                              })
-                            }}
-                            className="h-8 font-medium text-right w-full"
-                            placeholder="0"
-                          />
-                        </div>
-                        <button
-                          onClick={() => handleDeleteSeat(index)}
-                          className="text-red-500 hover:text-red-600 transition-colors"
-                          title="Delete seat"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                                      setLayoutData({
+                                        ...layoutData,
+                                        seats: (layoutData.seats || []).map(
+                                          (s: Seat, i: number) =>
+                                            i === actualIndex
+                                              ? {
+                                                  ...s,
+                                                  price: parsedValue,
+                                                }
+                                              : s
+                                        ),
+                                      })
+                                    }}
+                                    onBlur={() => {
+                                      // Force formatting on blur
+                                      setLayoutData({
+                                        ...layoutData,
+                                        seats: (layoutData.seats || []).map(
+                                          (s: Seat, i: number) =>
+                                            i === actualIndex ? s : s
+                                        ),
+                                      })
+                                    }}
+                                    className="w-full px-3 py-2 text-center border border-border rounded-md font-medium text-foreground bg-background hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring transition-colors"
+                                    placeholder="0"
+                                  />
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <button
+                                    onClick={() =>
+                                      handleDeleteSeat(actualIndex)
+                                    }
+                                    className="inline-flex items-center justify-center p-2 text-red-500 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                    title="Delete seat"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </TableCell>
+                              </TableRow>
+                            )
+                          })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             /* Preview Mode */
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-foreground">Preview</h3>
-              <div className="border border-border rounded-md p-6 bg-white">
-                <div className="text-center mb-4">
-                  <h4 className="font-medium">{bus.license_plate}</h4>
-                  <p className="text-sm text-muted-foreground">Front of Bus</p>
-                </div>
-                <div
-                  className="grid gap-1 mx-auto w-fit"
-                  style={{
-                    gridTemplateColumns: `repeat(${layoutData.columns}, 40px)`,
-                  }}
-                >
-                  {Array.from({ length: layoutData.rows }, (_, row) =>
-                    Array.from({ length: layoutData.columns }, (_, col) => {
-                      const seat = (layoutData.seats || []).find(
-                        (s: Seat) => s.row === row && s.col === col
-                      )
-                      return (
-                        <div
-                          key={`${row}-${col}`}
-                          className={`w-10 h-10 border rounded flex items-center justify-center text-xs ${
-                            seat
-                              ? seat.type === 'vip'
-                                ? 'bg-yellow-200 border-yellow-400'
-                                : 'bg-blue-200 border-blue-400'
-                              : 'bg-gray-100 border-gray-300'
-                          }`}
-                        >
-                          {seat ? seat.seat_number : ''}
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-                <div className="text-center mt-4">
-                  <p className="text-sm text-muted-foreground">
-                    Total Seats: {(layoutData.seats || []).length}
-                  </p>
-                </div>
+              {Array.from({ length: layoutData.floors }, (_, floorIndex) => {
+                const floor = floorIndex + 1
+                const floorSeats = (layoutData.seats || []).filter(
+                  (s) => s.floor === floor
+                )
+                return (
+                  <div
+                    key={floor}
+                    className="border border-border rounded-md p-6 bg-white"
+                  >
+                    <div className="text-center mb-4">
+                      <h4 className="font-medium">
+                        {bus.license_plate} - Floor {floor}
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Front of Bus
+                      </p>
+                    </div>
+                    <div
+                      className="grid gap-1 mx-auto w-fit"
+                      style={{
+                        gridTemplateColumns: `repeat(${layoutData.columns}, 40px)`,
+                      }}
+                    >
+                      {Array.from({ length: layoutData.rows }, (_, row) =>
+                        Array.from({ length: layoutData.columns }, (_, col) => {
+                          const seat = floorSeats.find(
+                            (s: Seat) => s.row === row && s.col === col
+                          )
+                          return (
+                            <div
+                              key={`${row}-${col}`}
+                              className={`w-10 h-10 border rounded flex items-center justify-center text-xs ${
+                                seat
+                                  ? seat.type === 'vip'
+                                    ? 'bg-yellow-200 border-yellow-400'
+                                    : 'bg-blue-200 border-blue-400'
+                                  : 'bg-gray-100 border-gray-300'
+                              }`}
+                            >
+                              {seat ? seat.seat_number : ''}
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                    <div className="text-center mt-4">
+                      <p className="text-sm text-muted-foreground">
+                        Floor {floor} Seats: {floorSeats.length}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+              <div className="border border-border rounded-md p-4 bg-muted/20">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Total Seats:</strong>{' '}
+                  {(layoutData.seats || []).length}
+                </p>
               </div>
             </div>
           )}

@@ -83,18 +83,63 @@ class AdminBusService {
             message: 'Seats must be an array',
           })
         } else {
-          rowData.seats.forEach((seatCode, seatIndex) => {
-            if (seatCode !== null && typeof seatCode !== 'string') {
+          rowData.seats.forEach((seatData, seatIndex) => {
+            // Handle both old format (string/null) and new format (object/null)
+            let seatCode: string | null = null
+            let floor: number | undefined = undefined
+
+            if (seatData === null) {
+              seatCode = null
+            } else if (typeof seatData === 'string') {
+              seatCode = seatData
+            } else if (
+              typeof seatData === 'object' &&
+              seatData &&
+              'code' in seatData
+            ) {
+              seatCode = seatData.code
+              floor = seatData.floor // Extract floor if present
+            } else {
               errors.push({
                 field: `rows[${index}].seats[${seatIndex}]`,
-                message: 'Seat code must be a string or null',
+                message:
+                  'Seat data must be a string, object with code property, or null',
               })
-            } else if (seatCode && !/^VIP\d+[A-Z]+|\d+[A-Z]+$/.test(seatCode)) {
+              return
+            }
+
+            // Validate seat code format if it exists
+            if (seatCode && !/^VIP\d+[A-Z]+|\d+[A-Z]+$/.test(seatCode)) {
               errors.push({
                 field: `rows[${index}].seats[${seatIndex}]`,
                 message:
                   'Seat code must be number(s) followed by letter(s), optionally prefixed with VIP',
               })
+            }
+
+            // Validate floor if present
+            if (floor !== undefined) {
+              if (!Number.isInteger(floor) || floor < 1 || floor > 2) {
+                errors.push({
+                  field: `rows[${index}].seats[${seatIndex}].floor`,
+                  message: 'Floor must be 1 or 2',
+                })
+              }
+            }
+
+            // Validate price if it's an object
+            if (
+              typeof seatData === 'object' &&
+              seatData &&
+              'price' in seatData
+            ) {
+              const price = seatData.price
+              if (typeof price !== 'number' || price < 0) {
+                errors.push({
+                  field: `rows[${index}].seats[${seatIndex}].price`,
+                  message: 'Price must be a non-negative number',
+                })
+              }
             }
           })
         }

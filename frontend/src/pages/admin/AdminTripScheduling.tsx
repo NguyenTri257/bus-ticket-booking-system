@@ -52,6 +52,7 @@ const AdminTripSchedulingPage: React.FC = () => {
     sort_order: 'asc' | 'desc'
     status?: string
     route_id?: string
+    license_plate?: string
     departure_date_from?: string
     departure_date_to?: string
   }>({
@@ -93,15 +94,13 @@ const AdminTripSchedulingPage: React.FC = () => {
     status: string
   ): 'success' | 'danger' | 'default' | 'warning' => {
     switch (status) {
-      case 'active':
+      case 'scheduled':
       case 'completed':
         return 'success'
       case 'cancelled':
         return 'danger'
       case 'in_progress':
         return 'warning'
-      case 'scheduled':
-        return 'default'
       default:
         return 'default'
     }
@@ -144,6 +143,9 @@ const AdminTripSchedulingPage: React.FC = () => {
 
     setDrawerOpen(false)
     setEditingTrip(null)
+
+    // Refresh trips list with current filters
+    fetchTrips(filters.page, filters.limit, filters)
   }
 
   /**
@@ -533,10 +535,13 @@ const AdminTripSchedulingPage: React.FC = () => {
                           <AdminTableCell>
                             <StatusBadge
                               status={getBadgeStatus(trip.status)}
-                              label={
-                                trip.status[0].toUpperCase() +
-                                trip.status.slice(1)
-                              }
+                              label={trip.status
+                                .split('_')
+                                .map(
+                                  (word) =>
+                                    word.charAt(0).toUpperCase() + word.slice(1)
+                                )
+                                .join(' ')}
                             />
                           </AdminTableCell>
                           <AdminTableCell>

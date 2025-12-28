@@ -321,7 +321,6 @@ class AdminTripService {
         'in_progress',
         'completed',
         'cancelled',
-        'active',
         'inactive',
       ]
       if (!validStatuses.includes(tripData.status)) {

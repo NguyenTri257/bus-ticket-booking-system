@@ -204,7 +204,7 @@ class TripRepository {
   async create(trip_data) {
     const query = `
       INSERT INTO trips (route_id, bus_id, departure_time, arrival_time, base_price, policies, status)
-      VALUES ($1, $2, $3, $4, $5, $6::jsonb, 'active')
+      VALUES ($1, $2, $3, $4, $5, $6::jsonb, 'scheduled')
       RETURNING *
     `;
     const values = [
@@ -281,6 +281,7 @@ class TripRepository {
     route_id,
     bus_id,
     operator_id,
+    license_plate,
     search,
     departure_date_from,
     departure_date_to,
@@ -336,6 +337,12 @@ class TripRepository {
       if (operator_id) {
         whereConditions.push(`o.operator_id = $${index}`);
         values.push(operator_id);
+        index++;
+      }
+
+      if (license_plate) {
+        whereConditions.push(`UPPER(b.plate_number) LIKE UPPER($${index})`);
+        values.push(`%${license_plate}%`);
         index++;
       }
 
@@ -454,7 +461,7 @@ class TripRepository {
     const offset = (page - 1) * limit;
     const values = [];
     let index = 1;
-    let where_clauses = [`t.status != 'inactive'`];
+    let where_clauses = [`t.status = 'scheduled'`];
 
     // Build filters
     if (origin) {
@@ -514,7 +521,7 @@ class TripRepository {
   }
 
   async softDelete(id) {
-    const query = `UPDATE trips SET status = 'inactive', updated_at = NOW() WHERE trip_id = $1 RETURNING *`;
+    const query = `UPDATE trips SET status = 'cancelled', updated_at = NOW() WHERE trip_id = $1 RETURNING *`;
     const result = await pool.query(query, [id]);
     if (result.rowCount === 0) return null;
     return await this._mapRowToTrip(result.rows[0]);

@@ -72,6 +72,20 @@ export const TripFilters: React.FC<TripFiltersProps> = ({
             className="w-full px-3 py-2 border border-input bg-background rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
           />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-foreground mb-2">
+            Bus License Plate
+          </label>
+          <input
+            type="text"
+            placeholder="Search by bus license plate..."
+            value={filters.license_plate || ''}
+            onChange={(e) =>
+              handleFilterChange('license_plate', e.target.value || undefined)
+            }
+            className="w-full px-3 py-2 border border-input bg-background rounded-md text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+          />
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-foreground mb-2">
@@ -80,12 +94,10 @@ export const TripFilters: React.FC<TripFiltersProps> = ({
           <CustomDropdown
             options={[
               { id: '', label: 'All statuses' },
-              { id: 'active', label: 'Active' },
               { id: 'scheduled', label: 'Scheduled' },
               { id: 'in_progress', label: 'In Progress' },
               { id: 'completed', label: 'Completed' },
               { id: 'cancelled', label: 'Cancelled' },
-              { id: 'inactive', label: 'Inactive' },
             ]}
             value={filters.status || ''}
             onChange={(value) =>

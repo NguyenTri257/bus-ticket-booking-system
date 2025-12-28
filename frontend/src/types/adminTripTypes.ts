@@ -32,7 +32,7 @@ export interface AssignRouteRequest {
 }
 
 export interface TripStatusUpdateRequest {
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+  status: 'inactive' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
   notes?: string
 }
 
@@ -42,6 +42,7 @@ export interface TripFilterParams {
   bus_id?: string
   operator_id?: string
   search?: string
+  license_plate?: string
   departure_date_from?: string
   departure_date_to?: string
   sort_by?: string

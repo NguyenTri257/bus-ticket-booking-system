@@ -311,102 +311,95 @@ INSERT INTO trips (route_id, bus_id, departure_time, arrival_time, base_price, p
 -- Ho Chi Minh City to Hanoi (popular route - multiple trips)
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Hanoi' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '51A-123.45' LIMIT 1),
- '2026-01-15 08:00:00', '2026-01-15 14:00:00', 500000, '{"refund": "24h", "changes": "allowed"}', 'active'),
+ '2026-01-15 08:00:00', '2026-01-15 14:00:00', 500000, '{"refund": "24h", "changes": "allowed"}', 'scheduled'),
 
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Hanoi' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '51C-444.44' LIMIT 1),
- '2026-01-15 10:00:00', '2026-01-15 16:00:00', 480000, '{"refund": "24h", "changes": "allowed"}', 'active'),
+ '2026-01-15 10:00:00', '2026-01-15 16:00:00', 480000, '{"refund": "24h", "changes": "allowed"}', 'scheduled'),
 
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Hanoi' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '51A-123.45' LIMIT 1),
- '2026-01-15 14:00:00', '2026-01-15 20:00:00', 520000, '{"refund": "12h", "changes": "allowed"}', 'active'),
+ '2026-01-15 14:00:00', '2026-01-15 20:00:00', 520000, '{"refund": "12h", "changes": "allowed"}', 'scheduled'),
 
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Hanoi' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '51C-444.44' LIMIT 1),
- '2026-01-15 18:00:00', '2026-01-16 00:00:00', 450000, '{"refund": "24h", "changes": "not_allowed"}', 'active'),
+ '2026-01-15 18:00:00', '2026-01-16 00:00:00', 450000, '{"refund": "24h", "changes": "not_allowed"}', 'scheduled'),
 
 -- Hanoi to Ho Chi Minh City (reverse route - multiple trips)
 ((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Ho Chi Minh City' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '30C-555.55' LIMIT 1),
- '2026-01-16 06:00:00', '2026-01-16 12:00:00', 500000, '{"refund": "24h", "changes": "allowed"}', 'active'),
+ '2026-01-16 06:00:00', '2026-01-16 12:00:00', 500000, '{"refund": "24h", "changes": "allowed"}', 'scheduled'),
 
 ((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Ho Chi Minh City' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '51B-111.11' LIMIT 1),
- '2026-01-16 08:00:00', '2026-01-16 14:00:00', 480000, '{"refund": "24h", "changes": "allowed"}', 'active'),
+ '2026-01-16 08:00:00', '2026-01-16 14:00:00', 480000, '{"refund": "24h", "changes": "allowed"}', 'scheduled'),
 
 ((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Ho Chi Minh City' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '30C-555.55' LIMIT 1),
- '2026-01-16 12:00:00', '2026-01-16 18:00:00', 520000, '{"refund": "12h", "changes": "allowed"}', 'active'),
+ '2026-01-16 12:00:00', '2026-01-16 18:00:00', 520000, '{"refund": "12h", "changes": "allowed"}', 'scheduled'),
 
 -- Ho Chi Minh City to Da Nang (popular route - multiple trips)
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Nang' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '30A-678.90' LIMIT 1),
- '2026-01-15 10:00:00', '2026-01-15 18:00:00', 350000, '{"refund": "12h", "changes": "allowed"}', 'active'),
+ '2026-01-15 10:00:00', '2026-01-15 18:00:00', 350000, '{"refund": "12h", "changes": "allowed"}', 'scheduled'),
 
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Nang' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '30B-222.22' LIMIT 1),
- '2026-01-15 14:00:00', '2026-01-15 22:00:00', 320000, '{"refund": "24h", "changes": "allowed"}', 'active'),
-
+ '2026-01-15 14:00:00', '2026-01-15 22:00:00', 320000, '{"refund": "24h", "changes": "allowed"}', 'scheduled'),
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Nang' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '30A-678.90' LIMIT 1),
- '2026-01-15 18:00:00', '2026-01-16 02:00:00', 380000, '{"refund": "12h", "changes": "not_allowed"}', 'active'),
+ '2026-01-15 18:00:00', '2026-01-16 02:00:00', 380000, '{"refund": "12h", "changes": "not_allowed"}', 'scheduled'),
 
 -- Da Nang to Ho Chi Minh City (reverse route)
 ((SELECT route_id FROM routes WHERE origin = 'Da Nang' AND destination = 'Ho Chi Minh City' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '29B-333.33' LIMIT 1),
- '2026-01-16 08:00:00', '2026-01-16 16:00:00', 350000, '{"refund": "24h", "changes": "allowed"}', 'active'),
+ '2026-01-16 08:00:00', '2026-01-16 16:00:00', 350000, '{"refund": "24h", "changes": "allowed"}', 'scheduled'),
 
 ((SELECT route_id FROM routes WHERE origin = 'Da Nang' AND destination = 'Ho Chi Minh City' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '29A-543.21' LIMIT 1),
- '2026-01-16 12:00:00', '2026-01-16 20:00:00', 320000, '{"refund": "24h", "changes": "allowed"}', 'active'),
-
+ '2026-01-16 12:00:00', '2026-01-16 20:00:00', 320000, '{"refund": "24h", "changes": "allowed"}', 'scheduled'),
 -- Hanoi to Da Nang
 ((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Da Nang' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '29A-543.21' LIMIT 1),
- '2026-01-16 06:00:00', '2026-01-16 12:00:00', 250000, '{"refund": "24h", "changes": "not_allowed"}', 'active'),
-
+ '2026-01-16 06:00:00', '2026-01-16 12:00:00', 250000, '{"refund": "24h", "changes": "not_allowed"}', 'scheduled'),
 ((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Da Nang' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '30B-222.22' LIMIT 1),
- '2026-01-16 10:00:00', '2026-01-16 16:00:00', 280000, '{"refund": "12h", "changes": "allowed"}', 'active'),
+ '2026-01-16 10:00:00', '2026-01-16 16:00:00', 280000, '{"refund": "12h", "changes": "allowed"}', 'scheduled'),
 
 -- Da Nang to Hanoi (reverse route)
 ((SELECT route_id FROM routes WHERE origin = 'Da Nang' AND destination = 'Hanoi' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '51B-111.11' LIMIT 1),
- '2026-01-17 08:00:00', '2026-01-17 14:00:00', 250000, '{"refund": "24h", "changes": "allowed"}', 'active'),
+ '2026-01-17 08:00:00', '2026-01-17 14:00:00', 250000, '{"refund": "24h", "changes": "allowed"}', 'scheduled'),
 
 -- Other routes (single trips for now)
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Hue' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '51B-111.11' LIMIT 1),
- '2026-01-15 12:00:00', '2026-01-15 21:00:00', 400000, '{"refund": "24h", "changes": "allowed"}', 'active'),
+ '2026-01-15 12:00:00', '2026-01-15 21:00:00', 400000, '{"refund": "24h", "changes": "allowed"}', 'scheduled'),
 
 ((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Sapa' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '29B-333.33' LIMIT 1),
- '2026-01-16 07:00:00', '2026-01-16 13:00:00', 150000, '{"refund": "12h", "changes": "allowed"}', 'active'),
-
+ '2026-01-16 07:00:00', '2026-01-16 13:00:00', 150000, '{"refund": "12h", "changes": "allowed"}', 'scheduled'),
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Nha Trang' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '30A-678.90' LIMIT 1),
- '2026-01-15 16:00:00', '2026-01-15 20:00:00', 200000, '{"refund": "24h", "changes": "allowed"}', 'active'),
+ '2026-01-15 16:00:00', '2026-01-15 20:00:00', 200000, '{"refund": "24h", "changes": "allowed"}', 'scheduled'),
 
 ((SELECT route_id FROM routes WHERE origin = 'Hanoi' AND destination = 'Hai Phong' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '29A-543.21' LIMIT 1),
- '2026-01-16 09:00:00', '2026-01-16 10:30:00', 80000, '{"refund": "12h", "changes": "allowed"}', 'active'),
-
+ '2026-01-16 09:00:00', '2026-01-16 10:30:00', 80000, '{"refund": "12h", "changes": "allowed"}', 'scheduled'),
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Can Tho' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '29B-333.33' LIMIT 1),
- '2026-01-15 20:00:00', '2026-01-15 21:30:00', 100000, '{"refund": "24h", "changes": "allowed"}', 'active'),
+ '2026-01-15 20:00:00', '2026-01-15 21:30:00', 100000, '{"refund": "24h", "changes": "allowed"}', 'scheduled'),
 
 ((SELECT route_id FROM routes WHERE origin = 'Da Nang' AND destination = 'Quang Ngai' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '30B-222.22' LIMIT 1),
- '2026-01-16 14:00:00', '2026-01-16 15:00:00', 50000, '{"refund": "12h", "changes": "allowed"}', 'active'),
-
+ '2026-01-16 14:00:00', '2026-01-16 15:00:00', 50000, '{"refund": "12h", "changes": "allowed"}', 'scheduled'),
 -- Ho Chi Minh City to Da Lat
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Lat' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '51A-123.45' LIMIT 1),
- '2026-01-15 08:00:00', '2026-01-15 14:00:00', 250000, '{"refund": "24h", "changes": "allowed"}', 'active'),
-
+ '2026-01-15 08:00:00', '2026-01-15 14:00:00', 250000, '{"refund": "24h", "changes": "allowed"}', 'scheduled'),
 ((SELECT route_id FROM routes WHERE origin = 'Ho Chi Minh City' AND destination = 'Da Lat' LIMIT 1),
  (SELECT bus_id FROM buses WHERE license_plate = '51C-444.44' LIMIT 1),
- '2026-01-15 12:00:00', '2026-01-15 18:00:00', 230000, '{"refund": "24h", "changes": "allowed"}', 'active')
+ '2026-01-15 12:00:00', '2026-01-15 18:00:00', 230000, '{"refund": "24h", "changes": "allowed"}', 'scheduled')
 ON CONFLICT DO NOTHING;
 
 -- Generate seats for all buses

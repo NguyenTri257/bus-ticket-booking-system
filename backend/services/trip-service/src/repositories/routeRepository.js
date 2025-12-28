@@ -540,7 +540,8 @@ class RouteRepository {
       MIN(t.base_price) AS starting_price
     FROM routes r
     LEFT JOIN trips t ON t.route_id = r.route_id 
-      AND t.status = 'active' 
+      AND t.status IN ('scheduled') 
+      AND t.departure_time > NOW()
     GROUP BY r.route_id
     ORDER BY total_trips DESC, starting_price ASC NULLS LAST
     LIMIT $1;

@@ -260,6 +260,6 @@ export const legacyTripToTripFormat = (legacyTrip: unknown): Trip => {
           address: stop.address,
         }
       }) || [],
-    status: 'active',
+    status: 'scheduled',
   }
 }

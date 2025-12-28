@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
 import type {
   TripData,
   TripCreateRequest,
@@ -48,11 +50,23 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
   const [routes, setRoutes] = useState<RoutesData[]>([])
   const [buses, setBuses] = useState<BusData[]>([])
 
+  //Helper function to convert UTC ISO string to local datetime-local value
+  const utcToLocalString = (utcString: string): string => {
+    if (!utcString) return ''
+    const date = new Date(utcString)
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+
   // CREATE mode form
   const [createForm, setCreateForm] = useState({
     route_id: '',
     bus_id: '',
-    departure_time: '',
+    departure_time: null as Date | null,
     base_price: 0,
     service_fee: 0,
     policies: {
@@ -70,7 +84,7 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
     status: '',
     bus_id: '',
     route_id: '',
-    departure_time: '',
+    departure_time: null as Date | null,
     base_price: 0,
     service_fee: 0,
     policies: {
@@ -174,7 +188,9 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
         status: initialTrip.status || 'scheduled',
         bus_id: initialTrip.bus?.bus_id || '',
         route_id: initialTrip.route?.route_id || '',
-        departure_time: initialTrip.schedule?.departure_time || '',
+        departure_time: initialTrip.schedule?.departure_time
+          ? utcToLocalString(initialTrip.schedule.departure_time)
+          : '',
         base_price: initialTrip.pricing?.base_price || 0,
         service_fee: initialTrip.pricing?.service_fee || 0,
         policies,
@@ -192,14 +208,20 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
     setValidationErrors({})
   }, [initialTrip, isEditMode, open, defaultPolicies])
 
-  const handleCreateChange = (key: string, value: string | number) => {
+  const handleCreateChange = (
+    key: string,
+    value: string | number | Date | null
+  ) => {
     setCreateForm((prev) => ({
       ...prev,
       [key]: value,
     }))
   }
 
-  const handleUpdateChange = (key: string, value: string | number) => {
+  const handleUpdateChange = (
+    key: string,
+    value: string | number | Date | null
+  ) => {
     setUpdateForm((prev) => ({
       ...prev,
       [key]: value,
@@ -233,7 +255,7 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
     if (!createForm.bus_id) errors.bus_id = 'Bus is required'
     if (!createForm.departure_time)
       errors.departure_time = 'Departure time is required'
-    if (createForm.base_price < 0) errors.base_price = 'Base price must be ≥ 0'
+    if (createForm.base_price <= 0) errors.base_price = 'Base price must be > 0'
     if (createForm.service_fee < 0)
       errors.service_fee = 'Service fee must be ≥ 0'
 
@@ -245,14 +267,6 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
     if (!createForm.policies.refund_policy?.trim())
       errors.refund_policy = 'Refund policy is required'
 
-    // Validate bus status - only active buses can be assigned
-    if (createForm.bus_id) {
-      const selectedBus = buses.find((b) => b.bus_id === createForm.bus_id)
-      if (selectedBus && selectedBus.status !== 'active') {
-        errors.bus_id = `Bus status must be active (current: ${selectedBus.status})`
-      }
-    }
-
     setValidationErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -263,28 +277,26 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
     // Status validation
     if (!updateForm.status) errors.status = 'Status is required'
 
+    // Status transition validation
+    const validTransitions: Record<string, string[]> = {
+      scheduled: ['in_progress', 'cancelled'],
+      in_progress: ['completed', 'cancelled'],
+      completed: [],
+      cancelled: [],
+    }
+    if (initialTrip && updateForm.status !== initialTrip.status) {
+      if (!validTransitions[initialTrip.status]?.includes(updateForm.status)) {
+        errors.status = `Invalid status transition from ${initialTrip.status} to ${updateForm.status}`
+      }
+    }
+
     // Route is required if status is scheduled
     if (updateForm.status === 'scheduled' && !updateForm.route_id) {
       errors.route_id = 'Route is required for scheduled trips'
     }
 
-    // Bus assignment - only if status is scheduled
-    if (updateForm.status === 'scheduled' && updateForm.bus_id) {
-      // Validate bus status - only active buses can be assigned
-      const selectedBus = buses.find((b) => b.bus_id === updateForm.bus_id)
-      if (selectedBus && selectedBus.status !== 'active') {
-        errors.bus_id = `Bus must have status "active" (current: ${selectedBus.status})`
-      }
-    }
-
-    // Route assignment - not allowed for cancelled, in_progress, completed
-    const restrictedStatuses = ['cancelled', 'in_progress', 'completed']
-    if (restrictedStatuses.includes(updateForm.status) && updateForm.route_id) {
-      errors.route_id = `Cannot change route for ${updateForm.status} trips`
-    }
-
     // Price validations
-    if (updateForm.base_price < 0) errors.base_price = 'Base price must be ≥ 0'
+    if (updateForm.base_price <= 0) errors.base_price = 'Base price must be > 0'
     if (updateForm.service_fee < 0)
       errors.service_fee = 'Service fee must be ≥ 0'
 
@@ -297,11 +309,8 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
       errors.refund_policy = 'Refund policy is required'
 
     // Departure time validation
-    if (updateForm.departure_time) {
-      const depTime = new Date(updateForm.departure_time)
-      if (isNaN(depTime.getTime())) {
-        errors.departure_time = 'Invalid departure time format'
-      }
+    if (!updateForm.departure_time) {
+      errors.departure_time = 'Departure time is required'
     }
 
     setValidationErrors(errors)
@@ -320,7 +329,9 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
       route_id: createForm.route_id,
       bus_id: createForm.bus_id,
       operator_id: operatorId,
-      departure_time: createForm.departure_time,
+      departure_time: createForm.departure_time
+        ? new Date(createForm.departure_time).toISOString()
+        : '',
       arrival_time: '', // Will be calculated by backend (backend will ignore empty string and calculate)
       base_price: createForm.base_price,
       service_fee: createForm.service_fee,
@@ -355,7 +366,7 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
       ...(updateForm.bus_id && { bus_id: updateForm.bus_id }),
       ...(updateForm.route_id && { route_id: updateForm.route_id }),
       ...(updateForm.departure_time && {
-        departure_time: updateForm.departure_time,
+        departure_time: new Date(updateForm.departure_time).toISOString(),
       }),
       ...(updateForm.base_price && { base_price: updateForm.base_price }),
       ...(updateForm.service_fee && { service_fee: updateForm.service_fee }),
@@ -464,17 +475,6 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
                     {validationErrors.status}
                   </p>
                 )}
-                {updateForm.status && (
-                  <p
-                    className="mt-1 text-xs"
-                    style={{ color: 'var(--muted-foreground)' }}
-                  >
-                    Status:{' '}
-                    <span style={{ color: 'var(--primary)' }}>
-                      {updateForm.status.toUpperCase()}
-                    </span>
-                  </p>
-                )}
               </div>
 
               {/* Bus Assignment (only for scheduled) */}
@@ -524,7 +524,7 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
                     className="mt-1 text-xs"
                     style={{ color: 'var(--muted-foreground)' }}
                   >
-                    Bus can only be changed for scheduled or inactive trips
+                    Bus can only be changed for scheduled trips
                   </p>
                 )}
               </div>
@@ -580,7 +580,7 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
                 {!canChangeRoute && (
                   <p
                     className="mt-1 text-xs"
-                    style={{ color: 'var(--destructive)' }}
+                    style={{ color: 'var(--muted-foreground)' }}
                   >
                     Cannot change route for {updateForm.status} trips
                   </p>
@@ -595,18 +595,22 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
                 >
                   Departure Time
                 </label>
-                <input
-                  type="datetime-local"
+                <DatePicker
+                  selected={updateForm.departure_time}
+                  onChange={(date) =>
+                    handleUpdateChange('departure_time', date)
+                  }
+                  showTimeSelect
+                  timeFormat="HH:mm"
+                  timeIntervals={15}
+                  dateFormat="yyyy-MM-dd HH:mm"
                   className="mt-1 w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
                   style={{
                     border: '1px solid var(--border)',
                     backgroundColor: 'var(--card)',
                     color: 'var(--foreground)',
                   }}
-                  value={updateForm.departure_time.slice(0, 16)}
-                  onChange={(e) =>
-                    handleUpdateChange('departure_time', e.target.value + ':00')
-                  }
+                  placeholderText="Select departure time"
                 />
                 {validationErrors.departure_time && (
                   <p className="mt-1 text-xs text-red-500">
@@ -827,22 +831,22 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
                   >
                     Departure Time *
                   </label>
-                  <input
-                    type="datetime-local"
-                    required
+                  <DatePicker
+                    selected={createForm.departure_time}
+                    onChange={(date) =>
+                      handleCreateChange('departure_time', date)
+                    }
+                    showTimeSelect
+                    timeFormat="HH:mm"
+                    timeIntervals={15}
+                    dateFormat="yyyy-MM-dd HH:mm"
                     className="mt-1 w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
                     style={{
                       border: '1px solid var(--border)',
                       backgroundColor: 'var(--card)',
                       color: 'var(--foreground)',
                     }}
-                    value={createForm.departure_time.slice(0, 16)}
-                    onChange={(e) =>
-                      handleCreateChange(
-                        'departure_time',
-                        e.target.value + ':00'
-                      )
-                    }
+                    placeholderText="Select departure time"
                   />
                   <p
                     className="mt-1 text-xs"

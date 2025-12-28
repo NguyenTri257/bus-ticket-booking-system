@@ -52,6 +52,20 @@ class TripService {
     const existing = await tripRepository.findById(id);
     if (!existing) throw new Error('Trip not found');
 
+    // Validate status transition
+    if (tripData.status && tripData.status !== existing.status) {
+      const validTransitions = {
+        inactive: ['scheduled'],
+        scheduled: ['in_progress', 'cancelled'],
+        in_progress: ['completed', 'cancelled'],
+        completed: [],
+        cancelled: [],
+      };
+      if (!validTransitions[existing.status]?.includes(tripData.status)) {
+        throw new Error(`Invalid status transition from ${existing.status} to ${tripData.status}`);
+      }
+    }
+
     // Prepare updated trip data with auto-calculation of arrival_time
     let updatedTripData = { ...tripData };
 
@@ -124,6 +138,7 @@ class TripService {
     route_id,
     bus_id,
     operator_id,
+    license_plate,
     departure_date_from,
     departure_date_to,
     search,
@@ -138,6 +153,7 @@ class TripService {
       route_id,
       bus_id,
       operator_id,
+      license_plate,
       departure_date_from,
       departure_date_to,
       search,

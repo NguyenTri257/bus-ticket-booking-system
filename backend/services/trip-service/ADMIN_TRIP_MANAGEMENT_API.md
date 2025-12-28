@@ -9,7 +9,39 @@ Admin endpoints for managing bus trips in the system. Includes trip creation, up
 
 ---
 
-## 🔐 Authentication
+## � Trip Status Transitions
+
+Trip statuses follow strict state transitions to ensure data integrity:
+
+### Valid Statuses
+
+- `inactive`: Trip is temporarily unavailable for booking
+- `scheduled`: Trip is planned and ready for booking
+- `in_progress`: Trip has started (departed)
+- `completed`: Trip has finished successfully
+- `cancelled`: Trip has been cancelled
+
+### Allowed Transitions
+
+| From Status   | To Status     | Description                     |
+| ------------- | ------------- | ------------------------------- |
+| `inactive`    | `scheduled`   | Reactivate trip to scheduled    |
+| `scheduled`   | `in_progress` | Trip starts                     |
+| `scheduled`   | `cancelled`   | Trip cancelled before departure |
+| `in_progress` | `completed`   | Trip finishes                   |
+| `in_progress` | `cancelled`   | Trip cancelled after departure  |
+| `completed`   | -             | No further transitions allowed  |
+| `cancelled`   | -             | No further transitions allowed  |
+
+### Validation
+
+- **Frontend**: Shows error message for invalid transitions
+- **Backend**: Returns 400 error for invalid transitions
+- **Error Message**: `Invalid status transition from {current} to {target}`
+
+---
+
+## �🔐 Authentication
 
 All trip management endpoints require:
 

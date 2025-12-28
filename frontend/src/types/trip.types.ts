@@ -24,6 +24,7 @@ export interface RouteAdminData {
  */
 export interface BusAdminData {
   operator_id?: string
+  operator_name?: string
   bus_id?: string
   name: string
   model: string
@@ -254,13 +255,7 @@ export interface Trip {
   pickup_points: PickupPoint[]
   dropoff_points: DropoffPoint[]
   route_stops?: RouteStop[]
-  status:
-    | 'active'
-    | 'inactive'
-    | 'scheduled'
-    | 'in_progress'
-    | 'completed'
-    | 'cancelled'
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
 }
 
 // ============================================================================

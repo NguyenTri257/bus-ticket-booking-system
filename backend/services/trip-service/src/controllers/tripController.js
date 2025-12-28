@@ -156,6 +156,7 @@ class TripController {
       const route_id = req.query.route_id;
       const bus_id = req.query.bus_id;
       const operator_id = req.query.operator_id;
+      const license_plate = req.query.license_plate;
       const departure_date_from = req.query.departure_date_from;
       const departure_date_to = req.query.departure_date_to;
 
@@ -176,6 +177,7 @@ class TripController {
         route_id,
         bus_id,
         operator_id,
+        license_plate,
         departure_date_from,
         departure_date_to,
         search,

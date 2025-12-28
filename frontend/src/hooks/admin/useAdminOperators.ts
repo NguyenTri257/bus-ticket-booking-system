@@ -16,6 +16,7 @@ interface BackendOperatorData {
   createdAt: string
   totalRoutes: number
   totalBuses: number
+  ratingCount: number
 }
 
 // API error response type

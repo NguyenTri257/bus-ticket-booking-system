@@ -18,13 +18,14 @@ const create_trip_schema = Joi.object({
     modification_policy: 'Flexible',
     refund_policy: 'Refundable up to 24h',
   }),
-  status: Joi.string().valid('active', 'inactive').optional().default('active'),
+  status: Joi.string().optional().default('scheduled'),
 });
 
 // Admin create schema (for admin trip form)
 const admin_create_trip_schema = Joi.object({
   route_id: Joi.string().uuid().required(),
   bus_id: Joi.string().uuid().required(),
+  operator_id: Joi.string().uuid().optional(),
   departure_time: Joi.date().iso().required(),
   arrival_time: Joi.alternatives()
     .try(
@@ -39,6 +40,7 @@ const admin_create_trip_schema = Joi.object({
     modification_policy: 'Flexible',
     refund_policy: 'Refundable up to 24h',
   }),
+  status: Joi.string().optional().default('scheduled'),
 });
 
 // Admin update schema (for admin trip form)
@@ -54,9 +56,7 @@ const admin_update_trip_schema = Joi.object({
     .optional(),
   base_price: Joi.number().min(0).optional(),
   service_fee: Joi.number().min(0).optional(),
-  status: Joi.string()
-    .valid('scheduled', 'in_progress', 'completed', 'cancelled', 'active', 'inactive')
-    .optional(),
+  status: Joi.string().valid('scheduled', 'in_progress', 'completed', 'cancelled').optional(),
   policies: policies_schema.optional(),
 });
 

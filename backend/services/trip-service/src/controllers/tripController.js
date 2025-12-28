@@ -1,5 +1,6 @@
 // controllers/tripController.js
 const tripService = require('../services/tripService');
+const axios = require('axios');
 const {
   create_trip_schema: createTripSchema,
   update_trip_schema: updateTripSchema,
@@ -168,7 +169,7 @@ class TripController {
       // Convert page to offset
       const offset = (page - 1) * limit;
 
-      const result = await tripService.getAllTrips({
+      const result = await tripService.getAllTripsAdmin({
         limit,
         offset,
         status,
@@ -371,22 +372,64 @@ class TripController {
   async cancelTrip(req, res) {
     try {
       const { refund_reason } = req.body || {};
+      const tripId = req.params.id;
 
       // Update trip status to cancelled
-      const trip = await tripService.updateTrip(req.params.id, {
+      const trip = await tripService.updateTrip(tripId, {
         status: 'cancelled',
       });
 
-      // TODO: Implement refund logic integration with payment service
-      // For now, just mark as cancelled and let bookings handle refunds
+      // Process bulk refund for all confirmed bookings of this trip
+      try {
+        console.log(`[TripController] Processing bulk refund for cancelled trip ${tripId}`);
 
-      res.json({
-        success: true,
-        data: trip,
-        message: 'Trip cancelled successfully. Refunds will be processed.',
-      });
+        const apiGatewayUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
+        const refundReason = refund_reason || 'Trip cancelled by admin';
+
+        const refundResponse = await axios.post(
+          `${apiGatewayUrl}/bookings/admin/trips/${tripId}/bulk-refund`,
+          { reason: refundReason },
+          {
+            headers: {
+              Authorization: req.headers.authorization, // Pass admin JWT token
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000, // 30 second timeout for bulk operations
+          }
+        );
+
+        console.log(
+          `[TripController] Bulk refund completed for trip ${tripId}:`,
+          refundResponse.data
+        );
+
+        res.json({
+          success: true,
+          data: {
+            trip,
+            refundResult: refundResponse.data.data,
+          },
+          message: 'Trip cancelled successfully. All confirmed bookings have been refunded.',
+        });
+      } catch (refundError) {
+        console.error(
+          `[TripController] Bulk refund failed for trip ${tripId}:`,
+          refundError.message
+        );
+
+        // Trip is cancelled but refund failed - return partial success
+        res.status(207).json({
+          success: true,
+          data: {
+            trip,
+            refundError: refundError.message,
+          },
+          message:
+            'Trip cancelled successfully, but bulk refund processing failed. Please check booking service logs.',
+        });
+      }
     } catch (err) {
-      console.error(err);
+      console.error('[TripController] Error cancelling trip:', err);
       res.status(500).json({
         success: false,
         error: { code: 'SYS_ERROR', message: 'Failed to cancel trip' },

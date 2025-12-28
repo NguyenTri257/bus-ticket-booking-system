@@ -18,6 +18,15 @@ interface BackendOperatorData {
   totalBuses: number
 }
 
+// API error response type
+interface ApiErrorResponse {
+  response?: {
+    data?: {
+      error?: string
+    }
+  }
+}
+
 export function useAdminOperators() {
   const [operators, setOperators] = useState<OperatorAdminData[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -110,10 +119,11 @@ export function useAdminOperators() {
     async (operatorId: string, reason: string) => {
       setIsLoading(true)
       try {
-        await request(`/trips/admin/operators/${operatorId}/reject`, {
+        await request(`/trips/admin/operators/${operatorId}/approve`, {
           method: 'PUT',
           body: {
-            reason: reason,
+            approved: false,
+            notes: reason,
           },
         })
 
@@ -144,7 +154,7 @@ export function useAdminOperators() {
         await request(`/trips/admin/operators/${operatorId}/suspend`, {
           method: 'PUT',
           body: {
-            reason: reason,
+            notes: reason,
           },
         })
 
@@ -154,8 +164,14 @@ export function useAdminOperators() {
         })
 
         await fetchOperators()
-      } catch {
-        const message = 'Failed to suspend operator'
+      } catch (error: unknown) {
+        const message =
+          (error instanceof Error && error.message) ||
+          (typeof error === 'object' &&
+            error !== null &&
+            'response' in error &&
+            (error as ApiErrorResponse).response?.data?.error) ||
+          'Failed to suspend operator'
         setError(message)
         toast({
           title: 'Error',
@@ -199,6 +215,28 @@ export function useAdminOperators() {
     [fetchOperators, toast]
   )
 
+  const fetchOperatorAnalytics = useCallback(async (operatorId: string) => {
+    try {
+      const data = await request(
+        `/trips/admin/operators/${operatorId}/analytics`,
+        {
+          method: 'GET',
+        }
+      )
+      return data.data
+    } catch (error: unknown) {
+      const message =
+        (error instanceof Error && error.message) ||
+        (typeof error === 'object' &&
+          error !== null &&
+          'response' in error &&
+          (error as ApiErrorResponse).response?.data?.error) ||
+        'Failed to fetch operator analytics'
+      setError(message)
+      throw new Error(message)
+    }
+  }, [])
+
   return {
     operators,
     isLoading,
@@ -208,5 +246,6 @@ export function useAdminOperators() {
     rejectOperator,
     suspendOperator,
     activateOperator,
+    fetchOperatorAnalytics,
   }
 }

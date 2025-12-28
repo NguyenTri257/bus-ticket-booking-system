@@ -117,6 +117,37 @@ class TripService {
     return await tripRepository.findAll(filters);
   }
 
+  async getAllTripsAdmin({
+    limit,
+    offset,
+    status,
+    route_id,
+    bus_id,
+    operator_id,
+    departure_date_from,
+    departure_date_to,
+    search,
+    sort_by,
+    sort_order,
+  }) {
+    // Get all trips with admin filtering, searching, sorting, and pagination
+    const result = await tripRepository.findAll({
+      limit,
+      offset,
+      status,
+      route_id,
+      bus_id,
+      operator_id,
+      departure_date_from,
+      departure_date_to,
+      search,
+      sort_by,
+      sort_order,
+    });
+
+    return result;
+  }
+
   async deleteTrip(id) {
     // Check xem có booking active không
     // (Giả sử logic này nằm trong repo hoặc gọi bookingService)

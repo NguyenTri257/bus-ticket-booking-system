@@ -1,7 +1,31 @@
 import React, { useState, useEffect } from 'react'
 import { DashboardLayout } from '@/components/admin/DashboardLayout'
-import { Eye, Check, X, UserCheck, UserX, BarChart3, Users } from 'lucide-react'
-//import type { OperatorAdminData } from '@/types/trip.types'
+import {
+  Eye,
+  Check,
+  X,
+  UserCheck,
+  UserX,
+  BarChart3,
+  Users,
+  ChevronRight,
+  ChevronDown,
+} from 'lucide-react'
+
+interface OperatorAnalytics {
+  operatorId: string
+  name: string
+  rating: number
+  totalTrips: number
+  completedTrips: number
+  cancelledTrips: number
+  avgOccupancy: number
+  totalRevenue: number
+  totalBookings: number
+  avgTicketPrice: number
+  totalRoutes: number
+  totalBuses: number
+}
 import { useAdminOperators } from '@/hooks/admin/useAdminOperators'
 import { OperatorDetailsDrawer } from '@/components/admin/OperatorDetailsDrawer'
 //import { OperatorFormDrawer } from '@/components/admin/OperatorFormDrawer'
@@ -14,6 +38,7 @@ import {
 } from '@/components/admin/table'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ErrorModal } from '@/components/ui/error-modal'
+import { ReasonModal } from '@/components/ui/reason-modal'
 import { SearchInput } from '@/components/ui/search-input'
 import { CustomDropdown } from '@/components/ui/custom-dropdown'
 import { AdminLoadingSpinner } from '@/components/admin/AdminLoadingSpinner'
@@ -29,6 +54,7 @@ const AdminOperatorManagement: React.FC = () => {
     rejectOperator,
     suspendOperator,
     activateOperator,
+    fetchOperatorAnalytics,
   } = useAdminOperators()
 
   const [searchTerm, setSearchTerm] = useState('')
@@ -68,20 +94,61 @@ const AdminOperatorManagement: React.FC = () => {
     message: '',
   })
 
+  const [reasonModal, setReasonModal] = useState<{
+    open: boolean
+    title: string
+    action: 'suspend' | 'reject'
+    onConfirm: (reason: string) => void
+  }>({
+    open: false,
+    title: '',
+    action: 'suspend',
+    onConfirm: () => {},
+  })
+
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const [operatorAnalytics, setOperatorAnalytics] = useState<
+    Record<string, OperatorAnalytics>
+  >({})
+  const [analyticsLoading, setAnalyticsLoading] = useState<Set<string>>(
+    new Set()
+  )
+
   useEffect(() => {
-    // Fetch operators on component mount and when status filter or page changes
-    const status =
-      statusFilter !== 'ALL' ? statusFilter.toLowerCase() : undefined
-    fetchOperators(status, currentPage, ITEMS_PER_PAGE).then(setPagination)
+    // Fetch all operators
+    fetchOperators(undefined, 1, 100)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter, currentPage])
+  }, [])
 
   const filteredOperators = operators.filter((operator) => {
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      operator.status.toLowerCase() === statusFilter.toLowerCase()
     const matchesSearch =
+      !searchTerm ||
       operator.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       operator.contact_email.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesSearch
+    return matchesStatus && matchesSearch
   })
+
+  const totalFiltered = filteredOperators.length
+  const totalPages = Math.ceil(totalFiltered / ITEMS_PER_PAGE)
+  const paginatedOperators = filteredOperators.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
+  useEffect(() => {
+    setPagination({
+      total: totalFiltered,
+      page: currentPage,
+      limit: ITEMS_PER_PAGE,
+      totalPages,
+    })
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(1)
+    }
+  }, [totalFiltered, currentPage, totalPages])
 
   const getStatusBadgeProps = (status: string) => {
     switch (status.toLowerCase()) {
@@ -136,34 +203,31 @@ const AdminOperatorManagement: React.FC = () => {
     const operator = operators.find((op) => op.operator_id === operator_id)
     if (!operator) return
 
-    setConfirmDialog({
+    setReasonModal({
       open: true,
       title: 'Reject Operator',
-      message: `Are you sure you want to reject ${operator.name}? This action cannot be undone.`,
-      onConfirm: async () => {
-        const reason = prompt('Please provide a reason for rejection:')
-        if (reason) {
-          setActionLoading(operator_id)
-          try {
-            await rejectOperator(operator_id, reason)
-            setConfirmDialog({
-              open: false,
-              title: '',
-              message: '',
-              onConfirm: () => {},
-            })
-          } catch (error) {
-            setErrorModal({
-              open: true,
-              title: 'Rejection Failed',
-              message:
-                error instanceof Error
-                  ? error.message
-                  : 'Failed to reject operator',
-            })
-          } finally {
-            setActionLoading(null)
-          }
+      action: 'reject',
+      onConfirm: async (reason: string) => {
+        setActionLoading(operator_id)
+        try {
+          await rejectOperator(operator_id, reason)
+          setReasonModal({
+            open: false,
+            title: '',
+            action: 'reject',
+            onConfirm: () => {},
+          })
+        } catch (error) {
+          setErrorModal({
+            open: true,
+            title: 'Rejection Failed',
+            message:
+              error instanceof Error
+                ? error.message
+                : 'Failed to reject operator',
+          })
+        } finally {
+          setActionLoading(null)
         }
       },
     })
@@ -195,34 +259,31 @@ const AdminOperatorManagement: React.FC = () => {
     const operator = operators.find((op) => op.operator_id === operator_id)
     if (!operator) return
 
-    setConfirmDialog({
+    setReasonModal({
       open: true,
       title: 'Suspend Operator',
-      message: `Are you sure you want to suspend ${operator.name}? They will lose access to the platform.`,
-      onConfirm: async () => {
-        const reason = prompt('Please provide a reason for suspension:')
-        if (reason) {
-          setActionLoading(operator_id)
-          try {
-            await suspendOperator(operator_id, reason)
-            setConfirmDialog({
-              open: false,
-              title: '',
-              message: '',
-              onConfirm: () => {},
-            })
-          } catch (error) {
-            setErrorModal({
-              open: true,
-              title: 'Suspension Failed',
-              message:
-                error instanceof Error
-                  ? error.message
-                  : 'Failed to suspend operator',
-            })
-          } finally {
-            setActionLoading(null)
-          }
+      action: 'suspend',
+      onConfirm: async (reason: string) => {
+        setActionLoading(operator_id)
+        try {
+          await suspendOperator(operator_id, reason)
+          setReasonModal({
+            open: false,
+            title: '',
+            action: 'suspend',
+            onConfirm: () => {},
+          })
+        } catch (error) {
+          setErrorModal({
+            open: true,
+            title: 'Suspension Failed',
+            message:
+              error instanceof Error
+                ? error.message
+                : 'Failed to suspend operator',
+          })
+        } finally {
+          setActionLoading(null)
         }
       },
     })
@@ -266,6 +327,30 @@ const AdminOperatorManagement: React.FC = () => {
         }
       },
     })
+  }
+
+  const toggleExpand = async (operatorId: string) => {
+    const newExpanded = new Set(expandedRows)
+    if (newExpanded.has(operatorId)) {
+      newExpanded.delete(operatorId)
+    } else {
+      newExpanded.add(operatorId)
+      // Fetch analytics if not already fetched
+      if (!operatorAnalytics[operatorId]) {
+        setAnalyticsLoading((prev) => new Set(prev).add(operatorId))
+        try {
+          const analytics = await fetchOperatorAnalytics(operatorId)
+          setOperatorAnalytics((prev) => ({ ...prev, [operatorId]: analytics }))
+        } finally {
+          setAnalyticsLoading((prev) => {
+            const newSet = new Set(prev)
+            newSet.delete(operatorId)
+            return newSet
+          })
+        }
+      }
+    }
+    setExpandedRows(newExpanded)
   }
 
   if (isLoading && operators.length === 0) {
@@ -323,139 +408,272 @@ const AdminOperatorManagement: React.FC = () => {
               { key: 'operator', label: 'Operator' },
               { key: 'contact', label: 'Contact' },
               { key: 'status', label: 'Status' },
-              { key: 'performance', label: 'Performance' },
+              { key: 'rating', label: 'Rating' },
               { key: 'created', label: 'Created' },
               { key: 'actions', label: 'Actions', align: 'right' },
             ]}
           >
-            {filteredOperators.map((operator) => (
-              <AdminTableRow key={operator.operator_id}>
-                <AdminTableCell>
-                  <div>
-                    <div className="text-sm font-medium text-foreground">
-                      {operator.name}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      ID: {operator.operator_id}
-                    </div>
-                  </div>
-                </AdminTableCell>
-                <AdminTableCell>
-                  <div className="text-sm text-muted-foreground">
-                    {operator.contact_email}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {operator.contact_phone}
-                  </div>
-                </AdminTableCell>
-                <AdminTableCell>
-                  <StatusBadge {...getStatusBadgeProps(operator.status)} />
-                </AdminTableCell>
-                <AdminTableCell>
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                    <div className="text-sm">
-                      <div>⭐ {operator.rating.toFixed(1)}</div>
-                      <div className="text-muted-foreground">
-                        {operator.rating_count} ratings
+            {paginatedOperators.map((operator) => (
+              <>
+                <AdminTableRow key={operator.operator_id}>
+                  <AdminTableCell>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleExpand(operator.operator_id)}
+                        className="text-primary hover:text-primary/80"
+                        title={
+                          expandedRows.has(operator.operator_id)
+                            ? 'Collapse'
+                            : 'Expand'
+                        }
+                      >
+                        {expandedRows.has(operator.operator_id) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </button>
+                      <div>
+                        <div className="text-sm font-medium text-foreground">
+                          {operator.name}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          ID: {operator.operator_id}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </AdminTableCell>
-                <AdminTableCell>
-                  {new Date(operator.created_at || '').toLocaleDateString()}
-                </AdminTableCell>
-                <AdminTableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() =>
-                        setShowDetails(
-                          showDetails === operator.operator_id
-                            ? null
-                            : operator.operator_id
-                        )
-                      }
-                      className="text-primary hover:text-primary/80 disabled:opacity-50"
-                      title="View Details"
-                      disabled={actionLoading === operator.operator_id}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
+                  </AdminTableCell>
+                  <AdminTableCell>
+                    <div className="text-sm text-muted-foreground">
+                      {operator.contact_email}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {operator.contact_phone}
+                    </div>
+                  </AdminTableCell>
+                  <AdminTableCell>
+                    <StatusBadge {...getStatusBadgeProps(operator.status)} />
+                  </AdminTableCell>
+                  <AdminTableCell>
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                      <div className="text-sm">
+                        <div>⭐ {operator.rating.toFixed(1)}</div>
+                        <div className="text-muted-foreground">
+                          {operator.rating_count} ratings
+                        </div>
+                      </div>
+                    </div>
+                  </AdminTableCell>
+                  <AdminTableCell>
+                    {new Date(operator.created_at || '').toLocaleDateString()}
+                  </AdminTableCell>
+                  <AdminTableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() =>
+                          setShowDetails(
+                            showDetails === operator.operator_id
+                              ? null
+                              : operator.operator_id
+                          )
+                        }
+                        className="text-primary hover:text-primary/80 disabled:opacity-50"
+                        title="View Details"
+                        disabled={actionLoading === operator.operator_id}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
 
-                    {operator.status === 'pending' && (
-                      <>
+                      {operator.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() =>
+                              handleApproveOperator(operator.operator_id)
+                            }
+                            className="text-green-600 hover:text-green-800 disabled:opacity-50"
+                            title="Approve"
+                            disabled={actionLoading === operator.operator_id}
+                          >
+                            {actionLoading === operator.operator_id ? (
+                              <AdminLoadingSpinner />
+                            ) : (
+                              <Check className="h-4 w-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleRejectOperator(operator.operator_id)
+                            }
+                            className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                            title="Reject"
+                            disabled={actionLoading === operator.operator_id}
+                          >
+                            {actionLoading === operator.operator_id ? (
+                              <AdminLoadingSpinner />
+                            ) : (
+                              <X className="h-4 w-4" />
+                            )}
+                          </button>
+                        </>
+                      )}
+
+                      {operator.status === 'approved' && (
                         <button
                           onClick={() =>
-                            handleApproveOperator(operator.operator_id)
+                            handleSuspendOperator(operator.operator_id)
+                          }
+                          className="text-orange-600 hover:text-orange-800 disabled:opacity-50"
+                          title="Suspend"
+                          disabled={actionLoading === operator.operator_id}
+                        >
+                          {actionLoading === operator.operator_id ? (
+                            <AdminLoadingSpinner />
+                          ) : (
+                            <UserX className="h-4 w-4" />
+                          )}
+                        </button>
+                      )}
+
+                      {operator.status === 'suspended' && (
+                        <button
+                          onClick={() =>
+                            handleActivateOperator(operator.operator_id)
                           }
                           className="text-green-600 hover:text-green-800 disabled:opacity-50"
-                          title="Approve"
+                          title="Activate"
                           disabled={actionLoading === operator.operator_id}
                         >
                           {actionLoading === operator.operator_id ? (
                             <AdminLoadingSpinner />
                           ) : (
-                            <Check className="h-4 w-4" />
+                            <UserCheck className="h-4 w-4" />
                           )}
                         </button>
-                        <button
-                          onClick={() =>
-                            handleRejectOperator(operator.operator_id)
-                          }
-                          className="text-red-600 hover:text-red-800 disabled:opacity-50"
-                          title="Reject"
-                          disabled={actionLoading === operator.operator_id}
-                        >
-                          {actionLoading === operator.operator_id ? (
+                      )}
+                    </div>
+                  </AdminTableCell>
+                </AdminTableRow>
+                {expandedRows.has(operator.operator_id) && (
+                  <AdminTableRow key={`${operator.operator_id}-expanded`}>
+                    <AdminTableCell colSpan={6} className="bg-muted/50">
+                      <div className="p-4">
+                        <h4 className="font-semibold mb-3">
+                          Performance Metrics
+                        </h4>
+                        {analyticsLoading.has(operator.operator_id) ? (
+                          <div className="flex items-center gap-2">
                             <AdminLoadingSpinner />
-                          ) : (
-                            <X className="h-4 w-4" />
-                          )}
-                        </button>
-                      </>
-                    )}
-
-                    {operator.status === 'approved' && (
-                      <button
-                        onClick={() =>
-                          handleSuspendOperator(operator.operator_id)
-                        }
-                        className="text-orange-600 hover:text-orange-800 disabled:opacity-50"
-                        title="Suspend"
-                        disabled={actionLoading === operator.operator_id}
-                      >
-                        {actionLoading === operator.operator_id ? (
-                          <AdminLoadingSpinner />
+                            <span className="text-sm text-muted-foreground">
+                              Loading metrics...
+                            </span>
+                          </div>
+                        ) : operatorAnalytics[operator.operator_id] ? (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="bg-card p-3 rounded border">
+                              <div className="text-sm text-muted-foreground">
+                                Total Trips
+                              </div>
+                              <div className="text-lg font-semibold">
+                                {
+                                  operatorAnalytics[operator.operator_id]
+                                    .totalTrips
+                                }
+                              </div>
+                            </div>
+                            <div className="bg-card p-3 rounded border">
+                              <div className="text-sm text-muted-foreground">
+                                Completed Trips
+                              </div>
+                              <div className="text-lg font-semibold">
+                                {
+                                  operatorAnalytics[operator.operator_id]
+                                    .completedTrips
+                                }
+                              </div>
+                            </div>
+                            <div className="bg-card p-3 rounded border">
+                              <div className="text-sm text-muted-foreground">
+                                Total Revenue
+                              </div>
+                              <div className="text-lg font-semibold">
+                                $
+                                {operatorAnalytics[
+                                  operator.operator_id
+                                ].totalRevenue.toFixed(2)}
+                              </div>
+                            </div>
+                            <div className="bg-card p-3 rounded border">
+                              <div className="text-sm text-muted-foreground">
+                                Avg Rating
+                              </div>
+                              <div className="text-lg font-semibold">
+                                {operatorAnalytics[
+                                  operator.operator_id
+                                ].rating.toFixed(1)}{' '}
+                                ⭐
+                              </div>
+                            </div>
+                            <div className="bg-card p-3 rounded border">
+                              <div className="text-sm text-muted-foreground">
+                                Total Bookings
+                              </div>
+                              <div className="text-lg font-semibold">
+                                {
+                                  operatorAnalytics[operator.operator_id]
+                                    .totalBookings
+                                }
+                              </div>
+                            </div>
+                            <div className="bg-card p-3 rounded border">
+                              <div className="text-sm text-muted-foreground">
+                                Avg Occupancy
+                              </div>
+                              <div className="text-lg font-semibold">
+                                {operatorAnalytics[
+                                  operator.operator_id
+                                ].avgOccupancy.toFixed(1)}
+                                %
+                              </div>
+                            </div>
+                            <div className="bg-card p-3 rounded border">
+                              <div className="text-sm text-muted-foreground">
+                                Total Routes
+                              </div>
+                              <div className="text-lg font-semibold">
+                                {
+                                  operatorAnalytics[operator.operator_id]
+                                    .totalRoutes
+                                }
+                              </div>
+                            </div>
+                            <div className="bg-card p-3 rounded border">
+                              <div className="text-sm text-muted-foreground">
+                                Total Buses
+                              </div>
+                              <div className="text-lg font-semibold">
+                                {
+                                  operatorAnalytics[operator.operator_id]
+                                    .totalBuses
+                                }
+                              </div>
+                            </div>
+                          </div>
                         ) : (
-                          <UserX className="h-4 w-4" />
+                          <div className="text-sm text-muted-foreground">
+                            Failed to load metrics
+                          </div>
                         )}
-                      </button>
-                    )}
-
-                    {operator.status === 'suspended' && (
-                      <button
-                        onClick={() =>
-                          handleActivateOperator(operator.operator_id)
-                        }
-                        className="text-green-600 hover:text-green-800 disabled:opacity-50"
-                        title="Activate"
-                        disabled={actionLoading === operator.operator_id}
-                      >
-                        {actionLoading === operator.operator_id ? (
-                          <AdminLoadingSpinner />
-                        ) : (
-                          <UserCheck className="h-4 w-4" />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </AdminTableCell>
-              </AdminTableRow>
+                      </div>
+                    </AdminTableCell>
+                  </AdminTableRow>
+                )}
+              </>
             ))}
           </AdminTable>
         </div>
         {/* Empty State */}
-        {filteredOperators.length === 0 && (
+        {paginatedOperators.length === 0 && (
           <AdminEmptyState
             icon={Users}
             title="No operators found"
@@ -487,6 +705,22 @@ const AdminOperatorManagement: React.FC = () => {
           title={errorModal.title}
           message={errorModal.message}
           onClose={() => setErrorModal({ open: false, title: '', message: '' })}
+        />
+
+        {/* Reason Modal */}
+        <ReasonModal
+          open={reasonModal.open}
+          title={reasonModal.title}
+          action={reasonModal.action}
+          onConfirm={reasonModal.onConfirm}
+          onClose={() =>
+            setReasonModal({
+              open: false,
+              title: '',
+              action: 'suspend',
+              onConfirm: () => {},
+            })
+          }
         />
 
         {/* Operator Details Modal */}

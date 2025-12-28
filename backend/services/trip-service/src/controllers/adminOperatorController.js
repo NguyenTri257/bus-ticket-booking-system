@@ -1,6 +1,10 @@
 // controllers/adminOperatorController.js
 const operatorRepo = require('../repositories/operatorRepository');
-const { approveSchema, listQuerySchema } = require('../validators/adminOperatorValidators');
+const {
+  approveSchema,
+  suspendSchema,
+  listQuerySchema,
+} = require('../validators/adminOperatorValidators');
 
 class AdminOperatorController {
   async getList(req, res) {
@@ -28,7 +32,8 @@ class AdminOperatorController {
       const { error, value } = approveSchema.validate(req.body);
       if (error) return res.status(400).json({ success: false, error: error.details[0].message });
 
-      const updated = await operatorRepo.updateStatus(operatorId, value);
+      const status = value.approved ? 'approved' : 'rejected';
+      const updated = await operatorRepo.updateStatus(operatorId, status, value.notes);
 
       res.json({
         success: true,
@@ -42,6 +47,79 @@ class AdminOperatorController {
       res.status(500).json({ success: false, error: err.message });
     }
   }
-}
 
+  async suspendOperator(req, res) {
+    try {
+      const { operatorId } = req.params;
+
+      const { error, value } = suspendSchema.validate(req.body);
+      if (error) return res.status(400).json({ success: false, error: error.details[0].message });
+
+      const updated = await operatorRepo.updateStatus(operatorId, 'suspended', value.notes);
+
+      res.json({
+        success: true,
+        data: updated,
+        message: 'Operator suspended successfully',
+      });
+    } catch (err) {
+      if (err.message === 'Operator not found') {
+        return res.status(404).json({ success: false, error: 'Operator not found' });
+      }
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async activateOperator(req, res) {
+    try {
+      const { operatorId } = req.params;
+
+      const updated = await operatorRepo.updateStatus(operatorId, 'approved');
+
+      res.json({
+        success: true,
+        data: updated,
+        message: 'Operator activated successfully',
+      });
+    } catch (err) {
+      if (err.message === 'Operator not found') {
+        return res.status(404).json({ success: false, error: 'Operator not found' });
+      }
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async getAnalytics(req, res) {
+    try {
+      const analytics = await operatorRepo.getAnalytics();
+
+      res.json({
+        success: true,
+        data: analytics,
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+
+  async getOperatorAnalytics(req, res) {
+    try {
+      const { operatorId } = req.params;
+
+      const analytics = await operatorRepo.getOperatorAnalytics(operatorId);
+
+      res.json({
+        success: true,
+        data: analytics,
+      });
+    } catch (err) {
+      if (err.message === 'Operator not found') {
+        return res.status(404).json({ success: false, error: 'Operator not found' });
+      }
+      console.error(err);
+      res.status(500).json({ success: false, error: 'Internal server error' });
+    }
+  }
+}
 module.exports = new AdminOperatorController();

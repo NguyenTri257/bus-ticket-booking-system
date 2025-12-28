@@ -27,12 +27,14 @@ interface AdminTableCellProps {
   children: React.ReactNode
   align?: 'left' | 'center' | 'right'
   className?: string
+  colSpan?: number
 }
 
 export const AdminTableCell: React.FC<AdminTableCellProps> = ({
   children,
   align = 'left',
   className = '',
+  colSpan,
 }) => {
   const baseClass = 'px-4 py-4 text-sm'
   const alignClass =
@@ -43,6 +45,8 @@ export const AdminTableCell: React.FC<AdminTableCellProps> = ({
         : 'text-left'
 
   return (
-    <td className={`${baseClass} ${alignClass} ${className}`}>{children}</td>
+    <td className={`${baseClass} ${alignClass} ${className}`} colSpan={colSpan}>
+      {children}
+    </td>
   )
 }

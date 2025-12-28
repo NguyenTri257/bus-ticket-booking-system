@@ -132,7 +132,12 @@ app.get(
 // Bus seat layout management (mỗi bus có seat layout riêng)
 app.post('/buses/:id/seat-layout', authenticate, authorize(['admin']), busController.setSeatLayout);
 app.get('/buses/:id/seat-layout', authenticate, authorize(['admin']), busController.getSeatLayout);
-app.delete('/buses/:id/seat-layout', authenticate, authorize(['admin']), busController.deleteSeatLayout);
+app.delete(
+  '/buses/:id/seat-layout',
+  authenticate,
+  authorize(['admin']),
+  busController.deleteSeatLayout
+);
 
 // ============================= ADMIN: OPERATOR MANAGEMENT (mới thêm - thẳng trong index.js) =============================
 
@@ -145,6 +150,38 @@ app.put(
   authenticate,
   authorize(['admin']),
   adminOperatorController.approveOperator
+);
+
+// 3. Tạm ngưng nhà xe
+app.put(
+  '/admin/operators/:operatorId/suspend',
+  authenticate,
+  authorize(['admin']),
+  adminOperatorController.suspendOperator
+);
+
+// 4. Kích hoạt lại nhà xe
+app.put(
+  '/admin/operators/:operatorId/activate',
+  authenticate,
+  authorize(['admin']),
+  adminOperatorController.activateOperator
+);
+
+// 5. Analytics
+app.get(
+  '/admin/operators/analytics',
+  authenticate,
+  authorize(['admin']),
+  adminOperatorController.getAnalytics
+);
+
+// 6. Operator Analytics
+app.get(
+  '/admin/operators/:operatorId/analytics',
+  authenticate,
+  authorize(['admin']),
+  adminOperatorController.getOperatorAnalytics
 );
 
 // ============================= RATINGS & REVIEWS (Customer Feedback System) =============================

@@ -1,6 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import DatePicker from 'react-datepicker'
-import 'react-datepicker/dist/react-datepicker.css'
 import type {
   TripData,
   TripCreateRequest,
@@ -66,7 +64,7 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
   const [createForm, setCreateForm] = useState({
     route_id: '',
     bus_id: '',
-    departure_time: null as Date | null,
+    departure_time: '',
     base_price: 0,
     service_fee: 0,
     policies: {
@@ -84,7 +82,7 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
     status: '',
     bus_id: '',
     route_id: '',
-    departure_time: null as Date | null,
+    departure_time: '',
     base_price: 0,
     service_fee: 0,
     policies: {
@@ -208,20 +206,14 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
     setValidationErrors({})
   }, [initialTrip, isEditMode, open, defaultPolicies])
 
-  const handleCreateChange = (
-    key: string,
-    value: string | number | Date | null
-  ) => {
+  const handleCreateChange = (key: string, value: string | number) => {
     setCreateForm((prev) => ({
       ...prev,
       [key]: value,
     }))
   }
 
-  const handleUpdateChange = (
-    key: string,
-    value: string | number | Date | null
-  ) => {
+  const handleUpdateChange = (key: string, value: string | number) => {
     setUpdateForm((prev) => ({
       ...prev,
       [key]: value,
@@ -595,22 +587,18 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
                 >
                   Departure Time
                 </label>
-                <DatePicker
-                  selected={updateForm.departure_time}
-                  onChange={(date) =>
-                    handleUpdateChange('departure_time', date)
-                  }
-                  showTimeSelect
-                  timeFormat="HH:mm"
-                  timeIntervals={15}
-                  dateFormat="yyyy-MM-dd HH:mm"
+                <input
+                  type="datetime-local"
                   className="mt-1 w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
                   style={{
                     border: '1px solid var(--border)',
                     backgroundColor: 'var(--card)',
                     color: 'var(--foreground)',
                   }}
-                  placeholderText="Select departure time"
+                  value={updateForm.departure_time}
+                  onChange={(e) =>
+                    handleUpdateChange('departure_time', e.target.value)
+                  }
                 />
                 {validationErrors.departure_time && (
                   <p className="mt-1 text-xs text-red-500">
@@ -831,22 +819,19 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
                   >
                     Departure Time *
                   </label>
-                  <DatePicker
-                    selected={createForm.departure_time}
-                    onChange={(date) =>
-                      handleCreateChange('departure_time', date)
-                    }
-                    showTimeSelect
-                    timeFormat="HH:mm"
-                    timeIntervals={15}
-                    dateFormat="yyyy-MM-dd HH:mm"
+                  <input
+                    type="datetime-local"
+                    required
                     className="mt-1 w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
                     style={{
                       border: '1px solid var(--border)',
                       backgroundColor: 'var(--card)',
                       color: 'var(--foreground)',
                     }}
-                    placeholderText="Select departure time"
+                    value={createForm.departure_time}
+                    onChange={(e) =>
+                      handleCreateChange('departure_time', e.target.value)
+                    }
                   />
                   <p
                     className="mt-1 text-xs"

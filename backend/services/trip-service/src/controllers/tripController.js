@@ -71,7 +71,7 @@ class TripController {
         });
       }
 
-      const trip = await tripService.updateTrip(req.params.id, value);
+      const trip = await tripService.updateTrip(req.params.id, value, req.headers.authorization);
       res.json({
         success: true,
         data: trip,
@@ -93,13 +93,82 @@ class TripController {
 
   async delete(req, res) {
     try {
-      const result = await tripService.deleteTrip(req.params.id);
+      const tripId = req.params.id;
+
+      // Get trip details and bookings before cancelling
+      const trip = await tripService.getTripWithDetails(tripId);
+      if (!trip) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'TRIP_NOT_FOUND', message: 'Trip not found' },
+        });
+      }
+
+      // Get all confirmed bookings for this trip
+      const bookings = await tripService.getBookingsForTrip(tripId);
+
+      // Cancel the trip
+      const result = await tripService.deleteTrip(tripId);
       if (!result) {
         return res.status(404).json({
           success: false,
           error: { code: 'TRIP_NOT_FOUND', message: 'Trip not found' },
         });
       }
+
+      // Send notifications to all passengers
+      if (bookings && bookings.length > 0) {
+        const notificationServiceUrl =
+          process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3003';
+
+        for (const booking of bookings) {
+          try {
+            // Prepare update data for notification
+            const updateData = {
+              bookingReference: booking.booking_reference,
+              updateType: 'cancellation',
+              reason: 'Trip cancelled by operator',
+              originalDepartureTime: trip.departure_time,
+              newDepartureTime: null,
+              originalArrivalTime: trip.arrival_time,
+              newArrivalTime: null,
+              fromLocation: trip.origin,
+              toLocation: trip.destination,
+              seats: booking.passengers?.map((p) => p.seat_code) || [],
+              contactEmail: 'support@quad-n.me',
+              contactPhone: '+84-1800-TICKET',
+              customerEmail: booking.contact_email,
+              customerPhone: booking.contact_phone,
+              passengers: booking.passengers || [],
+              operatorName: trip.operator_name,
+              busModel: trip.bus_model,
+              alternatives: [], // Could add alternative trips here
+              nextSteps: [
+                'Contact customer support for refund',
+                'Look for alternative trips',
+                'Check refund policy',
+              ],
+            };
+
+            // Send notification
+            await axios.post(`${notificationServiceUrl}/notifications/send-trip-update`, {
+              email: booking.contact_email,
+              updateData,
+            });
+
+            console.log(
+              `📧 Cancellation notification sent to ${booking.contact_email} for booking ${booking.booking_reference}`
+            );
+          } catch (notificationError) {
+            console.error(
+              `⚠️ Failed to send cancellation notification to ${booking.contact_email}:`,
+              notificationError.message
+            );
+            // Don't fail the whole operation if notification fails
+          }
+        }
+      }
+
       res.json({ success: true, message: 'Trip cancelled successfully' });
     } catch (err) {
       res.status(500).json({
@@ -352,7 +421,11 @@ class TripController {
         });
       }
 
-      const trip = await tripService.updateTrip(req.params.id, { status });
+      const trip = await tripService.updateTrip(
+        req.params.id,
+        { status },
+        req.headers.authorization
+      );
       res.json({
         success: true,
         data: trip,
@@ -377,9 +450,13 @@ class TripController {
       const tripId = req.params.id;
 
       // Update trip status to cancelled
-      const trip = await tripService.updateTrip(tripId, {
-        status: 'cancelled',
-      });
+      const trip = await tripService.updateTrip(
+        tripId,
+        {
+          status: 'cancelled',
+        },
+        req.headers.authorization
+      );
 
       // Process bulk refund for all confirmed bookings of this trip
       try {

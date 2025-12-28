@@ -1,7 +1,7 @@
 -- Create notifications table for storing notification history
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL,
+  user_id UUID, -- Nullable for guest bookings
   booking_id UUID,
   
   -- Notification type and channel

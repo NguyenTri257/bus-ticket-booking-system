@@ -154,20 +154,7 @@ class BusRepository {
       query += ` ORDER BY b.created_at DESC, b.bus_id DESC LIMIT $${limitIndex} OFFSET $${offsetIndex}`;
       values.push(limit, offset);
 
-      console.log('[BUS QUERY]', { query, values, index, limitIndex, offsetIndex });
-
       const result = await pool.query(query, values);
-
-      console.log(
-        '[BUS RESULT] Returned rows:',
-        result.rows.length,
-        result.rows.map((r) => ({
-          bus_id: r.bus_id,
-          name: r.model_name,
-          license_plate: r.license_plate,
-          created_at: r.created_at,
-        }))
-      );
 
       return {
         data: result.rows,

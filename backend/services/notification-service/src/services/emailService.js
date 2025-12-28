@@ -3,6 +3,7 @@ const fetch = require('node-fetch');
 const { generateTicketEmailTemplate } = require('../templates/ticketEmailTemplate');
 const { generateBookingConfirmationTemplate } = require('../templates/bookingConfirmationTemplate');
 const { generateTripReminderTemplate } = require('../templates/tripReminderEmailTemplate');
+const { generateTripUpdateTemplate } = require('../templates/tripUpdateEmailTemplate');
 
 // Only set API key if it's provided
 if (process.env.SENDGRID_API_KEY) {
@@ -466,6 +467,67 @@ class EmailService {
       console.error('⚠️ Error sending trip reminder email:', error);
       console.error('⚠️ SendGrid response:', error.response?.body || error.message);
       throw new Error('Failed to send trip reminder email');
+    }
+  }
+
+  /**
+   * Send trip update notification email
+   * @param {string} email - Recipient email
+   * @param {Object} updateData - Trip update data
+   */
+  async sendTripUpdateEmail(email, updateData) {
+    const { updateType = 'schedule_change', bookingReference = 'N/A' } = updateData;
+
+    const updateTitles = {
+      schedule_change: 'Trip Schedule Updated',
+      delay: 'Trip Delayed',
+      cancellation: 'Trip Cancelled',
+    };
+
+    const subject = `${updateTitles[updateType] || 'Trip Update'} - Booking ${bookingReference}`;
+
+    // Check if SendGrid is configured
+    if (!process.env.SENDGRID_API_KEY) {
+      console.log(`📧 [DEV MODE] Trip update email would be sent to ${email}`);
+      console.log(`📧 [DEV MODE] Subject: ${subject}`);
+      console.log(`📧 [DEV MODE] Update Type: ${updateType}`);
+      return { success: true, mode: 'development' };
+    }
+
+    const htmlContent = generateTripUpdateTemplate(updateData);
+
+    const msg = {
+      to: email,
+      from: DEFAULT_EMAIL_FROM,
+      subject: subject,
+      html: htmlContent,
+      // Add priority headers for urgent notifications
+      headers:
+        updateData.updateType === 'cancellation'
+          ? {
+              'X-Priority': '1', // Highest priority
+              'X-MSMail-Priority': 'High',
+              Importance: 'High',
+            }
+          : updateData.updateType === 'delay'
+            ? {
+                'X-Priority': '3', // Normal priority
+                'X-MSMail-Priority': 'Normal',
+                Importance: 'Normal',
+              }
+            : {},
+    };
+
+    try {
+      await sgMail.send(msg);
+      console.log(
+        `📧 Trip update email sent to ${email} for booking ${bookingReference} (${updateType})`
+      );
+      return { success: true };
+    } catch (error) {
+      console.error('⚠️ Error sending trip update email:', error);
+      console.error('⚠️ SendGrid response:', error.response?.body || error.message);
+      throw new Error('Failed to send trip update email');
     }
   }
 }

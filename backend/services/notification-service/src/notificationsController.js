@@ -3,7 +3,7 @@
  * Handles fetching notification history for users
  */
 
-const pool = require('./database');
+const NotificationRepository = require('./repositories/notificationRepository');
 
 class NotificationsController {
   /**
@@ -24,66 +24,25 @@ class NotificationsController {
       const parsedLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
       const parsedOffset = Math.max(parseInt(offset) || 0, 0);
 
-      // Build dynamic query with filters
-      let query = `
-        SELECT 
-          id,
-          user_id,
-          booking_id,
-          type,
-          channel,
-          title,
-          message,
-          status,
-          read_at,
-          sent_at,
-          created_at,
-          updated_at
-        FROM notifications
-        WHERE user_id = $1
-      `;
-      const params = [userId];
-      let paramIndex = 2;
-
-      // Add optional filters
-      if (type) {
-        query += ` AND type = $${paramIndex}`;
-        params.push(type);
-        paramIndex++;
-      }
-
-      if (channel) {
-        query += ` AND channel = $${paramIndex}`;
-        params.push(channel);
-        paramIndex++;
-      }
-
-      if (status) {
-        query += ` AND status = $${paramIndex}`;
-        params.push(status);
-        paramIndex++;
-      }
-
-      // Order by most recent first
-      query += ` ORDER BY sent_at DESC`;
-
-      // Add pagination
-      query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-      params.push(parsedLimit, parsedOffset);
-
-      // Execute query
-      const result = await pool.query(query, params);
+      // Get notifications from repository
+      const notifications = await NotificationRepository.getNotifications(userId, {
+        limit: parsedLimit,
+        offset: parsedOffset,
+        type,
+        channel,
+        status,
+      });
 
       // Format response with camelCase
-      const notifications = result.rows.map((row) => this._formatNotification(row));
+      const formattedNotifications = notifications.map((row) => this._formatNotification(row));
 
       res.json({
         success: true,
-        data: notifications,
+        data: formattedNotifications,
         pagination: {
           limit: parsedLimit,
           offset: parsedOffset,
-          total: notifications.length,
+          total: formattedNotifications.length,
         },
         timestamp: new Date().toISOString(),
       });
@@ -108,27 +67,9 @@ class NotificationsController {
       const userId = req.user.id;
       const { notificationId } = req.params;
 
-      const query = `
-        SELECT 
-          id,
-          user_id,
-          booking_id,
-          type,
-          channel,
-          title,
-          message,
-          status,
-          read_at,
-          sent_at,
-          created_at,
-          updated_at
-        FROM notifications
-        WHERE id = $1 AND user_id = $2
-      `;
+      const notification = await NotificationRepository.getNotification(notificationId, userId);
 
-      const result = await pool.query(query, [notificationId, userId]);
-
-      if (result.rows.length === 0) {
+      if (!notification) {
         return res.status(404).json({
           success: false,
           error: {
@@ -139,11 +80,11 @@ class NotificationsController {
         });
       }
 
-      const notification = this._formatNotification(result.rows[0]);
+      const formattedNotification = this._formatNotification(notification);
 
       res.json({
         success: true,
-        data: notification,
+        data: formattedNotification,
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -167,16 +108,9 @@ class NotificationsController {
       const userId = req.user.id;
       const { notificationId } = req.params;
 
-      const query = `
-        UPDATE notifications
-        SET status = 'read', read_at = CURRENT_TIMESTAMP
-        WHERE id = $1 AND user_id = $2 AND status = 'sent'
-        RETURNING id, status, read_at
-      `;
+      const notification = await NotificationRepository.markAsRead(notificationId, userId);
 
-      const result = await pool.query(query, [notificationId, userId]);
-
-      if (result.rows.length === 0) {
+      if (!notification) {
         return res.status(404).json({
           success: false,
           error: {
@@ -189,7 +123,7 @@ class NotificationsController {
 
       res.json({
         success: true,
-        data: this._formatNotification(result.rows[0]),
+        data: this._formatNotification(notification),
         timestamp: new Date().toISOString(),
       });
     } catch (error) {
@@ -212,46 +146,13 @@ class NotificationsController {
     try {
       const userId = req.user.id;
 
-      const query = `
-        SELECT
-          COUNT(*) as total,
-          COUNT(CASE WHEN status = 'sent' THEN 1 END) as unread,
-          COUNT(CASE WHEN status = 'read' THEN 1 END) as read,
-          COUNT(CASE WHEN status = 'failed' THEN 1 END) as failed,
-          COUNT(DISTINCT type) as types,
-          COUNT(DISTINCT channel) as channels
-        FROM notifications
-        WHERE user_id = $1
-      `;
-
-      const result = await pool.query(query, [userId]);
-      const stats = result.rows[0];
+      const stats = await NotificationRepository.getStats(userId);
 
       // Get breakdown by type
-      const typeQuery = `
-        SELECT type, COUNT(*) as count
-        FROM notifications
-        WHERE user_id = $1
-        GROUP BY type
-      `;
-      const typeResult = await pool.query(typeQuery, [userId]);
-      const byType = {};
-      typeResult.rows.forEach((row) => {
-        byType[row.type] = parseInt(row.count);
-      });
+      const byType = await NotificationRepository.getTypeBreakdown(userId);
 
       // Get breakdown by channel
-      const channelQuery = `
-        SELECT channel, COUNT(*) as count
-        FROM notifications
-        WHERE user_id = $1
-        GROUP BY channel
-      `;
-      const channelResult = await pool.query(channelQuery, [userId]);
-      const byChannel = {};
-      channelResult.rows.forEach((row) => {
-        byChannel[row.channel] = parseInt(row.count);
-      });
+      const byChannel = await NotificationRepository.getChannelBreakdown(userId);
 
       res.json({
         success: true,
@@ -296,6 +197,109 @@ class NotificationsController {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
+  }
+
+  /**
+   * Send trip update notifications to all passengers of a trip
+   * @param {Object} req - Express request object
+   * @param {Object} res - Express response object
+   */
+  static async sendTripUpdateNotifications(req, res) {
+    try {
+      const { email, updateData } = req.body;
+
+      if (!email || !updateData) {
+        console.log('❌ Missing required fields - email:', !!email, 'updateData:', !!updateData);
+        return res.status(400).json({
+          success: false,
+          error: { code: 'VAL_001', message: 'email and updateData are required' },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const emailService = require('./services/emailService');
+
+      try {
+        console.log(`📧 Sending trip update email to ${email}`);
+        console.log(`📧 Full updateData being sent to email:`, JSON.stringify(updateData, null, 2));
+
+        // Get booking details to ensure we have customer contact info for booking lookup
+        const booking = await NotificationRepository.findBookingByReference(
+          updateData.bookingReference
+        );
+
+        if (booking) {
+          // Ensure updateData has customer contact info for booking lookup URL
+          updateData.customerEmail = updateData.customerEmail || booking.contact_email;
+          updateData.customerPhone = updateData.customerPhone || booking.contact_phone;
+          console.log(
+            `📧 Using customer contact: ${updateData.customerEmail}, ${updateData.customerPhone}`
+          );
+        } else {
+          console.warn(
+            `⚠️ Booking ${updateData.bookingReference} not found for customer contact lookup`
+          );
+        }
+
+        // Send email
+        await emailService.sendTripUpdateEmail(email, updateData);
+
+        // Create notification record (booking was already fetched above)
+        const title =
+          updateData.updateType === 'cancellation'
+            ? 'Trip Cancelled'
+            : updateData.updateType === 'delay'
+              ? 'Trip Delayed'
+              : 'Trip Schedule Updated';
+
+        const message =
+          updateData.updateType === 'cancellation'
+            ? `Your trip has been cancelled. ${updateData.reason || ''}`
+            : `Your trip schedule has been updated. Please check your email for details.`;
+
+        // Use the booking data we already fetched above
+        if (booking) {
+          await NotificationRepository.createNotification({
+            userId: booking.user_id,
+            bookingId: booking.booking_id,
+            type: 'update',
+            channel: 'email',
+            title,
+            message,
+            status: 'sent',
+            sentAt: new Date(),
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+
+        res.json({
+          success: true,
+          message: 'Trip update notification sent successfully',
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error(`Error sending notification to ${email}:`, error);
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'NOTIF_001',
+            message: error.message || 'Failed to send trip update notification',
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      console.error('Error sending trip update notifications:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'NOTIF_001',
+          message: error.message || 'Failed to send trip update notifications',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 }
 

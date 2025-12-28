@@ -4,6 +4,7 @@ const routeRepository = require('../repositories/routeRepository');
 const busRepository = require('../repositories/busRepository');
 const seatRepository = require('../repositories/seatRepository');
 const seatLockService = require('./seatLockService');
+const axios = require('axios');
 
 class TripService {
   async createTrip(tripData) {
@@ -48,7 +49,7 @@ class TripService {
     });
   }
 
-  async updateTrip(id, tripData) {
+  async updateTrip(id, tripData, authorizationHeader) {
     const existing = await tripRepository.findById(id);
     if (!existing) throw new Error('Trip not found');
 
@@ -114,7 +115,105 @@ class TripService {
       if (hasOverlap) throw new Error('Bus schedule overlap');
     }
 
-    return await tripRepository.update(id, updatedTripData);
+    const updatedTrip = await tripRepository.update(id, updatedTripData);
+
+    // Send notifications if schedule changed or status changed to cancelled
+    if (depChanged) {
+      try {
+        await this._sendTripUpdateNotifications(id, existing, updatedTrip, authorizationHeader);
+      } catch (error) {
+        console.error('Failed to send trip update notifications:', error);
+        // Don't fail the update if notifications fail
+      }
+    }
+
+    // Send cancellation notifications if status changed to cancelled
+    if (tripData.status === 'cancelled' && existing.status !== 'cancelled') {
+      try {
+        await this._sendTripCancellationNotifications(
+          id,
+          existing,
+          updatedTrip,
+          authorizationHeader
+        );
+      } catch (error) {
+        console.error('Failed to send trip cancellation notifications:', error);
+        // Don't fail the update if notifications fail
+      }
+    }
+
+    return updatedTrip;
+  }
+
+  async _sendTripUpdateNotifications(tripId, oldTrip, newTrip, authorizationHeader) {
+    try {
+      // Get bookings for this trip from repository
+      const bookings = await tripRepository.getBookingsForTrip(tripId);
+
+      if (bookings.length === 0) {
+        console.log(`No bookings found for trip ${tripId}, skipping notifications`);
+        return;
+      }
+
+      // Use API Gateway for notifications
+      const apiGatewayUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
+
+      // Send notification for each booking via API Gateway
+      for (const booking of bookings) {
+        try {
+          const updateData = {
+            bookingReference: booking.booking_reference,
+            updateType: 'schedule_change',
+            reason: 'Trip schedule updated by operator',
+            originalDepartureTime: oldTrip.schedule.departure_time,
+            newDepartureTime: newTrip.schedule.departure_time,
+            originalArrivalTime: oldTrip.schedule.arrival_time,
+            newArrivalTime: newTrip.schedule.arrival_time,
+            fromLocation: newTrip.route.origin,
+            toLocation: newTrip.route.destination,
+            seats: booking.passengers?.map((p) => p.seat_code) || [],
+            passengers: booking.passengers?.map((p) => ({ full_name: p.full_name })) || [],
+            operatorName: newTrip.operator.name,
+            busModel: newTrip.bus.model,
+            nextSteps: [
+              'Check your updated e-ticket',
+              'Contact operator if you cannot make the new schedule',
+              'Refund available if cancelled within policy',
+            ],
+          };
+
+          console.log(
+            '🚍 [TRIP SERVICE] Final updateData being sent:',
+            JSON.stringify(updateData, null, 2)
+          );
+
+          await axios.post(
+            `${apiGatewayUrl}/notification/send-trip-update`,
+            {
+              email: booking.contact_email,
+              updateData,
+            },
+            {
+              headers: {
+                Authorization: authorizationHeader,
+                'Content-Type': 'application/json',
+              },
+              timeout: 10000,
+            }
+          );
+
+          console.log(`Trip update notification sent for booking ${booking.booking_reference}`);
+        } catch (error) {
+          console.error(
+            `Failed to send notification for booking ${booking.booking_reference}:`,
+            error.message
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error sending trip update notifications:', error.message);
+      throw error;
+    }
   }
 
   async getTripWithDetails(id) {
@@ -175,6 +274,10 @@ class TripService {
     return await tripRepository.softDelete(id);
   }
 
+  async getBookingsForTrip(tripId) {
+    return await tripRepository.getBookingsForTrip(tripId);
+  }
+
   async getSeatMap(tripId) {
     const seatMapData = await seatRepository.getSeatMapForTrip(tripId);
 
@@ -193,6 +296,87 @@ class TripService {
     });
 
     return seatMapData;
+  }
+
+  async _sendTripCancellationNotifications(tripId, oldTrip, newTrip, authorizationHeader) {
+    try {
+      // Get bookings for this trip from repository
+      const bookings = await tripRepository.getBookingsForTrip(tripId);
+
+      if (bookings.length === 0) {
+        console.log(`No bookings found for trip ${tripId}, skipping cancellation notifications`);
+        return;
+      }
+
+      // Get alternative trips
+      const alternatives = await tripRepository.getAlternativeTrips(tripId);
+
+      // Use API Gateway for notifications
+      const apiGatewayUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
+
+      // Send notification for each booking via API Gateway
+      for (const booking of bookings) {
+        try {
+          const updateData = {
+            bookingReference: booking.booking_reference,
+            updateType: 'cancellation',
+            reason: 'Trip cancelled by operator',
+            originalDepartureTime: oldTrip.schedule.departure_time,
+            newDepartureTime: null,
+            originalArrivalTime: oldTrip.schedule.arrival_time,
+            newArrivalTime: null,
+            fromLocation: newTrip.route.origin,
+            toLocation: newTrip.route.destination,
+            seats: booking.passengers?.map((p) => p.seat_code) || [],
+            contactEmail: 'support@quad-n.me',
+            contactPhone: '+84-1800-TICKET',
+            customerEmail: booking.contact_email,
+            customerPhone: booking.contact_phone,
+            passengers: booking.passengers || [],
+            operatorName: newTrip.operator.name,
+            busModel: newTrip.bus.model,
+            alternatives: alternatives, // Add alternative trips
+            nextSteps: [
+              'Contact customer support for refund',
+              'Look for alternative trips',
+              'Check refund policy',
+            ],
+          };
+
+          console.log(
+            '🚍 [TRIP SERVICE] Cancellation updateData being sent:',
+            JSON.stringify(updateData, null, 2)
+          );
+
+          await axios.post(
+            `${apiGatewayUrl}/notification/send-trip-update`,
+            {
+              email: booking.contact_email,
+              updateData,
+            },
+            {
+              headers: {
+                Authorization: authorizationHeader,
+                'Content-Type': 'application/json',
+              },
+              timeout: 10000,
+            }
+          );
+
+          console.log(
+            `Trip cancellation notification sent for booking ${booking.booking_reference}`
+          );
+        } catch (error) {
+          console.error(
+            `Failed to send cancellation notification for booking ${booking.booking_reference}:`,
+            error.message
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Error sending trip cancellation notifications:', error.message);
+      throw error;
+    }
   }
 }
 

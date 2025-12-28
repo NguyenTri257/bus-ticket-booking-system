@@ -105,6 +105,11 @@ app.post('/send-booking-confirmation', async (req, res) => {
   }
 });
 
+// Trip Update Notifications Endpoint
+app.post('/send-trip-update', (req, res) => {
+  notificationsController.sendTripUpdateNotifications(req, res);
+});
+
 // Routes
 app.post('/send-email', async (req, res) => {
   try {
@@ -184,6 +189,22 @@ app.post('/send-email', async (req, res) => {
           });
         }
         await emailService.sendTicketEmail(to, bookingData, ticketUrl, qrCode);
+        break;
+      }
+
+      case 'trip-update': {
+        const { updateData } = req.body;
+        if (!updateData) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'VAL_001',
+              message: 'updateData required for trip update emails',
+            },
+            timestamp: new Date().toISOString(),
+          });
+        }
+        await emailService.sendTripUpdateEmail(to, updateData);
         break;
       }
 

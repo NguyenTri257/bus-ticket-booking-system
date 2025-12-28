@@ -15,7 +15,6 @@ Trip statuses follow strict state transitions to ensure data integrity:
 
 ### Valid Statuses
 
-- `inactive`: Trip is temporarily unavailable for booking
 - `scheduled`: Trip is planned and ready for booking
 - `in_progress`: Trip has started (departed)
 - `completed`: Trip has finished successfully
@@ -25,7 +24,6 @@ Trip statuses follow strict state transitions to ensure data integrity:
 
 | From Status   | To Status     | Description                     |
 | ------------- | ------------- | ------------------------------- |
-| `inactive`    | `scheduled`   | Reactivate trip to scheduled    |
 | `scheduled`   | `in_progress` | Trip starts                     |
 | `scheduled`   | `cancelled`   | Trip cancelled before departure |
 | `in_progress` | `completed`   | Trip finishes                   |

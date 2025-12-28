@@ -252,13 +252,15 @@ class TripRepository {
 
     if (fields.length === 0) return await this.findById(id);
 
-    const query = `UPDATE trips SET ${fields.join(', ')}, updated_at = NOW() WHERE trip_id = $${index} RETURNING *`;
+    const query = `UPDATE trips SET ${fields.join(', ')}, updated_at = NOW() WHERE trip_id = $${index} RETURNING trip_id`;
     values.push(id);
 
     const result = await pool.query(query, values);
 
     if (result.rowCount === 0) return null;
-    return await this._mapRowToTrip(result.rows[0]);
+
+    // Fetch the updated trip with all relationships
+    return await this.findById(id);
   }
 
   async findById(id) {
@@ -396,21 +398,7 @@ class TripRepository {
       query += ` ORDER BY ${orderBy} LIMIT $${limitIndex} OFFSET $${offsetIndex}`;
       values.push(limit, offset);
 
-      console.log('[TRIP QUERY]', { query, values });
-
       const result = await pool.query(query, values);
-
-      console.log(
-        '[TRIP RESULT] Returned rows:',
-        result.rows.length,
-        result.rows.map((r) => ({
-          trip_id: r.trip_id,
-          origin: r.origin,
-          destination: r.destination,
-          departure_time: r.departure_time,
-          status: r.status,
-        }))
-      );
 
       // Map all rows to TripData format
       const trips = await Promise.all(result.rows.map((row) => this._mapRowToTrip(row)));
@@ -525,6 +513,81 @@ class TripRepository {
     const result = await pool.query(query, [id]);
     if (result.rowCount === 0) return null;
     return await this._mapRowToTrip(result.rows[0]);
+  }
+
+  async getBookingsForTrip(tripId) {
+    const query = `
+      SELECT
+        b.booking_id,
+        b.booking_reference,
+        b.contact_email,
+        b.contact_phone,
+        json_agg(
+          json_build_object(
+            'full_name', bp.full_name,
+            'seat_code', bp.seat_code
+          )
+        ) as passengers
+      FROM bookings b
+      LEFT JOIN booking_passengers bp ON b.booking_id = bp.booking_id
+      WHERE b.trip_id = $1 AND b.status = 'confirmed'
+      GROUP BY b.booking_id, b.booking_reference, b.contact_email, b.contact_phone
+      ORDER BY b.created_at DESC
+    `;
+
+    const result = await pool.query(query, [tripId]);
+    return result.rows;
+  }
+
+  async getAlternativeTrips(tripId) {
+    // First get the cancelled trip details
+    const cancelledTrip = await this.findById(tripId);
+    if (!cancelledTrip) return [];
+
+    const query = `
+      SELECT
+        t.trip_id,
+        t.departure_time,
+        t.arrival_time,
+        t.base_price as price,
+        t.status,
+        r.origin,
+        r.destination,
+        r.estimated_minutes,
+        o.name as operator_name,
+        bm.name as bus_model,
+        b.license_plate
+      FROM trips t
+      JOIN routes r ON t.route_id = r.route_id
+      JOIN buses b ON t.bus_id = b.bus_id
+      JOIN bus_models bm ON b.bus_model_id = bm.bus_model_id
+      JOIN operators o ON b.operator_id = o.operator_id
+      WHERE t.route_id = $1
+        AND t.status IN ('scheduled', 'in_progress')
+        AND t.trip_id != $2
+        AND DATE(t.departure_time) >= DATE($3)
+        AND DATE(t.departure_time) <= DATE($3) + INTERVAL '7 days'
+      ORDER BY t.departure_time ASC
+      LIMIT 5
+    `;
+
+    const result = await pool.query(query, [
+      cancelledTrip.route.route_id,
+      tripId,
+      cancelledTrip.schedule.departure_time,
+    ]);
+
+    return result.rows.map((trip) => ({
+      tripId: trip.trip_id,
+      departureTime: trip.departure_time,
+      arrivalTime: trip.arrival_time,
+      price: trip.price,
+      operatorName: trip.operator_name,
+      busModel: trip.bus_model,
+      licensePlate: trip.license_plate,
+      fromLocation: trip.origin,
+      toLocation: trip.destination,
+    }));
   }
 }
 

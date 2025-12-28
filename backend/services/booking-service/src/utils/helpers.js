@@ -193,6 +193,40 @@ function mapToPassenger(row) {
   };
 }
 
+/**
+ * Format booking data for admin API (flat structure matching API doc)
+ * @param {object} booking - Booking object (from mapToBooking)
+ * @returns {object} Formatted booking for admin
+ */
+function formatBookingForAdmin(booking) {
+  // If already in flat format, return as is
+  if (booking.payment_status !== undefined && !booking.payment) {
+    return booking;
+  }
+
+  // Convert nested structure to flat structure
+  return {
+    booking_id: booking.booking_id,
+    booking_reference: booking.booking_reference,
+    trip_id: booking.trip_id,
+    user_id: booking.user_id,
+    contact_email: booking.contact_email,
+    contact_phone: booking.contact_phone,
+    status: booking.status || 'pending',
+    payment_status: booking.payment?.status || booking.payment_status || 'unpaid',
+    total_price: booking.pricing?.total || parseFloat(booking.total_price) || 0,
+    subtotal: booking.pricing?.subtotal || parseFloat(booking.subtotal) || 0,
+    service_fee: booking.pricing?.service_fee || parseFloat(booking.service_fee) || 0,
+    refund_amount: booking.cancellation?.refund_amount || parseFloat(booking.refund_amount) || null,
+    cancellation_reason: booking.cancellation?.reason || booking.cancellation_reason || null,
+    currency: booking.pricing?.currency || booking.currency || 'VND',
+    created_at: booking.created_at,
+    updated_at: booking.updated_at,
+    passengers: booking.passengers || [],
+    trip: booking.trip || null,
+  };
+}
+
 module.exports = {
   generateBookingReference,
   calculateServiceFee,
@@ -204,4 +238,5 @@ module.exports = {
   isValidBookingReferenceFormat,
   mapToBooking,
   mapToPassenger,
+  formatBookingForAdmin,
 };

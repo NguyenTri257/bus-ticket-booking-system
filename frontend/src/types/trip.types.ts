@@ -220,6 +220,65 @@ export interface Trip {
   status: 'active' | 'inactive'
 }
 
+/**
+ * BookingAdminData - Booking information for admin management
+ * Matches API: GET /bookings/admin response
+ */
+export interface BookingAdminData {
+  booking_id: string
+  booking_reference: string
+  trip_id: string
+  user_id?: string
+  contact_email: string
+  contact_phone: string
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+  payment_status: 'unpaid' | 'paid' | 'refunded'
+  total_price: number
+  subtotal?: number
+  service_fee?: number
+  refund_amount?: number
+  cancellation_reason?: string
+  currency: string
+  created_at: string
+  updated_at: string
+  user?: {
+    email: string
+    name: string
+  }
+  passengerCount?: number
+  passengers?: BookingPassenger[]
+  trip?: BookingTripDetails
+}
+
+/**
+ * BookingPassenger - Passenger information in a booking
+ */
+export interface BookingPassenger {
+  passenger_id: string
+  full_name: string
+  phone: string
+  id_number: string
+  seat_code: string
+}
+
+/**
+ * BookingTripDetails - Trip details in booking
+ */
+export interface BookingTripDetails {
+  trip_id: string
+  route: {
+    origin: string
+    destination: string
+  }
+  schedule: {
+    departureTime: string
+    arrivalTime: string
+  }
+  pricing: {
+    basePrice: number
+  }
+}
+
 // ============================================================================
 // CONSTANTS
 // ============================================================================

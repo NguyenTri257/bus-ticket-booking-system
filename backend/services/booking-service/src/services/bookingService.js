@@ -1796,11 +1796,13 @@ class BookingService {
       console.error('[BookingService] Failed to fetch trip details:', error);
     }
 
-    return {
+    // Format for admin API (flat structure)
+    const { formatBookingForAdmin } = require('../utils/helpers');
+    return formatBookingForAdmin({
       ...booking,
       passengers,
       trip,
-    };
+    });
   }
 
   /**

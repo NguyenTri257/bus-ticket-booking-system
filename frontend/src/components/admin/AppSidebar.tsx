@@ -8,6 +8,7 @@ import {
   FileText,
   Settings,
   MapPin,
+  Calendar,
 } from 'lucide-react'
 import { NavLink } from '@/components/NavLink'
 import { useLocation } from 'react-router-dom'
@@ -29,6 +30,7 @@ const menuItems = [
   { title: 'Routes', url: '/admin/routes', icon: Route },
   { title: 'Buses', url: '/admin/buses', icon: Bus },
   { title: 'Trips', url: '/admin/trips', icon: MapPin },
+  { title: 'Bookings', url: '/admin/bookings', icon: Calendar },
   { title: 'Operators', url: '/admin/operators', icon: Briefcase },
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Analytics', url: '/admin/analytics', icon: BarChart3 },

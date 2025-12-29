@@ -643,15 +643,51 @@ class BookingRepository {
 
     const result = await db.query(query, values);
 
+    console.log('[BookingRepo] findAllWithFilters - Query result count:', result.rows.length);
+    if (result.rows.length > 0) {
+      console.log('[BookingRepo] First row from DB:', {
+        booking_id: result.rows[0].booking_id,
+        payment_status: result.rows[0].payment_status,
+        total_price: result.rows[0].total_price,
+        typeof_total_price: typeof result.rows[0].total_price,
+      });
+    }
+
     return {
-      bookings: result.rows.map((row) => ({
-        ...mapToBooking(row),
-        user: row.user_email ? {
-          email: row.user_email,
-          name: row.user_name,
-        } : null,
-        passengerCount: parseInt(row.passenger_count),
-      })),
+      bookings: result.rows.map((row) => {
+        // Map to flat structure for admin API (matching API doc)
+        const mapped = {
+          booking_id: row.booking_id,
+          booking_reference: row.booking_reference,
+          trip_id: row.trip_id,
+          user_id: row.user_id,
+          contact_email: row.contact_email,
+          contact_phone: row.contact_phone,
+          status: row.status || 'pending',
+          payment_status: row.payment_status || 'unpaid',
+          total_price: parseFloat(row.total_price) || 0,
+          subtotal: parseFloat(row.subtotal) || 0,
+          service_fee: parseFloat(row.service_fee) || 0,
+          refund_amount: parseFloat(row.refund_amount) || null,
+          cancellation_reason: row.cancellation_reason || null,
+          currency: row.currency || 'VND',
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          user: row.user_email ? {
+            email: row.user_email,
+            name: row.user_name,
+          } : null,
+          passengerCount: parseInt(row.passenger_count) || 0,
+        };
+        
+        console.log('[BookingRepo] After mapping:', {
+          booking_id: mapped.booking_id,
+          payment_status: mapped.payment_status,
+          total_price: mapped.total_price,
+        });
+        
+        return mapped;
+      }),
       pagination: {
         page,
         limit,

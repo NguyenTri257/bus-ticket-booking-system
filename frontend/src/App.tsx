@@ -24,6 +24,7 @@ import AdminTripScheduling from '@/pages/admin/AdminTripScheduling'
 import AdminRouteManagement from '@/pages/admin/AdminRouteManagement'
 import AdminBusManagement from '@/pages/admin/AdminBusManagement'
 import AdminOperatorManagement from '@/pages/admin/AdminOperatorManagement'
+import AdminBookingManagement from '@/pages/admin/AdminBookingManagement'
 import Landing from './pages/Landing'
 import TripSearchResults from './pages/TripSearchResults'
 import SeatSelection from './pages/users/SeatSelection'
@@ -154,6 +155,11 @@ const App = () => (
                     element={<AdminAccountManagement />}
                   />{' '}
                   {/* Admin Account Management */}
+                  <Route
+                    path="/admin/bookings"
+                    element={<AdminBookingManagement />}
+                  />{' '}
+                  {/* Booking Management */}
                   <Route
                     path="/admin/analytics"
                     element={<RevenueAnalytics />}

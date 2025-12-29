@@ -1776,6 +1776,45 @@ class BookingService {
       sortOrder,
     });
 
+    // Enrich bookings with trip and passenger details
+    if (result.bookings && Array.isArray(result.bookings)) {
+      result.bookings = await Promise.all(
+        result.bookings.map(async (booking) => {
+          try {
+            // Get passengers for this booking
+            const passengers = await passengerRepository.findByBookingId(booking.booking_id);
+
+            // Get trip details
+            let trip = null;
+            if (booking.trip_id) {
+              try {
+                trip = await this.getTripById(booking.trip_id);
+              } catch (error) {
+                console.warn(
+                  '[BookingService] Failed to fetch trip details for booking:',
+                  booking.booking_id,
+                  error.message
+                );
+              }
+            }
+
+            return {
+              ...booking,
+              passengers: passengers || [],
+              trip: trip || null,
+            };
+          } catch (error) {
+            console.error('[BookingService] Error enriching booking:', booking.booking_id, error);
+            return {
+              ...booking,
+              passengers: [],
+              trip: null,
+            };
+          }
+        })
+      );
+    }
+
     return result;
   }
 

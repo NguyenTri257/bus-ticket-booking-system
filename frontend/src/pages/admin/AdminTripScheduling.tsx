@@ -544,14 +544,9 @@ const AdminTripSchedulingPage: React.FC = () => {
                           </AdminTableCell>
                           <AdminTableCell>
                             {(() => {
-                              const departureTime = new Date(
-                                trip.schedule.departure_time
-                              ).getTime()
-                              const duration = trip.route?.duration || 0
-                              const estimatedArrival = new Date(
-                                departureTime + duration * 60000
-                              )
-                              return estimatedArrival.toLocaleString()
+                              const estimatedArrival =
+                                trip.schedule.arrival_time || 0
+                              return new Date(estimatedArrival).toLocaleString()
                             })()}
                           </AdminTableCell>
                           <AdminTableCell align="center">

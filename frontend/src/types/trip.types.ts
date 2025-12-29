@@ -295,7 +295,7 @@ export interface BookingPassenger {
   passenger_id: string
   full_name: string
   phone: string
-  id_number: string
+  document_id: string
   seat_code: string
 }
 
@@ -309,8 +309,8 @@ export interface BookingTripDetails {
     destination: string
   }
   schedule: {
-    departureTime: string
-    arrivalTime: string
+    departure_time: string
+    arrival_time: string
   }
   pricing: {
     basePrice: number

@@ -847,7 +847,7 @@ const AdminBookingManagement: React.FC = () => {
                                           Phone: {passenger.phone}
                                         </p>
                                         <p className="text-xs text-muted-foreground">
-                                          ID: {passenger.id_number}
+                                          ID: {passenger.document_id}
                                         </p>
                                       </div>
                                     ))}
@@ -878,7 +878,7 @@ const AdminBookingManagement: React.FC = () => {
                                       </span>
                                       <span className="font-medium">
                                         {formatDate(
-                                          booking.trip.schedule.departureTime
+                                          booking.trip.schedule.departure_time
                                         )}
                                       </span>
                                     </div>
@@ -888,7 +888,7 @@ const AdminBookingManagement: React.FC = () => {
                                       </span>
                                       <span className="font-medium">
                                         {formatDate(
-                                          booking.trip.schedule.arrivalTime
+                                          booking.trip.schedule.arrival_time
                                         )}
                                       </span>
                                     </div>

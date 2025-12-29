@@ -85,7 +85,7 @@ export const BusFormDrawer: React.FC<BusFormDrawerProps> = ({
   onRefresh,
 }) => {
   const [form, setForm] =
-    useState<Omit<BusAdminData, 'bus_id' | 'createdAt'>>(emptyForm)
+    useState<Omit<BusAdminData, 'bus_id' | 'created_at'>>(emptyForm)
   const [removedImagePublicIds, setRemovedImagePublicIds] = useState<string[]>(
     []
   )
@@ -118,10 +118,12 @@ export const BusFormDrawer: React.FC<BusFormDrawerProps> = ({
     if (initialBus) {
       setForm({
         operator_id: initialBus.operator_id,
+        name: initialBus.name,
         model: initialBus.model,
         plate_number: initialBus.plate_number,
         type: initialBus.type,
         capacity: initialBus.capacity,
+        status: initialBus.status,
         amenities: initialBus.amenities,
         image_urls:
           initialBus.image_urls ||

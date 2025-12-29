@@ -1,6 +1,11 @@
 import { StatCard } from '../../components/admin/StatCard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import {
   Table,
   TableBody,
   TableCell,
@@ -8,80 +13,56 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { BookOpen, Users, DollarSign } from 'lucide-react'
+import {
+  BookOpen,
+  Users,
+  DollarSign,
+  HelpCircle,
+  TrendingUp,
+  Route,
+} from 'lucide-react'
 import {
   LineChart,
   Line,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as TooltipRecharts,
   ResponsiveContainer,
 } from 'recharts'
 import '@/styles/admin.css'
 import { DashboardLayout } from '@/components/admin/DashboardLayout'
-// Sample data
-const bookingsTrendData = [
-  { day: 'Mon', bookings: 45 },
-  { day: 'Tue', bookings: 52 },
-  { day: 'Wed', bookings: 61 },
-  { day: 'Thu', bookings: 55 },
-  { day: 'Fri', bookings: 70 },
-  { day: 'Sat', bookings: 85 },
-  { day: 'Sun', bookings: 78 },
-]
-
-const topRoutes = [
-  { route: 'HCM → Hanoi', bookings: 234, revenue: '8.2M' },
-  { route: 'HCM → Dalat', bookings: 189, revenue: '3.4M' },
-  { route: 'Hanoi → Haiphong', bookings: 156, revenue: '2.8M' },
-  { route: 'Danang → Hue', bookings: 142, revenue: '2.1M' },
-]
-
-const recentBookings = [
-  {
-    id: 'BK-2045',
-    customer: 'Nguyen Van A',
-    route: 'HCM → Hanoi',
-    date: '2025-11-21',
-    amount: '$45',
-    status: 'Confirmed',
-  },
-  {
-    id: 'BK-2044',
-    customer: 'Tran Thi B',
-    route: 'HCM → Dalat',
-    date: '2025-11-21',
-    amount: '$28',
-    status: 'Confirmed',
-  },
-  {
-    id: 'BK-2043',
-    customer: 'Le Van C',
-    route: 'Hanoi → Haiphong',
-    date: '2025-11-21',
-    amount: '$32',
-    status: 'Pending',
-  },
-  {
-    id: 'BK-2042',
-    customer: 'Pham Thi D',
-    route: 'Danang → Hue',
-    date: '2025-11-20',
-    amount: '$25',
-    status: 'Confirmed',
-  },
-  {
-    id: 'BK-2041',
-    customer: 'Hoang Van E',
-    route: 'HCM → Hanoi',
-    date: '2025-11-20',
-    amount: '$45',
-    status: 'Confirmed',
-  },
-]
+import { useAdminDashboard } from '../../hooks/useAdminDashboard'
+import { AdminLoadingSpinner } from '../../components/admin/AdminLoadingSpinner'
+import { AdminEmptyState } from '../../components/admin/AdminEmptyState'
 
 export default function Dashboard() {
+  const {
+    dashboardData,
+    bookingsTrend,
+    topRoutesData,
+    recentBookings,
+    loading,
+    error,
+  } = useAdminDashboard()
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <AdminLoadingSpinner message="Loading dashboard data..." />
+      </DashboardLayout>
+    )
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg text-red-600">{error}</div>
+        </div>
+      </DashboardLayout>
+    )
+  }
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -93,21 +74,24 @@ export default function Dashboard() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <StatCard
             title="Total Bookings"
-            value="1,234"
+            value={dashboardData.totalBookings.toLocaleString()}
             icon={BookOpen}
             iconColor="text-primary"
+            hoverTitle={`${dashboardData.totalBookings.toLocaleString()} bookings`}
           />
           <StatCard
             title="Active Users"
-            value="856"
+            value={dashboardData.activeUsers.toLocaleString()}
             icon={Users}
             iconColor="text-success"
+            hoverTitle={`${dashboardData.activeUsers.toLocaleString()} users`}
           />
           <StatCard
             title="Revenue Today"
-            value="45.2M"
+            value={`${(dashboardData.revenueToday / 1000000).toFixed(1)}M`}
             icon={DollarSign}
             iconColor="text-warning"
+            hoverTitle={`${dashboardData.revenueToday.toLocaleString()} VND`}
           />
         </div>
 
@@ -117,34 +101,44 @@ export default function Dashboard() {
             <CardTitle>Bookings Trend (Last 7 days)</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={bookingsTrendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis
-                  dataKey="day"
-                  stroke="var(--muted-foreground)"
-                  tick={{ fill: 'var(--muted-foreground)' }}
+            {bookingsTrend.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={bookingsTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis
+                    dataKey="day"
+                    stroke="var(--muted-foreground)"
+                    tick={{ fill: 'var(--muted-foreground)' }}
+                  />
+                  <YAxis
+                    stroke="var(--muted-foreground)"
+                    tick={{ fill: 'var(--muted-foreground)' }}
+                  />
+                  <TooltipRecharts
+                    contentStyle={{
+                      backgroundColor: 'var(--card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '6px',
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="bookings"
+                    stroke="var(--primary)"
+                    strokeWidth={2}
+                    dot={{ fill: 'var(--primary)' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-300px flex items-center justify-center">
+                <AdminEmptyState
+                  icon={TrendingUp}
+                  title="No Booking Data"
+                  description="The chart will show booking trends once there are bookings in the last 7 days."
                 />
-                <YAxis
-                  stroke="var(--muted-foreground)"
-                  tick={{ fill: 'var(--muted-foreground)' }}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'var(--card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '6px',
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="bookings"
-                  stroke="var(--primary)"
-                  strokeWidth={2}
-                  dot={{ fill: 'var(--primary)' }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -155,30 +149,48 @@ export default function Dashboard() {
               <CardTitle>Top Routes</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Route</TableHead>
-                    <TableHead className="text-right">Bookings</TableHead>
-                    <TableHead className="text-right">Revenue</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {topRoutes.map((route, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">
-                        {route.route}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {route.bookings}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {route.revenue}
-                      </TableCell>
+              {topRoutesData.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Route</TableHead>
+                      <TableHead className="text-right">Bookings</TableHead>
+                      <TableHead className="text-right">Revenue</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {topRoutesData.map((route, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">
+                          {route.route}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {route.bookings}
+                        </TableCell>
+                        <TableCell className="text-right group">
+                          <div className="flex items-center justify-end gap-1">
+                            <span>{route.revenue}</span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{route.rawRevenue.toLocaleString()} VND</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <AdminEmptyState
+                  icon={Route}
+                  title="No Route Data"
+                  description="Top routes by bookings will be displayed here once trip data is available."
+                />
+              )}
             </CardContent>
           </Card>
 
@@ -188,30 +200,62 @@ export default function Dashboard() {
               <CardTitle>Recent Bookings</CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>ID</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Route</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentBookings.map((booking) => (
-                    <TableRow key={booking.id}>
-                      <TableCell className="font-medium">
-                        {booking.id}
-                      </TableCell>
-                      <TableCell>{booking.customer}</TableCell>
-                      <TableCell>{booking.route}</TableCell>
-                      <TableCell className="text-right">
-                        {booking.amount}
-                      </TableCell>
+              {recentBookings.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Route</TableHead>
+                      <TableHead className="text-right">Passengers</TableHead>
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead>Status</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {recentBookings.map((booking, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">
+                          {booking.routeName}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {booking.passengers}
+                        </TableCell>
+                        <TableCell className="text-right group">
+                          <div className="flex items-center justify-end gap-1">
+                            <span>{booking.price}</span>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{booking.rawPrice.toLocaleString()} VND</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span
+                            className={`px-2 py-1 rounded text-sm font-medium ${
+                              booking.status === 'confirmed'
+                                ? 'bg-green-100 text-green-800'
+                                : booking.status === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-red-100 text-red-800'
+                            }`}
+                          >
+                            {booking.status}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <AdminEmptyState
+                  icon={BookOpen}
+                  title="No Recent Bookings"
+                  description="Recent booking transactions will be displayed here once booking data is available."
+                />
+              )}
             </CardContent>
           </Card>
         </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import type { BusAdminData } from '@/types/trip.types'
 import { CustomDropdown } from '../ui/custom-dropdown'
 import { Loader, X } from 'lucide-react'
-import { requestFormData } from '@/api/auth'
+import { requestFormData, request } from '@/api/auth'
 
 interface BusModel {
   bus_model_id: string
@@ -45,6 +45,36 @@ const AMENITIES_OPTIONS = [
   { id: 'pillow', label: 'Pillow' },
 ]
 
+// Extract public_id from Cloudinary URL
+const extractPublicIdFromUrl = (url: string): string | null => {
+  try {
+    // Cloudinary URL format: https://res.cloudinary.com/{cloud_name}/image/upload/{version}/{public_id}.{format}
+    // Example: https://res.cloudinary.com/dleqkiaj0/image/upload/v1766998906/bus-tickets/buses/zbewsupwojqgbe6jlfyj.jpg
+    // The public_id for deletion should be: bus-tickets/buses/zbewsupwojqgbe6jlfyj (without version prefix)
+    const urlParts = url.split('/upload/')
+    if (urlParts.length < 2) return null
+    let afterUpload = urlParts[1]
+
+    // Remove file extension (everything after the last dot)
+    const lastDotIndex = afterUpload.lastIndexOf('.')
+    if (lastDotIndex !== -1) {
+      afterUpload = afterUpload.substring(0, lastDotIndex)
+    }
+
+    // Remove version prefix if it exists (e.g., v1766998906/)
+    // Version prefix format: vNUMBERS/
+    const versionMatch = afterUpload.match(/^v\d+\//)
+    if (versionMatch) {
+      afterUpload = afterUpload.substring(versionMatch[0].length)
+    }
+
+    return afterUpload
+  } catch (error) {
+    console.error('Error extracting public_id:', error)
+    return null
+  }
+}
+
 export const BusFormDrawer: React.FC<BusFormDrawerProps> = ({
   open,
   onClose,
@@ -56,6 +86,9 @@ export const BusFormDrawer: React.FC<BusFormDrawerProps> = ({
 }) => {
   const [form, setForm] =
     useState<Omit<BusAdminData, 'bus_id' | 'createdAt'>>(emptyForm)
+  const [removedImagePublicIds, setRemovedImagePublicIds] = useState<string[]>(
+    []
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
@@ -97,6 +130,7 @@ export const BusFormDrawer: React.FC<BusFormDrawerProps> = ({
     } else {
       setForm(emptyForm)
     }
+    setRemovedImagePublicIds([])
     setErrors({})
     if (errorTimeoutRef.current) {
       clearTimeout(errorTimeoutRef.current)
@@ -185,6 +219,16 @@ export const BusFormDrawer: React.FC<BusFormDrawerProps> = ({
   }
 
   const removeImage = (index: number) => {
+    const imageUrl = form.image_urls?.[index]
+    if (!imageUrl) return
+
+    const publicId = extractPublicIdFromUrl(imageUrl)
+    if (publicId) {
+      // Track this image for deletion when saving
+      setRemovedImagePublicIds((prev) => [...prev, publicId])
+    }
+
+    // Remove from form immediately (visual feedback)
     setForm((prev) => ({
       ...prev,
       image_urls: prev.image_urls?.filter((_, i) => i !== index) || [],
@@ -213,6 +257,29 @@ export const BusFormDrawer: React.FC<BusFormDrawerProps> = ({
 
     setIsSubmitting(true)
     try {
+      // Delete removed images from Cloudinary before saving
+      if (removedImagePublicIds.length > 0) {
+        console.log(
+          '[FE Submit] Deleting removed images:',
+          removedImagePublicIds
+        )
+        await Promise.all(
+          removedImagePublicIds.map((publicId) =>
+            request(
+              `/trips/upload/image?publicId=${encodeURIComponent(publicId)}`,
+              { method: 'DELETE' }
+            ).catch((error) => {
+              console.error(
+                '[FE Submit] Failed to delete image:',
+                publicId,
+                error
+              )
+              // Continue with save even if deletion fails
+            })
+          )
+        )
+      }
+
       // Generate name from model and plate number
       const generatedName = `${form.model} (${form.plate_number})`
       const formData = initialBus

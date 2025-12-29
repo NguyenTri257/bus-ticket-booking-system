@@ -138,4 +138,53 @@ router.post(
   }
 );
 
+/**
+ * DELETE /trips/upload/image?publicId=...
+ * Delete image from Cloudinary
+ */
+router.delete('/image', async (req, res) => {
+  try {
+    const publicId = req.query.publicId;
+
+    if (!publicId) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'MISSING_PUBLIC_ID', message: 'Public ID is required' },
+      });
+    }
+
+    console.log('[BE Delete] Deleting image with public_id:', publicId);
+
+    // Delete from Cloudinary
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: 'image',
+    });
+
+    if (result.result === 'ok') {
+      res.json({
+        success: true,
+        message: 'Image deleted successfully',
+      });
+    } else {
+      console.error('Cloudinary delete error:', result);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'DELETE_FAILED',
+          message: 'Failed to delete image from Cloudinary',
+        },
+      });
+    }
+  } catch (error) {
+    console.error('Delete endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'SYS_002',
+        message: 'Failed to process image deletion',
+      },
+    });
+  }
+});
+
 module.exports = router;

@@ -9,6 +9,7 @@ import {
   X,
   Filter,
   PowerOff,
+  Power,
   Grid3X3,
 } from 'lucide-react'
 import { BusFormDrawer } from '@/components/admin/BusFormDrawer'
@@ -603,7 +604,7 @@ const AdminBusManagement: React.FC = () => {
                             className="hover:opacity-80 disabled:opacity-50"
                             title="Activate bus"
                           >
-                            <PowerOff className="h-4 w-4" />
+                            <Power className="h-4 w-4" />
                           </button>
                         )}
                       </div>

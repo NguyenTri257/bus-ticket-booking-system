@@ -29,6 +29,10 @@ interface ReviewsListProps {
   onSortChange?: (sort: string) => void
   ratingFilter?: number | null
   onRatingFilterChange?: (rating: number | null) => void
+  routeFilter?: string | null
+  onRouteFilterChange?: (route: string | null) => void
+  hasImageFilter?: boolean | null
+  onHasImageFilterChange?: (hasImage: boolean | null) => void
   operatorStats?: OperatorRatingStats | null
   currentPage?: number
   totalPages?: number
@@ -49,6 +53,10 @@ export function ReviewsList({
   onSortChange,
   ratingFilter = null,
   onRatingFilterChange,
+  routeFilter = null,
+  onRouteFilterChange,
+  hasImageFilter = null,
+  onHasImageFilterChange,
   operatorStats,
   currentPage = 1,
   totalPages = 1,
@@ -62,9 +70,7 @@ export function ReviewsList({
   console.log('ReviewsList received:', { reviews, sortBy, ratingFilter })
 
   const [showFilters, setShowFilters] = useState(false)
-  const [filterType, setFilterType] = useState<'all' | 'images'>('all')
   const [selectedSeatType, setSelectedSeatType] = useState<string | null>(null)
-  const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
 
   const stats = useMemo(() => {
     if (!operatorStats) return null
@@ -109,33 +115,25 @@ export function ReviewsList({
   const filteredReviews = useMemo(() => {
     let result = reviews
 
-    // Filter by type
-    if (filterType === 'images') {
-      result = result.filter((r) => r.photos && r.photos.length > 0)
-    }
-
-    // Filter by rating
-    if (ratingFilter) {
-      result = result.filter((review) => {
-        return Math.round(review.rating || 0) === ratingFilter
-      })
-    }
+    // Has Image filter is server-side, no client filtering needed
 
     // Filter by seat type
     if (selectedSeatType) {
       result = result.filter((r) => r.seatType === selectedSeatType)
     }
 
-    // Filter by route
-    if (selectedRoute) {
-      result = result.filter((r) => r.route === selectedRoute)
-    }
+    // Route filter is server-side, no client filtering needed
 
     return result
-  }, [reviews, filterType, ratingFilter, selectedSeatType, selectedRoute])
+  }, [reviews, selectedSeatType])
 
   // Show rating summary and empty state even when no reviews
-  if (reviews.length === 0) {
+  if (
+    reviews.length === 0 &&
+    !ratingFilter &&
+    !routeFilter &&
+    !hasImageFilter
+  ) {
     return (
       <div className="space-y-6">
         {stats && (
@@ -287,10 +285,10 @@ export function ReviewsList({
       {/* Quick Filter Buttons */}
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => setFilterType('all')}
+          onClick={() => onHasImageFilterChange?.(null)}
           className={cn(
             'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-            filterType === 'all'
+            hasImageFilter === null
               ? 'bg-primary text-primary-foreground'
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           )}
@@ -298,10 +296,10 @@ export function ReviewsList({
           All ({reviews.length})
         </button>
         <button
-          onClick={() => setFilterType('images')}
+          onClick={() => onHasImageFilterChange?.(true)}
           className={cn(
             'px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2',
-            filterType === 'images'
+            hasImageFilter === true
               ? 'bg-primary text-primary-foreground'
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           )}
@@ -450,13 +448,15 @@ export function ReviewsList({
           {/* Route Filter */}
           {uniqueRoutes.length > 0 && (
             <div>
-              <p className="text-sm font-medium text-foreground mb-3">Route</p>
+              <p className="text-sm font-medium text-foreground mb-3">
+                Filter by Route
+              </p>
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => setSelectedRoute(null)}
+                  onClick={() => onRouteFilterChange?.(null)}
                   className={cn(
                     'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                    selectedRoute === null
+                    routeFilter === null
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-card text-muted-foreground hover:bg-card/80'
                   )}
@@ -466,10 +466,10 @@ export function ReviewsList({
                 {uniqueRoutes.map((route) => (
                   <button
                     key={route}
-                    onClick={() => setSelectedRoute(route)}
+                    onClick={() => onRouteFilterChange?.(route)}
                     className={cn(
                       'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                      selectedRoute === route
+                      routeFilter === route
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-card text-muted-foreground hover:bg-card/80'
                     )}
@@ -517,7 +517,7 @@ export function ReviewsList({
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && onPageChange && (
+      {totalPages > 1 && filteredReviews.length > 0 && onPageChange && (
         <div className="flex justify-center items-center gap-2 pt-4">
           <Button
             variant="outline"

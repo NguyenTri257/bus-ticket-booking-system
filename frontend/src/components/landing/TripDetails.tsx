@@ -50,6 +50,12 @@ export function TripDetails({ trip }: TripDetailsProps) {
   const [reviewsRatingFilter, setReviewsRatingFilter] = useState<number | null>(
     null
   )
+  const [reviewsRouteFilter, setReviewsRouteFilter] = useState<string | null>(
+    null
+  )
+  const [reviewsHasImageFilter, setReviewsHasImageFilter] = useState<
+    boolean | null
+  >(null)
   const [reviewsPage, setReviewsPage] = useState(1)
   const [reviewsLimit, setReviewsLimit] = useState(5)
   const [hasMoreReviews, setHasMoreReviews] = useState(false)
@@ -78,6 +84,8 @@ export function TripDetails({ trip }: TripDetailsProps) {
         page: reviewsPage,
         sortBy: reviewsSortBy,
         rating: reviewsRatingFilter,
+        route: reviewsRouteFilter,
+        hasImage: reviewsHasImageFilter,
       })
 
       const response = await getOperatorReviews(trip.operator.operator_id, {
@@ -85,6 +93,8 @@ export function TripDetails({ trip }: TripDetailsProps) {
         limit: reviewsLimit,
         sortBy: reviewsSortBy,
         rating: reviewsRatingFilter || undefined,
+        route: reviewsRouteFilter || undefined,
+        hasImage: reviewsHasImageFilter || undefined,
       })
 
       console.log('Reviews response:', response)
@@ -133,6 +143,8 @@ export function TripDetails({ trip }: TripDetailsProps) {
     reviewsPage,
     reviewsSortBy,
     reviewsRatingFilter,
+    reviewsRouteFilter,
+    reviewsHasImageFilter,
     reviewsLimit,
   ])
 
@@ -168,6 +180,8 @@ export function TripDetails({ trip }: TripDetailsProps) {
     reviewsPage,
     reviewsSortBy,
     reviewsRatingFilter,
+    reviewsRouteFilter,
+    reviewsHasImageFilter,
     reviewsLimit,
     reviewsRefreshTrigger,
     fetchReviews,
@@ -642,6 +656,16 @@ export function TripDetails({ trip }: TripDetailsProps) {
             ratingFilter={reviewsRatingFilter}
             onRatingFilterChange={(rating) => {
               setReviewsRatingFilter(rating)
+              setReviewsPage(1) // Reset to first page when filter changes
+            }}
+            routeFilter={reviewsRouteFilter}
+            onRouteFilterChange={(route) => {
+              setReviewsRouteFilter(route)
+              setReviewsPage(1) // Reset to first page when filter changes
+            }}
+            hasImageFilter={reviewsHasImageFilter}
+            onHasImageFilterChange={(hasImage) => {
+              setReviewsHasImageFilter(hasImage)
               setReviewsPage(1) // Reset to first page when filter changes
             }}
             operatorStats={operatorStats}

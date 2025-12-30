@@ -273,6 +273,8 @@ export async function getOperatorReviews(
     limit?: number
     sortBy?: 'recent' | 'helpful' | 'rating-high' | 'rating-low'
     rating?: number
+    route?: string
+    hasImage?: boolean
   }
 ): Promise<{
   success: boolean
@@ -291,6 +293,9 @@ export async function getOperatorReviews(
     if (params?.limit) queryParams.append('limit', params.limit.toString())
     if (params?.sortBy) queryParams.append('sort', params.sortBy)
     if (params?.rating) queryParams.append('rating', params.rating.toString())
+    if (params?.route) queryParams.append('route', params.route)
+    if (params?.hasImage !== undefined)
+      queryParams.append('hasImage', params.hasImage.toString())
 
     const queryString = queryParams.toString()
     const url = queryString

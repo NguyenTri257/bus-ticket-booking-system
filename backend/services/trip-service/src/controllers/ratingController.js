@@ -306,6 +306,7 @@ const getTripReviews = async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, parseInt(req.query.limit) || 10);
     const sort = req.query.sort || 'recent'; // recent, helpful, rating-high, rating-low
+    const rating = req.query.rating ? parseInt(req.query.rating) : null;
 
     const offset = (page - 1) * limit;
 
@@ -326,19 +327,22 @@ const getTripReviews = async (req, res) => {
         orderBy = 'r.created_at DESC';
     }
 
-    console.log('🔍 [GET_TRIP_REVIEWS] Sort params:', { sort, orderBy, page, limit });
+    console.log('🔍 [GET_TRIP_REVIEWS] Sort params:', { sort, orderBy, page, limit, rating });
+
+    // Build count query with optional rating filter
+    let countQuery = `SELECT COUNT(*) as total FROM ratings WHERE trip_id = $1 AND is_approved = TRUE AND review_text IS NOT NULL`;
+    let countParams = [tripId];
+    if (rating) {
+      countQuery += ` AND overall_rating = $${countParams.length + 1}`;
+      countParams.push(rating);
+    }
 
     // Get total count
-    const countResult = await db.query(
-      `SELECT COUNT(*) as total FROM ratings 
-             WHERE trip_id = $1 AND is_approved = TRUE AND review_text IS NOT NULL`,
-      [tripId]
-    );
+    const countResult = await db.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].total);
 
-    // Get paginated reviews
-    const reviewsResult = await db.query(
-      `SELECT 
+    // Build reviews query with optional rating filter
+    let reviewsQuery = `SELECT 
                 r.rating_id,
                 r.booking_id,
                 r.trip_id,
@@ -365,11 +369,17 @@ const getTripReviews = async (req, res) => {
             LEFT JOIN trips t ON r.trip_id = t.trip_id
             LEFT JOIN booking_passengers bp ON r.booking_id = bp.booking_id
             LEFT JOIN seats s ON bp.seat_code = s.seat_code AND s.bus_id = t.bus_id
-            WHERE r.trip_id = $1 AND r.is_approved = TRUE AND r.review_text IS NOT NULL
-            ORDER BY ${orderBy}
-            LIMIT $2 OFFSET $3`,
-      [tripId, limit, offset]
-    );
+            WHERE r.trip_id = $1 AND r.is_approved = TRUE AND r.review_text IS NOT NULL`;
+    let reviewsParams = [tripId];
+    if (rating) {
+      reviewsQuery += ` AND r.overall_rating = $${reviewsParams.length + 1}`;
+      reviewsParams.push(rating);
+    }
+    reviewsQuery += ` ORDER BY ${orderBy} LIMIT $${reviewsParams.length + 1} OFFSET $${reviewsParams.length + 2}`;
+    reviewsParams.push(limit, offset);
+
+    // Get paginated reviews
+    const reviewsResult = await db.query(reviewsQuery, reviewsParams);
 
     console.log('🔍 [GET_TRIP_REVIEWS] Fetched reviews count:', reviewsResult.rows.length);
     console.log(
@@ -877,6 +887,9 @@ const getOperatorReviews = async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, parseInt(req.query.limit) || 10);
     const sort = req.query.sort || 'recent'; // recent, helpful, rating-high, rating-low
+    const rating = req.query.rating ? parseInt(req.query.rating) : null;
+    const route = req.query.route;
+    const hasImage = req.query.hasImage === 'true';
     const userId = req.user?.userId; // Optional authentication
 
     const offset = (page - 1) * limit;
@@ -898,19 +911,40 @@ const getOperatorReviews = async (req, res) => {
         orderBy = 'r.created_at DESC';
     }
 
-    console.log('🔍 [GET_OPERATOR_REVIEWS] Sort params:', { sort, orderBy, page, limit });
+    console.log('🔍 [GET_OPERATOR_REVIEWS] Params:', {
+      sort,
+      orderBy,
+      page,
+      limit,
+      rating,
+      route,
+      hasImage,
+    });
+
+    // Build count query with optional filters
+    let countQuery = `SELECT COUNT(*) as total FROM ratings r
+                      LEFT JOIN trips t ON r.trip_id = t.trip_id
+                      LEFT JOIN routes rt ON t.route_id = rt.route_id
+                      WHERE r.operator_id = $1 AND r.is_approved = TRUE AND r.review_text IS NOT NULL`;
+    let countParams = [operatorId];
+    if (rating) {
+      countQuery += ` AND r.overall_rating = $${countParams.length + 1}`;
+      countParams.push(rating);
+    }
+    if (route) {
+      countQuery += ` AND CONCAT(rt.origin, ' - ', rt.destination) = $${countParams.length + 1}`;
+      countParams.push(route);
+    }
+    if (hasImage) {
+      countQuery += ` AND json_array_length(r.photos::json) > 0`;
+    }
 
     // Get total count
-    const countResult = await db.query(
-      `SELECT COUNT(*) as total FROM ratings 
-             WHERE operator_id = $1 AND is_approved = TRUE AND review_text IS NOT NULL`,
-      [operatorId]
-    );
+    const countResult = await db.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].total);
 
-    // Get paginated reviews
-    const reviewsResult = await db.query(
-      `SELECT 
+    // Build reviews query with optional rating filter
+    let reviewsQuery = `SELECT 
                 r.rating_id,
                 r.booking_id,
                 r.trip_id,
@@ -941,11 +975,24 @@ const getOperatorReviews = async (req, res) => {
             LEFT JOIN routes rt ON t.route_id = rt.route_id
             LEFT JOIN booking_passengers bp ON r.booking_id = bp.booking_id
             LEFT JOIN seats s ON bp.seat_code = s.seat_code AND s.bus_id = t.bus_id
-            WHERE r.operator_id = $1 AND r.is_approved = TRUE AND r.review_text IS NOT NULL
-            ORDER BY ${orderBy}
-            LIMIT $2 OFFSET $3`,
-      [operatorId, limit, offset]
-    );
+            WHERE r.operator_id = $1 AND r.is_approved = TRUE AND r.review_text IS NOT NULL`;
+    let reviewsParams = [operatorId];
+    if (rating) {
+      reviewsQuery += ` AND r.overall_rating = $${reviewsParams.length + 1}`;
+      reviewsParams.push(rating);
+    }
+    if (route) {
+      reviewsQuery += ` AND CONCAT(rt.origin, ' - ', rt.destination) = $${reviewsParams.length + 1}`;
+      reviewsParams.push(route);
+    }
+    if (hasImage) {
+      reviewsQuery += ` AND json_array_length(r.photos::json) > 0`;
+    }
+    reviewsQuery += ` ORDER BY ${orderBy} LIMIT $${reviewsParams.length + 1} OFFSET $${reviewsParams.length + 2}`;
+    reviewsParams.push(limit, offset);
+
+    // Get paginated reviews
+    const reviewsResult = await db.query(reviewsQuery, reviewsParams);
 
     console.log('🔍 [GET_OPERATOR_REVIEWS] Fetched reviews count:', reviewsResult.rows.length);
     console.log(

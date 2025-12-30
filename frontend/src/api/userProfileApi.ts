@@ -1,3 +1,29 @@
+/**
+ * Change user password
+ */
+export const changeUserPassword = async (data: {
+  currentPassword: string
+  newPassword: string
+  confirmPassword: string
+}): Promise<{ success?: boolean; message?: string }> => {
+  if (data.newPassword !== data.confirmPassword) {
+    throw new Error('New password and confirm password do not match.')
+  }
+  if (!strongPasswordPattern.test(data.newPassword)) {
+    throw new Error(
+      'New password must include upper, lower, number, special char, min 8 chars.'
+    )
+  }
+  const response = await request('/users/change-password', {
+    method: 'POST',
+    body: {
+      currentPassword: data.currentPassword,
+      newPassword: data.newPassword,
+    },
+  })
+  return response.data || response
+}
+import { strongPasswordPattern } from '../lib/validation'
 import { request } from './auth'
 
 interface NotificationPreference {
@@ -32,8 +58,8 @@ interface UserProfile {
  */
 export const getUserProfile = async (): Promise<UserProfile> => {
   try {
-    const response = await request('/auth/me', { method: 'GET' })
-    return response.data?.data || response.data
+    const response = await request('/users/profile', { method: 'GET' })
+    return response.data || response
   } catch (error) {
     console.error('Error fetching user profile:', error)
     throw error
@@ -47,15 +73,36 @@ export const updateUserProfile = async (
   profileData: Partial<UserProfile>
 ): Promise<UserProfile> => {
   try {
-    const response = await request('/auth/me', {
+    // Nếu có avatar là File, convert sang base64
+    const body = { ...profileData }
+    if (
+      body.avatar &&
+      typeof body.avatar === 'object' &&
+      typeof window !== 'undefined' &&
+      typeof File !== 'undefined' &&
+      body.avatar instanceof File
+    ) {
+      body.avatar = await fileToBase64(body.avatar)
+    }
+    const response = await request('/users/profile', {
       method: 'PUT',
-      body: profileData,
+      body,
     })
-    return response.data?.data || response.data
+    return response.data || response
   } catch (error) {
     console.error('Error updating user profile:', error)
     throw error
   }
+}
+
+// Helper: convert File to base64
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
 }
 
 /**

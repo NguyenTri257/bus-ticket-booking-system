@@ -6,50 +6,10 @@ const morgan = require('morgan');
 require('dotenv').config();
 const authService = require('./authService');
 const authController = require('./authController');
-const { authenticate } = require('./authMiddleware');
+// const adminController = require('./controllers/adminController');
+const { authenticate, authorize } = require('./authMiddleware');
 
 const app = express();
-
-// Avatar upload
-const upload = require('./controllers/avatarMulter');
-const uploadAvatar = require('./controllers/uploadAvatar.controller');
-// Route: upload avatar (protected, follow doc)
-app.put('/users/profile', authenticate, upload.single('avatar'), async (req, res, next) => {
-  req.userRepository = require('./userRepository');
-  try {
-    await uploadAvatar(req, res);
-  } catch (error) {
-    next(error);
-  }
-});
-
-// GET /users/profile (follow doc)
-app.get('/users/profile', authenticate, async (req, res, next) => {
-  try {
-    // Lấy user từ DB
-    const userRepository = require('./userRepository');
-    const user = await userRepository.findById(req.user.user_id);
-    if (!user) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found' } });
-    // Chuẩn hóa response
-    res.json({
-      success: true,
-      data: {
-        userId: user.user_id,
-        email: user.email,
-        phone: user.phone,
-        fullName: user.full_name,
-        role: user.role,
-        avatar: user.avatar,
-        emailVerified: user.email_verified,
-        phoneVerified: user.phone_verified,
-        preferences: user.preferences,
-        createdAt: user.created_at,
-      }
-    });
-  } catch (error) {
-    next(error);
-  }
-});
 const PORT = process.env.PORT || (process.env.NODE_ENV === 'test' ? 3002 : 3001);
 
 // Middleware
@@ -83,20 +43,20 @@ app.post('/request-otp', authController.requestOTP);
 app.post('/verify-otp', authController.verifyOTP);
 app.post('/logout', authenticate, authController.logout);
 app.post('/change-password', authenticate, authController.changePassword);
-app.get('/me', authenticate, async (req, res, next) => {
-  try {
-    await authController.getProfile(req, res);
-  } catch (error) {
-    next(error);
-  }
-});
-app.put('/me', authenticate, async (req, res, next) => {
-  try {
-    await authController.updateProfile(req, res);
-  } catch (error) {
-    next(error);
-  }
-});
+// app.get('/me', authenticate, async (req, res, next) => {
+//   try {
+//     await authController.getProfile(req, res);
+//   } catch (error) {
+//     next(error);
+//   }
+// });
+// app.put('/me', authenticate, async (req, res, next) => {
+//   try {
+//     await authController.updateProfile(req, res);
+//   } catch (error) {
+//     next(error);
+//   }
+// });
 
 // POST /auth/verify - Để verify token và lấy thông tin user
 app.post('/auth/verify', (req, res) => {
@@ -138,6 +98,122 @@ app.post('/auth/blacklist-check', async (req, res) => {
   const isBlacklisted = await authService.isTokenBlacklisted(token);
   res.json({ isBlacklisted });
 });
+
+// Admin Management Routes (Protected - Admin only)
+// (Đã comment toàn bộ để tránh lỗi thiếu module adminService)
+// // Admin health check (no auth required for monitoring)
+// app.get('/admin/health', (req, res) => {
+//   res.json({
+//     service: 'auth-service-admin',
+//     status: 'healthy',
+//     timestamp: new Date().toISOString(),
+//     version: '1.0.0',
+//   });
+// });
+// app.post('/admin/accounts', authenticate, authorize(['admin']), async (req, res, next) => {
+//   try {
+//     await adminController.createAdmin(req, res);
+//   } catch (error) {
+//     next(error);
+//   }
+// });
+// app.get('/admin/accounts', authenticate, authorize(['admin']), async (req, res, next) => {
+//   try {
+//     await adminController.getAllAdmins(req, res);
+//   } catch (error) {
+//     next(error);
+//   }
+// });
+// app.get('/admin/accounts/:id', authenticate, authorize(['admin']), async (req, res, next) => {
+//   try {
+//     await adminController.getAdminById(req, res);
+//   } catch (error) {
+//     next(error);
+//   }
+// });
+// app.put('/admin/accounts/:id', authenticate, authorize(['admin']), async (req, res, next) => {
+//   try {
+//     await adminController.updateAdmin(req, res);
+//   } catch (error) {
+//     next(error);
+//   }
+// });
+// app.post(
+//   '/admin/accounts/:id/deactivate',
+//   authenticate,
+//   authorize(['admin']),
+//   async (req, res, next) => {
+//     try {
+//       await adminController.deactivateAdmin(req, res);
+//     } catch (error) {
+//       next(error);
+//     }
+//   }
+// );
+// app.post(
+//   '/admin/accounts/:id/reactivate',
+//   authenticate,
+//   authorize(['admin']),
+//   async (req, res, next) => {
+//     try {
+//       await adminController.reactivateAdmin(req, res);
+//     } catch (error) {
+//       next(error);
+//     }
+//   }
+// );
+// app.get('/admin/stats', authenticate, authorize(['admin']), async (req, res, next) => {
+//   try {
+//     await adminController.getAdminStats(req, res);
+//   } catch (error) {
+//     next(error);
+//   }
+// });
+// // User Management Routes (Protected - Admin only)
+// app.get('/admin/users', authenticate, authorize(['admin']), async (req, res, next) => {
+//   try {
+//     await adminController.getAllUsers(req, res);
+//   } catch (error) {
+//     next(error);
+//   }
+// });
+// app.post(
+//   '/admin/users/:id/deactivate',
+//   authenticate,
+//   authorize(['admin']),
+//   async (req, res, next) => {
+//     try {
+//       await adminController.deactivateUser(req, res);
+//     } catch (error) {
+//       next(error);
+//     }
+//   }
+// );
+// app.post(
+//   '/admin/users/:id/reset-password',
+//   authenticate,
+//   authorize(['admin']),
+//   async (req, res, next) => {
+//     try {
+//       await adminController.resetUserPassword(req, res);
+//     } catch (error) {
+//       next(error);
+//     }
+//   }
+// );
+// app.post(
+//   '/admin/users/:id/reactivate',
+//   authenticate,
+//   authorize(['admin']),
+//   async (req, res, next) => {
+//     try {
+//       await adminController.reactivateUser(req, res);
+//     } catch (error) {
+//       next(error);
+//     }
+//   }
+// );
+
 // Error handling
 app.use((err, req, res, next) => {
   console.error('⚠️', err.stack);

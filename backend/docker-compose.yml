@@ -239,6 +239,40 @@ services:
       - ./services/chatbot-service:/app
       - /app/node_modules
 
+  # User Service
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: bus-ticket-user-service
+    env_file:
+      - ./services/user-service/.env
+    environment:
+      - NODE_ENV=development
+      - PORT=3008
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=bus_ticket_dev
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-default-jwt-secret}
+#      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-your_cloud_name}
+#      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY:-your_api_key}
+#      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET:-your_api_secret}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - bus-ticket-network
+    volumes:
+      - ./services/user-service:/app
+      - /app/node_modules
+    ports:
+      - "3008:3008"
+
   # API Gateway
   api-gateway:
     build:
@@ -249,6 +283,7 @@ services:
       - NODE_ENV=development
       - PORT=3000
       - AUTH_SERVICE_URL=http://auth-service:3001
+      - USER_SERVICE_URL=http://user-service:3008
       - TRIP_SERVICE_URL=http://trip-service:3002
       - NOTIFICATION_SERVICE_URL=http://notification-service:3003
       - BOOKING_SERVICE_URL=http://booking-service:3004

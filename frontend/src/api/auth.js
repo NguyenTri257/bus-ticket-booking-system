@@ -105,13 +105,14 @@ export async function request(
       throw error
     }
 
-    // If unauthorized and we have a refresh token, try to refresh
+    // Chỉ tự động refresh token nếu lỗi 401 là do token hết hạn (AUTH_004),
+    // không refresh nếu là lỗi xác thực thông thường (ví dụ: sai mật khẩu)
     if (
       response.status === 401 &&
       getRefreshToken() &&
-      !path.includes('/auth/refresh')
+      !path.includes('/auth/refresh') &&
+      data?.error?.code === 'AUTH_004'
     ) {
-      //if (response.status === 401 && getRefreshToken() && !token) {
       try {
         await refreshAccessToken()
         // Retry the request with the new token

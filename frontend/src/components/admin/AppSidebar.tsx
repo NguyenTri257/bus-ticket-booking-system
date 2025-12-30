@@ -9,6 +9,7 @@ import {
   Settings,
   MapPin,
   Grid3X3,
+  User,
 } from 'lucide-react'
 import { NavLink } from '@/components/NavLink'
 import { useLocation } from 'react-router-dom'
@@ -35,6 +36,7 @@ const menuItems = [
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Analytics', url: '/admin/analytics', icon: BarChart3 },
   { title: 'Reports', url: '/admin/reports', icon: FileText },
+  { title: 'Profile', url: '/admin/profile', icon: User },
   { title: 'Settings', url: '/admin/settings', icon: Settings },
 ]
 

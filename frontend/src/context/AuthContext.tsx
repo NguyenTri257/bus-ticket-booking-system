@@ -15,6 +15,11 @@ interface User {
   fullName: string
   role: 'passenger' | 'admin'
   emailVerified: boolean
+  avatar?: string
+  phoneVerified?: boolean
+  preferences?: import('../api/userProfileApi').UserPreferences // Accept extra fields from UserProfile
+  createdAt?: string
+  updatedAt?: string
 }
 
 interface AuthContextType {
@@ -49,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const { getUserProfile } = await import('@/api/userProfileApi')
       const profile = await getUserProfile()
-      setUser(profile)
+      setUser(profile as User)
       localStorage.setItem('user', JSON.stringify(profile))
     } catch (error) {
       console.error('Failed to update user from API:', error)
@@ -103,6 +108,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem('user', JSON.stringify(authData.user))
     setUser(authData.user)
     setToken(authData.accessToken)
+
+    // Gọi updateUser để lấy profile mới nhất từ backend (bao gồm avatar)
+    updateUser()
 
     if (authData.user.role === 'admin') {
       navigate('/admin', { replace: true })

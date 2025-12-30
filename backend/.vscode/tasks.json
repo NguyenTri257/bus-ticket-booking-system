@@ -1,0 +1,11 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Restart user-service (dev)",
+			"type": "shell",
+			"command": "docker compose restart user-service",
+			"group": "build"
+		}
+	]
+}

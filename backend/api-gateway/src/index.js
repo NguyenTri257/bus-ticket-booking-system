@@ -28,8 +28,8 @@ app.use(
   })
 );
 app.use(morgan('combined'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -84,9 +84,43 @@ app.use('/auth', async (req, res) => {
 });
 
 // Proxy /users/profile về auth-service (hỗ trợ cả multipart/form-data và JSON)
+// Proxy /users/profile và /users/change-password về user-service (hỗ trợ cả multipart/form-data và JSON)
+// Proxy /users/change-password
+app.all('/users/change-password', async (req, res) => {
+  try {
+    const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3008';
+    let data = req.body;
+    let headers = {
+      authorization: req.headers.authorization,
+      'content-type': 'application/json',
+    };
+    const response = await axios({
+      method: req.method,
+      url: `${userServiceUrl}/users/change-password`,
+      data,
+      headers,
+      timeout: 30000,
+    });
+    Object.keys(response.headers).forEach((key) => {
+      res.set(key, response.headers[key]);
+    });
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(`❌ User service /users/change-password error:`, error.message);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({
+        success: false,
+        error: { code: 'GATEWAY_001', message: 'User service unavailable' },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+});
 app.all('/users/profile', upload.any(), async (req, res) => {
   try {
-    const authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:3001';
+    const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3008';
     const queryString = Object.keys(req.query).length
       ? '?' + new URLSearchParams(req.query).toString()
       : '';
@@ -106,7 +140,7 @@ app.all('/users/profile', upload.any(), async (req, res) => {
     }
     const response = await axios({
       method: req.method,
-      url: `${authServiceUrl}/users/profile${queryString}`,
+      url: `${userServiceUrl}/users/profile${queryString}`,
       data,
       headers,
       timeout: 30000,
@@ -116,13 +150,13 @@ app.all('/users/profile', upload.any(), async (req, res) => {
     });
     res.status(response.status).json(response.data);
   } catch (error) {
-    console.error(`❌ Auth service /users/profile error:`, error.message);
+    console.error(`❌ User service /users/profile error:`, error.message);
     if (error.response) {
       res.status(error.response.status).json(error.response.data);
     } else {
       res.status(500).json({
         success: false,
-        error: { code: 'GATEWAY_001', message: 'Auth service unavailable' },
+        error: { code: 'GATEWAY_001', message: 'User service unavailable' },
         timestamp: new Date().toISOString(),
       });
     }

@@ -1,11 +1,6 @@
 const pool = require('./database');
 
 class UserRepository {
-    async updateUserAvatar(userId, avatarUrl) {
-      const query = 'UPDATE users SET avatar = $1, updated_at = NOW() WHERE user_id = $2 RETURNING avatar';
-      const result = await pool.query(query, [avatarUrl, userId]);
-      return result.rows[0];
-    }
   async create(userData) {
     const {
       email,
@@ -41,6 +36,111 @@ class UserRepository {
     const query = 'SELECT * FROM users WHERE user_id = $1';
     const result = await pool.query(query, [userId]);
     return result.rows[0];
+  }
+
+  async getAllUsers({ page = 1, limit = 50, status, search, role }) {
+    let whereConditions = [];
+    const queryParams = [];
+    let paramCounter = 1;
+
+    // Filter by active/inactive status
+    if (status === 'active') {
+      whereConditions.push(
+        '(password_hash IS NOT NULL AND (account_locked_until IS NULL OR account_locked_until < NOW()))'
+      );
+    } else if (status === 'inactive') {
+      whereConditions.push(
+        '(password_hash IS NULL OR (account_locked_until IS NOT NULL AND account_locked_until >= NOW()))'
+      );
+    }
+
+    // Filter by role
+    if (role) {
+      whereConditions.push(`role = $${paramCounter}`);
+      queryParams.push(role);
+      paramCounter++;
+    }
+
+    // Search by name or email
+    if (search) {
+      whereConditions.push(
+        `(LOWER(full_name) LIKE $${paramCounter} OR LOWER(email) LIKE $${paramCounter})`
+      );
+      queryParams.push(`%${search.toLowerCase()}%`);
+      paramCounter++;
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // Count total matching records
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM users
+      ${whereClause}
+    `;
+    const countResult = await pool.query(countQuery, queryParams);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Calculate offset
+    const offset = (page - 1) * limit;
+
+    // Fetch paginated data
+    const dataQuery = `
+      SELECT 
+        user_id,
+        email,
+        phone,
+        full_name,
+        role,
+        email_verified,
+        phone_verified,
+        CASE 
+          WHEN password_hash IS NOT NULL AND (account_locked_until IS NULL OR account_locked_until < NOW()) THEN true 
+          ELSE false 
+        END as is_active,
+        created_at,
+        updated_at,
+        failed_login_attempts,
+        account_locked_until
+      FROM users
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT $${paramCounter} OFFSET $${paramCounter + 1}
+    `;
+    queryParams.push(limit, offset);
+
+    const dataResult = await pool.query(dataQuery, queryParams);
+
+    return {
+      data: dataResult.rows,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getUsersCount(search = '', role = '') {
+    let query = 'SELECT COUNT(*) as count FROM users WHERE 1=1';
+    const values = [];
+    let paramIndex = 1;
+
+    if (search) {
+      query += ` AND (email ILIKE $${paramIndex} OR full_name ILIKE $${paramIndex})`;
+      values.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    if (role) {
+      query += ` AND role = $${paramIndex}`;
+      values.push(role);
+      paramIndex++;
+    }
+
+    const result = await pool.query(query, values);
+    return parseInt(result.rows[0].count);
   }
 
   async findByGoogleId(googleId) {
@@ -152,65 +252,46 @@ class UserRepository {
     return result.rows[0];
   }
 
-  async update(userId, updateData) {
-    const allowedFields = ['email', 'phone', 'fullName', 'avatar', 'preferences'];
-    const updates = [];
-    const values = [];
-    let paramIndex = 1;
-
-    // Map camelCase to snake_case
-    const fieldMap = {
-      email: 'email',
-      phone: 'phone',
-      fullName: 'full_name',
-      avatar: 'avatar',
-      preferences: 'preferences',
-    };
-
-    for (const [key, value] of Object.entries(updateData)) {
-      if (allowedFields.includes(key) && value !== undefined) {
-        const dbField = fieldMap[key];
-        updates.push(`${dbField} = $${paramIndex}`);
-        values.push(value);
-        paramIndex++;
-      }
-    }
-
-    if (updates.length === 0) {
-      // No updates to make, return current user
-      return this.findById(userId);
-    }
-
-    values.push(userId);
-    const query = `
-      UPDATE users
-      SET ${updates.join(', ')}, updated_at = NOW()
-      WHERE user_id = $${paramIndex}
-      RETURNING *
-    `;
-    console.log('[userRepository.update] query:', query);
-    console.log('[userRepository.update] values:', values);
-    // Log lại toàn bộ updateData để kiểm tra dữ liệu đầu vào
-    console.log('[userRepository.update] updateData:', updateData);
-    try {
-      const result = await pool.query(query, values);
-      console.log('[userRepository.update] result:', result.rows && result.rows[0]);
-      return result.rows[0];
-    } catch (err) {
-      // Log chi tiết lỗi SQL và toàn bộ error object
-      console.error('[userRepository.update] ERROR:', {
-        code: err.code,
-        detail: err.detail,
-        message: err.message,
-        stack: err.stack,
-        error: err
-      });
-      // Log lại query, values khi có lỗi
-      console.error('[userRepository.update] query on error:', query);
-      console.error('[userRepository.update] values on error:', values);
-      throw err;
-    }
-  }
+  // [DISABLED] Profile update logic moved to user-service
+  // async update(userId, updateData) {
+  //   const allowedFields = ['email', 'phone', 'fullName', 'avatar', 'preferences'];
+  //   const updates = [];
+  //   const values = [];
+  //   let paramIndex = 1;
+  //
+  //   // Map camelCase to snake_case
+  //   const fieldMap = {
+  //     email: 'email',
+  //     phone: 'phone',
+  //     fullName: 'full_name',
+  //     avatar: 'avatar',
+  //     preferences: 'preferences',
+  //   };
+  //
+  //   for (const [key, value] of Object.entries(updateData)) {
+  //     if (allowedFields.includes(key) && value !== undefined) {
+  //       const dbField = fieldMap[key];
+  //       updates.push(`${dbField} = $${paramIndex}`);
+  //       values.push(value);
+  //       paramIndex++;
+  //     }
+  //   }
+  //
+  //   if (updates.length === 0) {
+  //     // No updates to make, return current user
+  //     return this.findById(userId);
+  //   }
+  //
+  //   values.push(userId);
+  //   const query = `
+  //     UPDATE users
+  //     SET ${updates.join(', ')}, updated_at = NOW()
+  //     WHERE user_id = $${paramIndex}
+  //     RETURNING *
+  //   `;
+  //   const result = await pool.query(query, values);
+  //   return result.rows[0];
+  // }
 }
 
 module.exports = new UserRepository();

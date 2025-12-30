@@ -4,20 +4,125 @@ import { DashboardLayout } from '../../components/users/DashboardLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Eye, EyeOff } from 'lucide-react'
+import { useState as useLocalState } from 'react'
 import { Label } from '@/components/ui/label'
 
-import React, { useState } from 'react'
-// Không dùng updateUserProfile cũ nữa, tự gọi request
-import { request } from '@/api/auth'
+import React, { useState, useCallback } from 'react'
+import defaultAvatar from '@/assets/default-avatar.jpg'
+import {
+  updateUserProfile,
+  getUserProfile,
+  changeUserPassword,
+} from '@/api/userProfileApi'
 // ...existing code...
+const LANGUAGES = [
+  { value: 'vi', label: 'Tiếng Việt' },
+  { value: 'en', label: 'English' },
+]
+const CURRENCIES = [
+  { value: 'VND', label: 'VND' },
+  { value: 'USD', label: 'USD' },
+]
+
 const Profile = () => {
+  // State cho hiển thị mật khẩu
+  const [showCurrentPw, setShowCurrentPw] = useLocalState(false)
+  const [showNewPw, setShowNewPw] = useLocalState(false)
+  const [showConfirmPw, setShowConfirmPw] = useLocalState(false)
   const { user, updateUser } = useAuth()
+  // State cho đổi mật khẩu
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [pwForm, setPwForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const [pwMessage, setPwMessage] = useState<{
+    type: 'success' | 'error'
+    text: string
+  } | null>(null)
+  const [globalPwMessage, setGlobalPwMessage] = useState<{
+    type: 'success' | 'error'
+    text: string
+  } | null>(null)
+  const [pwSaving, setPwSaving] = useState(false)
+
+  const handlePwChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPwForm({ ...pwForm, [e.target.name]: e.target.value })
+  }
+  const handlePwSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPwMessage(null)
+    if (
+      !pwForm.currentPassword ||
+      !pwForm.newPassword ||
+      !pwForm.confirmPassword
+    ) {
+      setPwMessage({ type: 'error', text: 'Please fill in all fields.' })
+      return
+    }
+    if (pwForm.newPassword !== pwForm.confirmPassword) {
+      setPwMessage({
+        type: 'error',
+        text: 'New password and confirmation do not match.',
+      })
+      return
+    }
+    setPwSaving(true)
+    try {
+      await changeUserPassword(pwForm)
+      setGlobalPwMessage({
+        type: 'success',
+        text: 'Password changed successfully!',
+      })
+      setPwForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      setShowChangePassword(false)
+      setPwMessage(null)
+    } catch (err) {
+      setPwMessage({
+        type: 'error',
+        text:
+          (err as Error & { error?: { message?: string } })?.error?.message ||
+          (err as Error).message ||
+          'Password change failed.',
+      })
+    } finally {
+      setPwSaving(false)
+    }
+  }
+
   const [isEditing, setIsEditing] = useState(false)
+  interface Preferences {
+    language: string
+    currency: string
+    notifications: {
+      email: boolean
+      sms: boolean
+      push: boolean
+    }
+  }
+
+  const safePreferences = useCallback(
+    (raw: Preferences | undefined): Preferences => {
+      return {
+        language: raw?.language || 'vi',
+        currency: raw?.currency || 'VND',
+        notifications: {
+          email: raw?.notifications?.email ?? true,
+          sms: raw?.notifications?.sms ?? true,
+          push: raw?.notifications?.push ?? false,
+        },
+      }
+    },
+    []
+  )
   const [form, setForm] = useState({
     fullName: user?.fullName || '',
     email: user?.email || '',
     phone: user?.phone || '',
     avatar: user?.avatar || '',
+    preferences: safePreferences(user?.preferences as Preferences | undefined),
   })
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [message, setMessage] = useState<{
@@ -33,21 +138,63 @@ const Profile = () => {
       email: user?.email || '',
       phone: user?.phone || '',
       avatar: user?.avatar || '',
+      preferences: safePreferences(
+        user?.preferences as Preferences | undefined
+      ),
     })
-  }, [user])
+  }, [user, safePreferences])
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     setForm({ ...form, [e.target.name]: e.target.value })
+  }
+  const handlePrefChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value, type } = e.target
+    const checked =
+      e.target instanceof HTMLInputElement ? e.target.checked : undefined
+    setForm((prev) => ({
+      ...prev,
+      preferences: {
+        ...prev.preferences,
+        [name]: type === 'checkbox' ? checked : value,
+      },
+    }))
+  }
+  const handleNotifChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target
+    setForm((prev) => ({
+      ...prev,
+      preferences: {
+        ...prev.preferences,
+        notifications: {
+          ...prev.preferences.notifications,
+          [name]: checked,
+        },
+      },
+    }))
   }
 
   // Xử lý upload avatar qua API backend
   // Chỉ lưu file vào state, upload khi Save
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setAvatarFile(e.target.files[0])
+    const files = e.target.files
+    if (files && files[0]) {
+      const file = files[0]
+      const maxSize = 5 * 1024 * 1024 // 5MB
+      if (file.size > maxSize) {
+        setMessage({
+          type: 'error',
+          text: 'Only images up to 5MB are allowed.',
+        })
+        return
+      }
+      setAvatarFile(file)
       setForm((prev) => ({
         ...prev,
-        avatar: URL.createObjectURL(e.target.files[0]),
+        avatar: URL.createObjectURL(file),
       }))
     }
   }
@@ -58,36 +205,62 @@ const Profile = () => {
       fullName: user?.fullName || '',
       email: user?.email || '',
       phone: user?.phone || '',
+      avatar: user?.avatar || '',
+      preferences: safePreferences(
+        user?.preferences as Preferences | undefined
+      ),
     })
     setIsEditing(false)
+    setAvatarFile(null)
+    setMessage(null)
   }
   const handleSave = async () => {
     setSaving(true)
     setMessage(null)
+    // Validate tên không rỗng
+    if (!form.fullName.trim()) {
+      setMessage({ type: 'error', text: 'Full name cannot be empty.' })
+      setSaving(false)
+      return
+    }
+    // Validate số điện thoại Việt Nam (+84xxxxxxxxx hoặc 0xxxxxxxxx)
+    const phoneRegex = /^(\+84|0)\d{9}$/
+    if (!phoneRegex.test(form.phone.trim())) {
+      setMessage({
+        type: 'error',
+        text: 'Phone number must be in the format +84xxxxxxxxx or 0xxxxxxxxx.',
+      })
+      setSaving(false)
+      return
+    }
     try {
-      let res
-      if (avatarFile) {
-        // Nếu có file ảnh, gửi multipart/form-data
-        const formData = new FormData()
-        formData.append('fullName', form.fullName)
-        formData.append('phone', form.phone)
-        formData.append('avatar', avatarFile)
-        res = await request('/users/profile', {
-          method: 'PUT',
-          body: formData,
-        })
-      } else {
-        // Không có file, gửi JSON
-        res = await request('/users/profile', {
-          method: 'PUT',
-          body: {
-            fullName: form.fullName,
-            phone: form.phone,
-            avatar: form.avatar,
-          },
-        })
+      // Chỉ gửi avatar nếu có file mới
+      const payload: {
+        fullName: string
+        phone: string
+        preferences: Preferences
+        avatar?: File
+      } = {
+        fullName: form.fullName,
+        phone: form.phone,
+        preferences: form.preferences,
       }
-      await updateUser() // Lấy lại thông tin user mới nhất từ API
+      if (avatarFile) {
+        payload.avatar = avatarFile
+      }
+      const res = await updateUserProfile(payload)
+      await updateUser()
+      // Lấy lại profile mới nhất từ backend và đồng bộ lại form
+      const latestProfile = await getUserProfile()
+      setForm({
+        fullName: latestProfile.fullName || '',
+        email: latestProfile.email || '',
+        phone: latestProfile.phone || '',
+        avatar: latestProfile.avatar || '',
+        preferences: safePreferences(
+          latestProfile?.preferences as Preferences | undefined
+        ),
+      })
       setMessage({
         type: 'success',
         text: res.message || 'Profile updated successfully!',
@@ -136,7 +309,7 @@ const Profile = () => {
             <div className="space-y-2 flex flex-col items-center">
               <Label>Avatar</Label>
               <img
-                src={form.avatar || '/default-avatar.png'}
+                src={form.avatar || defaultAvatar}
                 alt="avatar"
                 className="w-24 h-24 rounded-full object-cover border"
               />
@@ -199,6 +372,84 @@ const Profile = () => {
                 <div className="py-2 px-3 bg-muted rounded">{form.phone}</div>
               )}
             </div>
+            {/* Preferences */}
+            <div className="space-y-2">
+              <Label>Preferences</Label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Language */}
+                <div className="flex flex-col">
+                  <span className="mb-1 font-medium">Language</span>
+                  {isEditing ? (
+                    <select
+                      id="language"
+                      name="language"
+                      value={form.preferences.language}
+                      onChange={handlePrefChange}
+                      className="border rounded px-2 py-1 mt-1"
+                      disabled={saving}
+                    >
+                      {LANGUAGES.map((lang) => (
+                        <option key={lang.value} value={lang.value}>
+                          {lang.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="py-2 px-3 bg-muted rounded inline-block mt-1">
+                      {LANGUAGES.find(
+                        (l) => l.value === form.preferences.language
+                      )?.label || form.preferences.language}
+                    </div>
+                  )}
+                </div>
+                {/* Currency */}
+                <div className="flex flex-col">
+                  <span className="mb-1 font-medium">Currency</span>
+                  {isEditing ? (
+                    <select
+                      id="currency"
+                      name="currency"
+                      value={form.preferences.currency}
+                      onChange={handlePrefChange}
+                      className="border rounded px-2 py-1 mt-1"
+                      disabled={saving}
+                    >
+                      {CURRENCIES.map((cur) => (
+                        <option key={cur.value} value={cur.value}>
+                          {cur.label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="py-2 px-3 bg-muted rounded inline-block mt-1">
+                      {form.preferences.currency}
+                    </div>
+                  )}
+                </div>
+                {/* Notifications */}
+                <div className="flex flex-col">
+                  <span className="mb-1 font-medium">Notifications</span>
+                  <div className="flex flex-col gap-1 mt-1">
+                    {(
+                      ['email', 'sms', 'push'] as Array<
+                        keyof typeof form.preferences.notifications
+                      >
+                    ).map((type) => (
+                      <label key={type} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          name={type}
+                          checked={!!form.preferences.notifications[type]}
+                          onChange={handleNotifChange}
+                          disabled={!isEditing || saving}
+                        />
+                        {type.toUpperCase()}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
             {/* Action buttons */}
             <div className="flex gap-3 pt-4">
               {isEditing ? (
@@ -215,9 +466,147 @@ const Profile = () => {
                   </Button>
                 </>
               ) : (
-                <Button onClick={handleEdit}>Edit</Button>
+                <>
+                  <Button onClick={handleEdit}>Edit</Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setShowChangePassword((v) => !v)}
+                  >
+                    Change Password
+                  </Button>
+                </>
               )}
             </div>
+
+            {/* Global password message (thành công) */}
+            {globalPwMessage && (
+              <div
+                className={`p-2 rounded text-sm mb-4 ${globalPwMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+              >
+                {globalPwMessage.text}
+              </div>
+            )}
+            {/* Change Password Form */}
+            {showChangePassword && (
+              <form
+                className="mt-6 space-y-4 max-w-md"
+                onSubmit={handlePwSubmit}
+              >
+                <h2 className="text-lg font-semibold">Change Password</h2>
+                {pwMessage && (
+                  <div
+                    className={`p-2 rounded text-sm ${pwMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                  >
+                    {pwMessage.text}
+                  </div>
+                )}
+                <div>
+                  <Label htmlFor="currentPassword">Current Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="currentPassword"
+                      name="currentPassword"
+                      type={showCurrentPw ? 'text' : 'password'}
+                      value={pwForm.currentPassword}
+                      onChange={handlePwChange}
+                      disabled={pwSaving}
+                      onFocus={() => setShowCurrentPw(showCurrentPw)}
+                    />
+                    {(pwForm.currentPassword ||
+                      document.activeElement?.id === 'currentPassword') && (
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                        tabIndex={-1}
+                        onClick={() => setShowCurrentPw((v) => !v)}
+                        aria-label={
+                          showCurrentPw ? 'Hide password' : 'Show password'
+                        }
+                      >
+                        {showCurrentPw ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="newPassword"
+                      name="newPassword"
+                      type={showNewPw ? 'text' : 'password'}
+                      value={pwForm.newPassword}
+                      onChange={handlePwChange}
+                      disabled={pwSaving}
+                      onFocus={() => setShowNewPw(showNewPw)}
+                    />
+                    {(pwForm.newPassword ||
+                      document.activeElement?.id === 'newPassword') && (
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                        tabIndex={-1}
+                        onClick={() => setShowNewPw((v) => !v)}
+                        aria-label={
+                          showNewPw ? 'Hide password' : 'Show password'
+                        }
+                      >
+                        {showNewPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showConfirmPw ? 'text' : 'password'}
+                      value={pwForm.confirmPassword}
+                      onChange={handlePwChange}
+                      disabled={pwSaving}
+                      onFocus={() => setShowConfirmPw(showConfirmPw)}
+                    />
+                    {(pwForm.confirmPassword ||
+                      document.activeElement?.id === 'confirmPassword') && (
+                      <button
+                        type="button"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                        tabIndex={-1}
+                        onClick={() => setShowConfirmPw((v) => !v)}
+                        aria-label={
+                          showConfirmPw ? 'Hide password' : 'Show password'
+                        }
+                      >
+                        {showConfirmPw ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Button type="submit" disabled={pwSaving}>
+                    {pwSaving ? 'Changing...' : 'Change Password'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowChangePassword(false)}
+                    disabled={pwSaving}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
         </Card>
       </div>

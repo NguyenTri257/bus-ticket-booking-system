@@ -36,6 +36,8 @@ import GuestCheckout from '@/components/booking/GuestCheckout'
 import GuestConfirmation from './pages/GuestConfirmation'
 import RevenueAnalytics from '@/pages/admin/RevenueAnalytics'
 
+import AdminProfile from '@/pages/admin/Profile'
+
 const queryClient = new QueryClient()
 
 function ThemeProviderWithSuppress({
@@ -152,6 +154,8 @@ const App = () => (
                   element={<RevenueAnalytics />}
                 />{' '}
                 {/* Revenue Analytics */}
+                <Route path="/admin/profile" element={<AdminProfile />} />{' '}
+                {/* Admin Profile */}
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />

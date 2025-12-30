@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { AlertCircle, CheckCircle, PartyPopper } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { StarRating } from './StarRating'
 import { PhotoUpload } from './PhotoUpload'
 import type { RatingSubmission, RatingFormState } from './reviews.types'
@@ -44,6 +45,9 @@ export function SubmitRatingForm({
   )
   const [reviewText, setReviewText] = useState(initialValues?.review || '')
   const [photos, setPhotos] = useState<File[]>(initialValues?.photos || [])
+  const [displayNamePublicly, setDisplayNamePublicly] = useState(
+    initialValues?.displayNamePublicly ?? false
+  )
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [preview, setPreview] = useState(false)
@@ -52,12 +56,17 @@ export function SubmitRatingForm({
   useEffect(() => {
     try {
       if (onStateChange) {
-        onStateChange({ ratings, review: reviewText, photos })
+        onStateChange({
+          ratings,
+          review: reviewText,
+          photos,
+          displayNamePublicly,
+        })
       }
     } catch {
       console.error('Error in onStateChange callback')
     }
-  }, [ratings, reviewText, photos, onStateChange])
+  }, [ratings, reviewText, photos, displayNamePublicly, onStateChange])
 
   const handleRatingChange = (categoryId: string, value: number) => {
     setRatings((prev) => ({ ...prev, [categoryId]: value }))
@@ -132,6 +141,7 @@ export function SubmitRatingForm({
       review: reviewText.trim() || undefined,
       photos: photos.length > 0 ? photos : undefined,
       submittedAt: new Date(),
+      displayNamePublicly,
     }
 
     return (
@@ -312,6 +322,34 @@ export function SubmitRatingForm({
           and avoid inappropriate content. Reviews are shared publicly to help
           other travelers.
         </p>
+      </div>
+
+      {/* Privacy Option */}
+      <div className="space-y-4">
+        <div className="bg-card/50 rounded-lg p-4 border border-border/50">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 mt-0.5">
+              <Checkbox
+                id="display-name-publicly"
+                checked={displayNamePublicly}
+                onCheckedChange={(checked) =>
+                  setDisplayNamePublicly(checked as boolean)
+                }
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <label
+                htmlFor="display-name-publicly"
+                className="text-sm font-medium text-foreground cursor-pointer select-none"
+              >
+                Display my name publicly
+              </label>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Check to show your name publicly. This cannot be changed later.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Photo Upload */}

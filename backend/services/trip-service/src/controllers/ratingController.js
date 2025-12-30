@@ -21,7 +21,7 @@ const submitRating = async (req, res) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { bookingId, tripId, ratings, review, photos } = req.body;
+    const { bookingId, tripId, ratings, review, photos, displayNamePublicly } = req.body;
     console.log('🔍 [RATING] Extracted fields:', {
       bookingId,
       tripId,
@@ -30,6 +30,7 @@ const submitRating = async (req, res) => {
       photos: photos,
       photosType: typeof photos,
       photosLength: photos?.length,
+      displayNamePublicly,
     });
 
     // Validate required fields
@@ -178,6 +179,7 @@ const submitRating = async (req, res) => {
       userId,
       ratings,
       photos: parsedPhotos,
+      displayNamePublicly,
     });
 
     const result = await db.query(
@@ -185,8 +187,8 @@ const submitRating = async (req, res) => {
                 rating_id, booking_id, trip_id, operator_id, user_id,
                 overall_rating, cleanliness_rating, driver_behavior_rating,
                 punctuality_rating, comfort_rating, value_for_money_rating,
-                review_text, photos
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                review_text, photos, display_name_publicly
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             RETURNING *`,
       [
         ratingId,
@@ -202,6 +204,7 @@ const submitRating = async (req, res) => {
         ratings.value_for_money,
         review || null,
         photos ? JSON.stringify(parsedPhotos) : '[]',
+        displayNamePublicly ?? false,
       ]
     );
 
@@ -323,6 +326,8 @@ const getTripReviews = async (req, res) => {
         orderBy = 'r.created_at DESC';
     }
 
+    console.log('🔍 [GET_TRIP_REVIEWS] Sort params:', { sort, orderBy, page, limit });
+
     // Get total count
     const countResult = await db.query(
       `SELECT COUNT(*) as total FROM ratings 
@@ -350,14 +355,24 @@ const getTripReviews = async (req, res) => {
                 r.unhelpful_count,
                 r.created_at,
                 r.updated_at,
+                r.display_name_publicly,
                 u.full_name as author_name,
-                u.email as author_email
+                u.email as author_email,
+                u.avatar as avatar_url
             FROM ratings r
             LEFT JOIN users u ON r.user_id = u.user_id
             WHERE r.trip_id = $1 AND r.is_approved = TRUE AND r.review_text IS NOT NULL
             ORDER BY ${orderBy}
             LIMIT $2 OFFSET $3`,
       [tripId, limit, offset]
+    );
+
+    console.log('🔍 [GET_TRIP_REVIEWS] Fetched reviews count:', reviewsResult.rows.length);
+    console.log(
+      '🔍 [GET_TRIP_REVIEWS] First few reviews helpful_count:',
+      reviewsResult.rows
+        .slice(0, 3)
+        .map((r) => ({ id: r.rating_id, helpful: r.helpful_count, created: r.created_at }))
     );
 
     const reviews = reviewsResult.rows.map((review) => {
@@ -390,8 +405,9 @@ const getTripReviews = async (req, res) => {
 
       return {
         id: review.rating_id,
-        authorName: review.author_name,
-        authorEmail: review.author_email,
+        authorName: review.display_name_publicly ? review.author_name : 'Anonymous',
+        authorEmail: review.display_name_publicly ? review.author_email : null,
+        avatarUrl: review.display_name_publicly ? review.avatar_url : null,
         rating: review.overall_rating,
         categoryRatings: {
           cleanliness: review.cleanliness_rating,
@@ -409,6 +425,7 @@ const getTripReviews = async (req, res) => {
         isAuthor,
         canEdit,
         canDelete,
+        displayNamePublicly: review.display_name_publicly,
       };
     });
 
@@ -443,7 +460,7 @@ const updateReview = async (req, res) => {
 
     const { ratingId } = req.params;
     // eslint-disable-next-line no-unused-vars
-    const { review, photos, removedPhotos, newPhotos } = req.body;
+    const { review, photos, removedPhotos, newPhotos, displayNamePublicly } = req.body;
 
     console.log('🔄 [UPDATE_REVIEW] Starting update for ratingId:', ratingId);
     console.log('🔄 [UPDATE_REVIEW] Request body:', JSON.stringify(req.body, null, 2));
@@ -563,10 +580,15 @@ const updateReview = async (req, res) => {
     // Update review
     const result = await db.query(
       `UPDATE ratings 
-             SET review_text = $1, photos = $2, updated_at = NOW()
-             WHERE rating_id = $3
+             SET review_text = $1, photos = $2, display_name_publicly = $3, updated_at = NOW()
+             WHERE rating_id = $4
              RETURNING *`,
-      [review !== undefined ? review : rating.review_text, JSON.stringify(currentPhotos), ratingId]
+      [
+        review !== undefined ? review : rating.review_text,
+        JSON.stringify(currentPhotos),
+        displayNamePublicly !== undefined ? displayNamePublicly : rating.display_name_publicly,
+        ratingId,
+      ]
     );
 
     res.json({
@@ -685,6 +707,15 @@ const voteHelpful = async (req, res) => {
       return res.status(400).json({ error: 'isHelpful must be a boolean' });
     }
 
+    console.log(
+      '🔍 [VOTE_HELPFUL] Starting vote for ratingId:',
+      ratingId,
+      'isHelpful:',
+      isHelpful,
+      'userId:',
+      userId
+    );
+
     // Check if rating exists
     const ratingResult = await db.query('SELECT rating_id FROM ratings WHERE rating_id = $1', [
       ratingId,
@@ -700,19 +731,29 @@ const voteHelpful = async (req, res) => {
       [ratingId, userId]
     );
 
+    console.log('🔍 [VOTE_HELPFUL] Existing vote result:', voteResult.rows);
+
     if (voteResult.rows.length > 0) {
       const existingVote = voteResult.rows[0];
       if (existingVote.is_helpful === isHelpful) {
+        console.log('🔍 [VOTE_HELPFUL] User already voted this way');
         return res.status(400).json({ error: 'You have already voted this way' });
       }
 
       // Update existing vote
+      console.log(
+        '🔍 [VOTE_HELPFUL] Updating existing vote from',
+        existingVote.is_helpful,
+        'to',
+        isHelpful
+      );
       await db.query('UPDATE rating_votes SET is_helpful = $1 WHERE vote_id = $2', [
         isHelpful,
         existingVote.vote_id,
       ]);
     } else {
       // Insert new vote
+      console.log('🔍 [VOTE_HELPFUL] Inserting new vote');
       await db.query(
         `INSERT INTO rating_votes (rating_id, user_id, is_helpful)
                  VALUES ($1, $2, $3)`,
@@ -721,6 +762,7 @@ const voteHelpful = async (req, res) => {
     }
 
     // Update helpful/unhelpful counts
+    console.log('🔍 [VOTE_HELPFUL] Recalculating counts');
     const counts = await db.query(
       `SELECT 
                 COUNT(CASE WHEN is_helpful = TRUE THEN 1 END) as helpful_count,
@@ -731,6 +773,8 @@ const voteHelpful = async (req, res) => {
     );
 
     const countData = counts.rows[0];
+    console.log('🔍 [VOTE_HELPFUL] New counts:', countData);
+
     await db.query(
       `UPDATE ratings 
              SET helpful_count = $1, unhelpful_count = $2
@@ -738,9 +782,11 @@ const voteHelpful = async (req, res) => {
       [parseInt(countData.helpful_count) || 0, parseInt(countData.unhelpful_count) || 0, ratingId]
     );
 
+    console.log('🔍 [VOTE_HELPFUL] Updated ratings table');
+
     res.json({ message: 'Vote recorded successfully' });
   } catch (error) {
-    console.error('Error voting on review:', error);
+    console.error('❌ [VOTE_HELPFUL] Error:', error);
     res.status(500).json({ error: 'Failed to record vote' });
   }
 };
@@ -847,6 +893,8 @@ const getOperatorReviews = async (req, res) => {
         orderBy = 'r.created_at DESC';
     }
 
+    console.log('🔍 [GET_OPERATOR_REVIEWS] Sort params:', { sort, orderBy, page, limit });
+
     // Get total count
     const countResult = await db.query(
       `SELECT COUNT(*) as total FROM ratings 
@@ -875,8 +923,10 @@ const getOperatorReviews = async (req, res) => {
                 r.unhelpful_count,
                 r.created_at,
                 r.updated_at,
+                r.display_name_publicly,
                 u.full_name as author_name,
                 u.email as author_email,
+                u.avatar as avatar_url,
                 rt.origin,
                 rt.destination
             FROM ratings r
@@ -887,6 +937,14 @@ const getOperatorReviews = async (req, res) => {
             ORDER BY ${orderBy}
             LIMIT $2 OFFSET $3`,
       [operatorId, limit, offset]
+    );
+
+    console.log('🔍 [GET_OPERATOR_REVIEWS] Fetched reviews count:', reviewsResult.rows.length);
+    console.log(
+      '🔍 [GET_OPERATOR_REVIEWS] First few reviews helpful_count:',
+      reviewsResult.rows
+        .slice(0, 3)
+        .map((r) => ({ id: r.rating_id, helpful: r.helpful_count, created: r.created_at }))
     );
 
     const reviews = await Promise.all(
@@ -934,8 +992,9 @@ const getOperatorReviews = async (req, res) => {
 
         return {
           id: review.rating_id,
-          authorName: review.author_name,
-          authorEmail: review.author_email,
+          authorName: review.display_name_publicly ? review.author_name : 'Anonymous',
+          authorEmail: review.display_name_publicly ? review.author_email : null,
+          avatarUrl: review.display_name_publicly ? review.avatar_url : null,
           rating: review.overall_rating,
           categoryRatings: {
             cleanliness: review.cleanliness_rating,
@@ -955,6 +1014,7 @@ const getOperatorReviews = async (req, res) => {
           isAuthor: userId ? review.user_id === userId : false,
           canEdit,
           canDelete,
+          displayNamePublicly: review.display_name_publicly,
         };
       })
     );

@@ -277,6 +277,7 @@ const History = () => {
         ratings: ratingData.ratings,
         review: ratingData.review,
         photos: ratingData.photos,
+        displayNamePublicly: ratingData.displayNamePublicly,
       }
 
       // Call API to submit rating

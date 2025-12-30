@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import type { ReviewData } from './ReviewCard'
 import { ReviewCard } from './ReviewCard'
 import type { OperatorRatingStats } from '@/api/trips'
+import { request } from '@/api/auth'
 
 interface ReviewsListProps {
   reviews: ReviewData[]
@@ -36,6 +37,7 @@ interface ReviewsListProps {
   onLimitChange?: (limit: number) => void
   onEditReview?: (review: ReviewData) => void
   onDeleteReview?: (reviewId: string) => Promise<void>
+  onVote?: () => void
 }
 
 export function ReviewsList({
@@ -55,6 +57,7 @@ export function ReviewsList({
   onLimitChange,
   onEditReview,
   onDeleteReview,
+  onVote,
 }: ReviewsListProps) {
   console.log('ReviewsList received:', { reviews, sortBy, ratingFilter })
 
@@ -86,12 +89,20 @@ export function ReviewsList({
 
   // Get unique seat types and routes
   const uniqueSeatTypes = useMemo(() => {
-    const types = new Set(reviews.map((r) => r.seatType).filter(Boolean))
+    const types = new Set(
+      reviews
+        .map((r) => r.seatType)
+        .filter((type): type is string => type != null && type !== '')
+    )
     return Array.from(types).sort()
   }, [reviews])
 
   const uniqueRoutes = useMemo(() => {
-    const routes = new Set(reviews.map((r) => r.route).filter(Boolean))
+    const routes = new Set(
+      reviews
+        .map((r) => r.route)
+        .filter((route): route is string => route != null && route !== '')
+    )
     return Array.from(routes).sort()
   }, [reviews])
 
@@ -484,7 +495,11 @@ export function ReviewsList({
               key={review.id}
               review={review}
               onHelpful={async (helpful) => {
-                console.log('Helpful vote:', helpful)
+                await request(`/trips/ratings/${review.id}/votes`, {
+                  method: 'POST',
+                  body: { isHelpful: helpful },
+                })
+                onVote?.()
               }}
               onEdit={onEditReview ? () => onEditReview(review) : undefined}
               onDelete={

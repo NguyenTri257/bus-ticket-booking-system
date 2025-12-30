@@ -18,7 +18,7 @@ import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import type { Trip } from '@/types/trip.types'
 import { ReviewsList } from '@/components/reviews/ReviewsList'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   getOperatorReviews,
   getOperatorRatings,
@@ -61,6 +61,80 @@ export function TripDetails({ trip }: TripDetailsProps) {
   const [editLoading, setEditLoading] = useState(false)
   const [deleteReviewId, setDeleteReviewId] = useState<string | null>(null)
 
+  // Fetch reviews function
+  const fetchReviews = useCallback(async () => {
+    // Skip API calls for mock data operator IDs (they're not UUIDs)
+    if (trip.operator.operator_id.startsWith('operator_')) {
+      setReviews([])
+      setReviewsLoading(false)
+      setHasMoreReviews(false)
+      return
+    }
+
+    setReviewsLoading(true)
+    try {
+      console.log('Fetching reviews with:', {
+        operatorId: trip.operator.operator_id,
+        page: reviewsPage,
+        sortBy: reviewsSortBy,
+        rating: reviewsRatingFilter,
+      })
+
+      const response = await getOperatorReviews(trip.operator.operator_id, {
+        page: reviewsPage,
+        limit: reviewsLimit,
+        sortBy: reviewsSortBy,
+        rating: reviewsRatingFilter || undefined,
+      })
+
+      console.log('Reviews response:', response)
+      console.log('Response data:', response.data)
+
+      if (response.success && response.data) {
+        const reviewData = response.data.map((review) => ({
+          id: review.id,
+          authorName: review.authorName,
+          authorEmail: review.authorEmail,
+          avatarUrl: review.avatarUrl,
+          rating: review.rating,
+          categoryRatings: review.categoryRatings,
+          reviewText: review.reviewText,
+          photos: review.photos,
+          route: review.route,
+          seatType: review.seatType,
+          createdAt: review.createdAt,
+          updatedAt: review.updatedAt,
+          helpfulCount: review.helpfulCount,
+          userHelpful: review.userHelpful,
+          isAuthor: review.isAuthor,
+          canEdit: review.canEdit,
+          canDelete: review.canDelete,
+          displayNamePublicly: review.displayNamePublicly,
+        }))
+
+        console.log('Mapped reviews:', reviewData)
+
+        console.log('Setting reviews:', reviewData)
+        setReviews(reviewData)
+
+        setHasMoreReviews(reviewsPage < response.pagination.totalPages)
+        setTotalPages(response.pagination.totalPages)
+      }
+    } catch (error) {
+      console.error('Failed to fetch reviews:', error)
+      setReviews([])
+      setHasMoreReviews(false)
+    } finally {
+      setReviewsLoading(false)
+    }
+  }, [
+    trip.operator.operator_id,
+    reviewsPage,
+    reviewsSortBy,
+    reviewsRatingFilter,
+    reviewsLimit,
+  ])
+
   // Fetch operator stats when component mounts
   useEffect(() => {
     // Skip API calls for mock data operator IDs (they're not UUIDs)
@@ -86,63 +160,6 @@ export function TripDetails({ trip }: TripDetailsProps) {
 
   // Fetch reviews when component mounts or filters change
   useEffect(() => {
-    // Skip API calls for mock data operator IDs (they're not UUIDs)
-    if (trip.operator.operator_id.startsWith('operator_')) {
-      setReviews([])
-      setReviewsLoading(false)
-      setHasMoreReviews(false)
-      return
-    }
-
-    const fetchReviews = async () => {
-      setReviewsLoading(true)
-      try {
-        console.log('Fetching reviews with:', {
-          operatorId: trip.operator.operator_id,
-          page: reviewsPage,
-          sortBy: reviewsSortBy,
-          rating: reviewsRatingFilter,
-        })
-
-        const response = await getOperatorReviews(trip.operator.operator_id, {
-          page: reviewsPage,
-          limit: reviewsLimit,
-          sortBy: reviewsSortBy,
-          rating: reviewsRatingFilter || undefined,
-        })
-
-        console.log('Reviews response:', response)
-        console.log('Response data:', response.data)
-
-        if (response.success && response.data) {
-          const reviewData = response.data.map((review) => {
-            console.log('Mapping review:', review)
-            return {
-              ...review,
-              createdAt: new Date(review.createdAt),
-              updatedAt: review.updatedAt
-                ? new Date(review.updatedAt)
-                : undefined,
-            }
-          })
-
-          console.log('Mapped reviews:', reviewData)
-
-          console.log('Setting reviews:', reviewData)
-          setReviews(reviewData)
-
-          setHasMoreReviews(reviewsPage < response.pagination.totalPages)
-          setTotalPages(response.pagination.totalPages)
-        }
-      } catch (error) {
-        console.error('Failed to fetch reviews:', error)
-        setReviews([])
-        setHasMoreReviews(false)
-      } finally {
-        setReviewsLoading(false)
-      }
-    }
-
     fetchReviews()
   }, [
     trip.operator.operator_id,
@@ -152,6 +169,7 @@ export function TripDetails({ trip }: TripDetailsProps) {
     reviewsRatingFilter,
     reviewsLimit,
     reviewsRefreshTrigger,
+    fetchReviews,
   ])
 
   // Handle review edit
@@ -636,6 +654,7 @@ export function TripDetails({ trip }: TripDetailsProps) {
             }}
             onEditReview={handleEditReview}
             onDeleteReview={handleDeleteReview}
+            onVote={() => fetchReviews()}
           />
         </TabsContent>
       </Tabs>

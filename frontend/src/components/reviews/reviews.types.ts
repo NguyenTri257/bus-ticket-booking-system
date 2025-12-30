@@ -24,12 +24,14 @@ export interface RatingSubmission {
   review?: string
   photos?: File[]
   submittedAt: Date
+  displayNamePublicly?: boolean
 }
 
 export interface RatingFormState {
   ratings?: Record<string, number>
   review?: string
   photos?: File[]
+  displayNamePublicly?: boolean
 }
 
 export interface SubmitRatingFormProps {
@@ -44,6 +46,7 @@ export interface ReviewData {
   id: string
   authorName: string
   authorEmail?: string
+  avatarUrl?: string
   rating: number
   categoryRatings: Record<string, number>
   reviewText?: string
@@ -56,6 +59,7 @@ export interface ReviewData {
   isAuthor?: boolean
   canEdit?: boolean
   canDelete?: boolean
+  displayNamePublicly?: boolean
 }
 
 export interface ReviewCardProps {

@@ -94,6 +94,7 @@ export interface RatingSubmission {
   ratings: Record<string, number>
   review?: string
   photos?: File[] // File objects for upload
+  displayNamePublicly?: boolean
 }
 
 export interface RatingAPIRequest {
@@ -102,6 +103,7 @@ export interface RatingAPIRequest {
   ratings: Record<string, number>
   review?: string
   photos?: string[] // base64 encoded images for API
+  displayNamePublicly?: boolean
 }
 
 export interface RatingResponse {
@@ -228,6 +230,7 @@ export async function submitRating(
       ratings: ratingData.ratings,
       review: ratingData.review,
       photos: uploadedPhotoUrls, // Always send photos array, even if empty
+      displayNamePublicly: ratingData.displayNamePublicly,
     }
 
     console.log('📤 [SUBMIT_RATING] Sending to API:', {

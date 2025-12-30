@@ -4,11 +4,13 @@ import { StarRating } from './StarRating'
 import { format } from 'date-fns'
 import { ThumbsUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useState } from 'react'
 
 export interface ReviewData {
   id: string
   authorName: string
   authorEmail?: string
+  avatarUrl?: string
   rating: number
   categoryRatings: Record<string, number>
   reviewText?: string
@@ -20,6 +22,7 @@ export interface ReviewData {
   isAuthor?: boolean
   canEdit?: boolean
   canDelete?: boolean
+  displayNamePublicly?: boolean
   seatType?: string
   route?: string
 }
@@ -41,6 +44,9 @@ export function ReviewCard({
 }: ReviewCardProps) {
   const avgRating = review.rating?.toFixed(1) || '0'
 
+  const [helpfulCount, setHelpfulCount] = useState(review.helpfulCount || 0)
+  const [userHelpful, setUserHelpful] = useState(review.userHelpful || false)
+
   const formatDate = (date: Date | string) => {
     try {
       const dateObj = typeof date === 'string' ? new Date(date) : date
@@ -50,14 +56,37 @@ export function ReviewCard({
     }
   }
 
-  // Get user initials
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map((n) => n.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
+  const handleHelpful = async () => {
+    if (!onHelpful) return
+
+    const newHelpful = !userHelpful
+    const oldHelpful = userHelpful
+    const oldCount = helpfulCount
+
+    // Optimistic update
+    setUserHelpful(newHelpful)
+    setHelpfulCount(oldCount + (newHelpful ? 1 : -1))
+
+    try {
+      await onHelpful(newHelpful)
+    } catch (error) {
+      // Revert on error
+      setUserHelpful(oldHelpful)
+      setHelpfulCount(oldCount)
+      console.error('Failed to vote helpful:', error)
+    }
+  }
+
+  // Get anonymized reviewer name
+  const getAnonymizedName = (name: string) => {
+    const parts = name.split(' ')
+    if (parts.length === 1) {
+      return parts[0] // Just first name if no last name
+    } else if (parts.length === 2) {
+      return `${parts[0]} ${parts[1].charAt(0)}.` // First name + last initial
+    } else {
+      return `${parts[0]} ${parts[parts.length - 1].charAt(0)}.` // First + last initial
+    }
   }
 
   // Color palette for avatars
@@ -102,23 +131,38 @@ export function ReviewCard({
 
   const avatarColors = getAvatarColors(review.authorName)
 
+  const displayName =
+    review.displayNamePublicly === false
+      ? 'Anonymous'
+      : getAnonymizedName(review.authorName)
+  const showAvatar = review.displayNamePublicly !== false
+
   return (
     <Card className="bg-card border-border/50 p-4 sm:p-6 hover:shadow-lg transition-shadow">
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div
-            className={cn(
-              'shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-semibold text-sm sm:text-base',
-              avatarColors.bg,
-              avatarColors.text
-            )}
-          >
-            {getInitials(review.authorName)}
-          </div>
+          {showAvatar && (
+            <div
+              className={cn(
+                'shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center font-semibold text-sm sm:text-base overflow-hidden',
+                !review.avatarUrl && [avatarColors.bg, avatarColors.text]
+              )}
+            >
+              {review.avatarUrl ? (
+                <img
+                  src={review.avatarUrl}
+                  alt={`${review.authorName} avatar`}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                getAnonymizedName(review.authorName)
+              )}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-foreground truncate text-sm sm:text-base">
-              {review.authorName}
+              {displayName}
             </p>
             <div className="flex items-center gap-2 flex-wrap mt-1">
               <p className="text-xs text-muted-foreground">
@@ -237,21 +281,17 @@ export function ReviewCard({
       {/* Footer - Helpful */}
       <div className="flex items-center gap-3 pt-4 border-t border-border/50">
         <button
-          onClick={() => onHelpful?.(true)}
+          onClick={handleHelpful}
           disabled={isLoading}
           className={cn(
             'inline-flex items-center gap-2 text-xs font-medium transition-colors',
-            review.userHelpful
+            userHelpful
               ? 'text-primary'
               : 'text-muted-foreground hover:text-foreground'
           )}
         >
-          <ThumbsUp
-            className={cn('w-4 h-4', review.userHelpful && 'fill-current')}
-          />
-          <span>
-            Helpful {review.helpfulCount ? `(${review.helpfulCount})` : ''}
-          </span>
+          <ThumbsUp className={cn('w-4 h-4', userHelpful && 'fill-current')} />
+          <span>Helpful {helpfulCount ? `(${helpfulCount})` : ''}</span>
         </button>
       </div>
     </Card>

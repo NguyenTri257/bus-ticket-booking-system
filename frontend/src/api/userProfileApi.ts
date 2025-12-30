@@ -73,17 +73,7 @@ export const updateUserProfile = async (
   profileData: Partial<UserProfile>
 ): Promise<UserProfile> => {
   try {
-    // Nếu có avatar là File, convert sang base64
     const body = { ...profileData }
-    if (
-      body.avatar &&
-      typeof body.avatar === 'object' &&
-      typeof window !== 'undefined' &&
-      typeof File !== 'undefined' &&
-      body.avatar instanceof File
-    ) {
-      body.avatar = await fileToBase64(body.avatar)
-    }
     const response = await request('/users/profile', {
       method: 'PUT',
       body,
@@ -96,7 +86,7 @@ export const updateUserProfile = async (
 }
 
 // Helper: convert File to base64
-function fileToBase64(file: File): Promise<string> {
+export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as string)

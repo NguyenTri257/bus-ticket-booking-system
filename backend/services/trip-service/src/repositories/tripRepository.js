@@ -41,6 +41,22 @@ class TripRepository {
     `;
   }
 
+  async _getRouteStops(route_id) {
+    const query = `
+      SELECT stop_id, stop_name, address, sequence, arrival_offset_minutes
+      FROM route_stops
+      WHERE route_id = $1
+      ORDER BY sequence
+    `;
+    const result = await pool.query(query, [route_id]);
+    return result.rows.map((row) => ({
+      stop_id: row.stop_id,
+      stop_name: row.stop_name,
+      address: row.address,
+      sequence: parseInt(row.sequence),
+      arrival_offset_minutes: parseInt(row.arrival_offset_minutes),
+    }));
+  }
   async _getPointsForTrip(trip_id, route_id, departure_time) {
     // Route-level points: query `route_points` (canonical route-level pickup/dropoff offsets)
     const routePointsQuery = `
@@ -59,7 +75,7 @@ class TripRepository {
       // If a point is both pickup and dropoff we compute both times separately.
       const points = rows.map((r) => {
         const depOffset = parseInt(r.departure_offset_minutes ?? 0, 10);
-        const arrOffset = parseInt(r.arrival_offset_minutes ?? r.departure_offset_minutes ?? 0, 10);
+        //const arrOffset = parseInt(r.arrival_offset_minutes ?? r.departure_offset_minutes ?? 0, 10);
 
         let pickupTimeIso = null;
         let dropoffTimeIso = null;
@@ -70,7 +86,7 @@ class TripRepository {
           pickupTimeIso = t1.toISOString();
 
           const t2 = new Date(base);
-          t2.setMinutes(t2.getMinutes() + arrOffset);
+          t2.setMinutes(t2.getMinutes() + depOffset);
           dropoffTimeIso = t2.toISOString();
         } catch (e) {
           // keep nulls if parsing fails
@@ -144,6 +160,8 @@ class TripRepository {
       row.departure_time
     );
 
+    const route_stops = await this._getRouteStops(row.route_id);
+
     const total_seats = parseInt(row.seat_capacity);
     const booked_seats = parseInt(row.booked_seats || 0);
     const available_seats = total_seats - booked_seats;
@@ -215,6 +233,7 @@ class TripRepository {
       },
       pickup_points,
       dropoff_points,
+      route_stops,
       status: row.status, // Return actual status from database
     };
   }

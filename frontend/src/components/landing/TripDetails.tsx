@@ -304,6 +304,12 @@ export function TripDetails({ trip }: TripDetailsProps) {
                 </div>
               )}
             </div>
+            <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-muted">
+              <p className="text-xs text-muted-foreground">
+                <strong>Note:</strong> The schedule times are estimated. This
+                schedule may change depending on actual conditions.
+              </p>
+            </div>
           </div>
         </TabsContent>
 
@@ -458,7 +464,7 @@ export function TripDetails({ trip }: TripDetailsProps) {
           {trip.route_stops && trip.route_stops.length > 0 ? (
             <div>
               <div className="relative">
-                <div className="absolute left-16 top-0 bottom-0 w-0.5 bg-border"></div>
+                <div className="absolute left-[6.9rem] top-0 bottom-0 w-0.5 bg-border"></div>
                 <div className="space-y-3">
                   {trip.route_stops
                     .sort((a, b) => a.sequence - b.sequence)
@@ -473,18 +479,14 @@ export function TripDetails({ trip }: TripDetailsProps) {
                           departureDate.getTime() +
                             stop.arrival_offset_minutes * 60000
                         )
-                        actualTime = arrivalTime.toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: false,
-                        })
+                        actualTime = formatTime(arrivalTime.toISOString())
                       }
                       return (
                         <div
                           key={index}
                           className="flex items-center gap-3 relative"
                         >
-                          <span className="text-xs text-muted-foreground font-medium min-w-10 text-right">
+                          <span className="text-xs text-muted-foreground font-medium w-22 text-right">
                             {actualTime}
                           </span>
                           <div className="flex flex-col items-center gap-1 relative">

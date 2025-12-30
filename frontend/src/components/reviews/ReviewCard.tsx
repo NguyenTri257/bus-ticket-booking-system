@@ -5,27 +5,7 @@ import { format } from 'date-fns'
 import { ThumbsUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
-
-export interface ReviewData {
-  id: string
-  authorName: string
-  authorEmail?: string
-  avatarUrl?: string
-  rating: number
-  categoryRatings: Record<string, number>
-  reviewText?: string
-  photos?: string[]
-  createdAt: Date | string
-  updatedAt?: Date | string
-  helpfulCount?: number
-  userHelpful?: boolean
-  isAuthor?: boolean
-  canEdit?: boolean
-  canDelete?: boolean
-  displayNamePublicly?: boolean
-  seatType?: string
-  route?: string
-}
+import type { ReviewData } from './reviews.types'
 
 interface ReviewCardProps {
   review: ReviewData
@@ -249,9 +229,13 @@ export function ReviewCard({
 
       {/* Meta Information */}
       {(review.seatType || review.route) && (
-        <div className="flex flex-col sm:flex-row gap-2 mb-4 text-xs text-muted-foreground">
-          {review.seatType && <span>Seat type: {review.seatType}</span>}
-          {review.route && <span>Route: {review.route}</span>}
+        <div className="flex justify-between items-center mb-4 text-xs text-muted-foreground">
+          <div>{review.route && <span>Route: {review.route}</span>}</div>
+          <div>
+            {review.seatType && (
+              <span>Seat Type: {review.seatType.toUpperCase()}</span>
+            )}
+          </div>
         </div>
       )}
 

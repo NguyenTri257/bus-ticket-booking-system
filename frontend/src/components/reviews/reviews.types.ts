@@ -60,6 +60,8 @@ export interface ReviewData {
   canEdit?: boolean
   canDelete?: boolean
   displayNamePublicly?: boolean
+  seatType?: string
+  route?: string
 }
 
 export interface ReviewCardProps {

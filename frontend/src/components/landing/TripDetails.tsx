@@ -25,7 +25,7 @@ import {
   updateReview,
   deleteReview,
 } from '@/api/trips'
-import type { ReviewData } from '@/components/reviews/ReviewCard'
+import type { ReviewData } from '@/components/reviews/reviews.types'
 import type { OperatorRatingStats } from '@/api/trips'
 import {
   Dialog,
@@ -91,7 +91,7 @@ export function TripDetails({ trip }: TripDetailsProps) {
       console.log('Response data:', response.data)
 
       if (response.success && response.data) {
-        const reviewData = response.data.map((review) => ({
+        const reviewData = (response.data as ReviewData[]).map((review) => ({
           id: review.id,
           authorName: review.authorName,
           authorEmail: review.authorEmail,
@@ -104,6 +104,7 @@ export function TripDetails({ trip }: TripDetailsProps) {
           seatType: review.seatType,
           createdAt: review.createdAt,
           updatedAt: review.updatedAt,
+          isVerifiedBooking: true, // Operator reviews are from verified bookings
           helpfulCount: review.helpfulCount,
           userHelpful: review.userHelpful,
           isAuthor: review.isAuthor,

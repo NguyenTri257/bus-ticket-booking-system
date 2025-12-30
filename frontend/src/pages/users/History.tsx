@@ -23,7 +23,7 @@ import {
   updateReview,
   deleteReview,
 } from '@/api/trips'
-import type { ReviewData } from '@/components/reviews/ReviewCard'
+import type { ReviewData } from '@/components/reviews/reviews.types'
 import '@/styles/admin.css'
 
 /**
@@ -128,7 +128,10 @@ const History = () => {
           const newReviews: Record<string, ReviewData> = {}
           reviewResults.forEach((result) => {
             if (result) {
-              newReviews[result.bookingId] = result.review
+              newReviews[result.bookingId] = {
+                ...result.review,
+                isVerifiedBooking: true, // User's own booking reviews are verified
+              }
             }
           })
           setBookingReviews(newReviews)

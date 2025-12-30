@@ -358,9 +358,13 @@ const getTripReviews = async (req, res) => {
                 r.display_name_publicly,
                 u.full_name as author_name,
                 u.email as author_email,
-                u.avatar as avatar_url
+                u.avatar as avatar_url,
+                s.seat_type
             FROM ratings r
             LEFT JOIN users u ON r.user_id = u.user_id
+            LEFT JOIN trips t ON r.trip_id = t.trip_id
+            LEFT JOIN booking_passengers bp ON r.booking_id = bp.booking_id
+            LEFT JOIN seats s ON bp.seat_code = s.seat_code AND s.bus_id = t.bus_id
             WHERE r.trip_id = $1 AND r.is_approved = TRUE AND r.review_text IS NOT NULL
             ORDER BY ${orderBy}
             LIMIT $2 OFFSET $3`,
@@ -426,6 +430,7 @@ const getTripReviews = async (req, res) => {
         canEdit,
         canDelete,
         displayNamePublicly: review.display_name_publicly,
+        seatType: review.seat_type,
       };
     });
 
@@ -928,11 +933,14 @@ const getOperatorReviews = async (req, res) => {
                 u.email as author_email,
                 u.avatar as avatar_url,
                 rt.origin,
-                rt.destination
+                rt.destination,
+                s.seat_type
             FROM ratings r
             LEFT JOIN users u ON r.user_id = u.user_id
             LEFT JOIN trips t ON r.trip_id = t.trip_id
             LEFT JOIN routes rt ON t.route_id = rt.route_id
+            LEFT JOIN booking_passengers bp ON r.booking_id = bp.booking_id
+            LEFT JOIN seats s ON bp.seat_code = s.seat_code AND s.bus_id = t.bus_id
             WHERE r.operator_id = $1 AND r.is_approved = TRUE AND r.review_text IS NOT NULL
             ORDER BY ${orderBy}
             LIMIT $2 OFFSET $3`,
@@ -1007,6 +1015,7 @@ const getOperatorReviews = async (req, res) => {
           photos,
           route:
             review.origin && review.destination ? `${review.origin} - ${review.destination}` : null,
+          seatType: review.seat_type,
           createdAt: review.created_at,
           updatedAt: review.updated_at,
           helpfulCount: review.helpful_count || 0,
@@ -1103,11 +1112,14 @@ const getBookingReview = async (req, res) => {
                 u.full_name as author_name,
                 u.email as author_email,
                 rt.origin,
-                rt.destination
+                rt.destination,
+                s.seat_type
             FROM ratings r
             LEFT JOIN users u ON r.user_id = u.user_id
             LEFT JOIN trips t ON r.trip_id = t.trip_id
             LEFT JOIN routes rt ON t.route_id = rt.route_id
+            LEFT JOIN booking_passengers bp ON r.booking_id = bp.booking_id
+            LEFT JOIN seats s ON bp.seat_code = s.seat_code AND s.bus_id = t.bus_id
             WHERE r.booking_id = $1 AND r.user_id = $2`,
       [bookingId, userId]
     );
@@ -1172,6 +1184,7 @@ const getBookingReview = async (req, res) => {
       isAuthor,
       canEdit,
       canDelete,
+      seatType: review.seat_type,
     };
 
     res.json({

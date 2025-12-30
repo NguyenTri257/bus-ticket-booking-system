@@ -234,6 +234,7 @@ export interface Trip {
     seat_capacity: number
     bus_type: 'standard' | 'limousine' | 'sleeper'
     amenities: string[]
+    image_urls?: string[]
   }
   schedule: {
     departure_time: string // ISO 8601 format

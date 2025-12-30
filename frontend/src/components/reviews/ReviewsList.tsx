@@ -15,7 +15,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ReviewData } from './ReviewCard'
+import type { ReviewData } from './reviews.types'
 import { ReviewCard } from './ReviewCard'
 import type { OperatorRatingStats } from '@/api/trips'
 import { request } from '@/api/auth'

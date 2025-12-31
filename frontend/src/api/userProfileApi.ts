@@ -1,3 +1,5 @@
+import { strongPasswordPattern } from '../lib/validation'
+import { request } from './auth'
 /**
  * Change user password
  */
@@ -23,8 +25,6 @@ export const changeUserPassword = async (data: {
   })
   return response.data || response
 }
-import { strongPasswordPattern } from '../lib/validation'
-import { request } from './auth'
 
 interface NotificationPreference {
   email: boolean
@@ -58,7 +58,7 @@ interface UserProfile {
  */
 export const getUserProfile = async (): Promise<UserProfile> => {
   try {
-    const response = await request('/users/profile', { method: 'GET' })
+    const response = await request('/auth/me', { method: 'GET' })
     return response.data || response
   } catch (error) {
     console.error('Error fetching user profile:', error)
@@ -74,7 +74,7 @@ export const updateUserProfile = async (
 ): Promise<UserProfile> => {
   try {
     const body = { ...profileData }
-    const response = await request('/users/profile', {
+    const response = await request('/auth/me', {
       method: 'PUT',
       body,
     })

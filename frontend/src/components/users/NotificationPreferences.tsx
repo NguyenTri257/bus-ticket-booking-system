@@ -232,7 +232,7 @@ export const NotificationPreferences = () => {
               <input
                 type="checkbox"
                 checked={
-                  profile.preferences.notifications.bookingConfirmations.email
+                  profile.preferences.notifications.bookingConfirmations?.email
                 }
                 disabled={true}
                 className="sr-only peer"
@@ -256,7 +256,7 @@ export const NotificationPreferences = () => {
               <input
                 type="checkbox"
                 checked={
-                  profile.preferences.notifications.bookingConfirmations.sms
+                  profile.preferences.notifications.bookingConfirmations?.sms
                 }
                 disabled={true}
                 className="sr-only peer"
@@ -291,7 +291,7 @@ export const NotificationPreferences = () => {
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                checked={profile.preferences.notifications.tripReminders.email}
+                checked={profile.preferences.notifications.tripReminders?.email}
                 onChange={() => handleToggle('tripReminders', 'email')}
                 disabled={saving}
                 className="sr-only peer"
@@ -314,7 +314,7 @@ export const NotificationPreferences = () => {
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                checked={profile.preferences.notifications.tripReminders.sms}
+                checked={profile.preferences.notifications.tripReminders?.sms}
                 onChange={() => handleToggle('tripReminders', 'sms')}
                 disabled={saving}
                 className="sr-only peer"
@@ -349,7 +349,7 @@ export const NotificationPreferences = () => {
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                checked={profile.preferences.notifications.tripUpdates.email}
+                checked={profile.preferences.notifications.tripUpdates?.email}
                 onChange={() => handleToggle('tripUpdates', 'email')}
                 disabled={saving}
                 className="sr-only peer"
@@ -372,7 +372,7 @@ export const NotificationPreferences = () => {
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                checked={profile.preferences.notifications.tripUpdates.sms}
+                checked={profile.preferences.notifications.tripUpdates?.sms}
                 onChange={() => handleToggle('tripUpdates', 'sms')}
                 disabled={saving}
                 className="sr-only peer"

@@ -46,20 +46,20 @@ app.post('/request-otp', authController.requestOTP);
 app.post('/verify-otp', authController.verifyOTP);
 app.post('/logout', authenticate, authController.logout);
 app.post('/change-password', authenticate, authController.changePassword);
-// app.get('/me', authenticate, async (req, res, next) => {
-//   try {
-//     await authController.getProfile(req, res);
-//   } catch (error) {
-//     next(error);
-//   }
-// });
-// app.put('/me', authenticate, async (req, res, next) => {
-//   try {
-//     await authController.updateProfile(req, res);
-//   } catch (error) {
-//     next(error);
-//   }
-// });
+app.get('/me', authenticate, async (req, res, next) => {
+  try {
+    await authController.getProfile(req, res);
+  } catch (error) {
+    next(error);
+  }
+});
+app.put('/me', authenticate, async (req, res, next) => {
+  try {
+    await authController.updateProfile(req, res);
+  } catch (error) {
+    next(error);
+  }
+});
 
 // POST /auth/verify - Để verify token và lấy thông tin user
 app.post('/auth/verify', (req, res) => {

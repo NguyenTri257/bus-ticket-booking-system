@@ -1011,140 +1011,203 @@ class AuthController {
   }
 
   async getProfile(req, res) {
-    // [DISABLED] Profile logic moved to user-service
-    // try {
-    //   const userId = req.user?.userId;
-    //   if (!userId) {
-    //     return res.status(401).json({
-    //       success: false,
-    //       error: { code: 'AUTH_001', message: 'Unauthorized' },
-    //       timestamp: new Date().toISOString(),
-    //     });
-    //   }
-    //
-    //   const user = await userRepository.findById(userId);
-    //   if (!user) {
-    //     return res.status(404).json({
-    //       success: false,
-    //       error: { code: 'USER_001', message: 'User not found' },
-    //       timestamp: new Date().toISOString(),
-    //     });
-    //   }
-    //
-    //   // Ensure preferences have the correct structure
-    //   let preferences = user.preferences || {};
-    //   if (!preferences.notifications) {
-    //     preferences = {
-    //       notifications: {
-    //         bookingConfirmations: { email: true, sms: true },
-    //         tripReminders: { email: true, sms: false },
-    //         tripUpdates: { email: true, sms: true },
-    //         promotionalEmails: false,
-    //       },
-    //     };
-    //   }
-    //
-    //   res.json({
-    //     success: true,
-    //     data: {
-    //       userId: user.user_id,
-    //       email: user.email,
-    //       phone: user.phone,
-    //       fullName: user.full_name,
-    //       role: user.role,
-    //       avatar: user.avatar,
-    //       emailVerified: user.email_verified,
-    //       phoneVerified: user.phone_verified,
-    //       preferences,
-    //       createdAt: user.created_at,
-    //     },
-    //     timestamp: new Date().toISOString(),
-    //   });
-    // } catch (error) {
-    //   console.error('⚠️', error);
-    //   res.status(500).json({
-    //     success: false,
-    //     error: { code: 'SYS_001', message: 'Internal server error' },
-    //     timestamp: new Date().toISOString(),
-    //   });
-    // }
-    res.status(501).json({ message: 'Profile endpoint disabled. Use user-service.' });
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_001', message: 'Unauthorized' },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const user = await userRepository.findById(userId);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'USER_001', message: 'User not found' },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Ensure preferences have the correct structure
+      let preferences = user.preferences || {};
+
+      // Chuẩn hóa cấu trúc notifications nếu chưa có
+      if (!preferences.notifications || typeof preferences.notifications !== 'object') {
+        preferences = {
+          ...preferences,
+          notifications: {
+            bookingConfirmations: { email: true, sms: true },
+            tripReminders: { email: true, sms: false },
+            tripUpdates: { email: true, sms: true },
+            promotionalEmails: false,
+          },
+        };
+      } else {
+        // Chuẩn hóa từng phần của notifications
+        if (!preferences.notifications.bookingConfirmations) {
+          preferences.notifications.bookingConfirmations = { email: true, sms: true };
+        }
+        if (!preferences.notifications.tripReminders) {
+          preferences.notifications.tripReminders = { email: true, sms: false };
+        }
+        if (!preferences.notifications.tripUpdates) {
+          preferences.notifications.tripUpdates = { email: true, sms: true };
+        }
+        if (preferences.notifications.promotionalEmails === undefined) {
+          preferences.notifications.promotionalEmails = false;
+        }
+      }
+      console.log('User preferences:', preferences);
+      res.json({
+        success: true,
+        data: {
+          userId: user.user_id,
+          email: user.email,
+          phone: user.phone,
+          fullName: user.full_name,
+          role: user.role,
+          avatar: user.avatar,
+          emailVerified: user.email_verified,
+          phoneVerified: user.phone_verified,
+          preferences,
+          createdAt: user.created_at,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('⚠️', error);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_001', message: 'Internal server error' },
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 
   async updateProfile(req, res) {
-    // [DISABLED] Profile update logic moved to user-service
-    // try {
-    //   const userId = req.user?.userId;
-    //   if (!userId) {
-    //     return res.status(401).json({
-    //       success: false,
-    //       error: { code: 'AUTH_001', message: 'Unauthorized' },
-    //       timestamp: new Date().toISOString(),
-    //     });
-    //   }
-    //
-    //   const { email, phone, fullName, avatar, preferences } = req.body;
-    //
-    //   // Check if email is being changed and if it already exists
-    //   if (email) {
-    //     const existingEmail = await userRepository.findByEmail(email);
-    //     if (existingEmail && existingEmail.user_id !== userId) {
-    //       return res.status(409).json({
-    //         success: false,
-    //         error: { code: 'USER_002', message: 'Email already exists' },
-    //         timestamp: new Date().toISOString(),
-    //       });
-    //     }
-    //   }
-    //
-    //   // Check if phone is being changed and if it already exists
-    //   if (phone) {
-    //     const existingPhone = await userRepository.findByPhone(phone);
-    //     if (existingPhone && existingPhone.user_id !== userId) {
-    //       return res.status(409).json({
-    //         success: false,
-    //         error: { code: 'USER_003', message: 'Phone already exists' },
-    //         timestamp: new Date().toISOString(),
-    //       });
-    //     }
-    //   }
-    //
-    //   // Update user profile
-    //   const updateData = {};
-    //   if (email) updateData.email = email;
-    //   if (phone) updateData.phone = phone;
-    //   if (fullName) updateData.fullName = fullName;
-    //   if (avatar) updateData.avatar = avatar;
-    //   if (preferences) updateData.preferences = preferences;
-    //
-    //   const updatedUser = await userRepository.update(userId, updateData);
-    //
-    //   res.json({
-    //     success: true,
-    //     data: {
-    //       userId: updatedUser.user_id,
-    //       email: updatedUser.email,
-    //       phone: updatedUser.phone,
-    //       fullName: updatedUser.full_name,
-    //       role: updatedUser.role,
-    //       avatar: updatedUser.avatar,
-    //       emailVerified: updatedUser.email_verified,
-    //       phoneVerified: updatedUser.phone_verified,
-    //       preferences: updatedUser.preferences,
-    //       createdAt: updatedUser.created_at,
-    //     },
-    //     message: 'Profile updated successfully',
-    //     timestamp: new Date().toISOString(),
-    //   });
-    // } catch (error) {
-    //   console.error('⚠️', error);
-    //   res.status(500).json({
-    //     success: false,
-    //     error: { code: 'SYS_001', message: 'Internal server error' },
-    //     timestamp: new Date().toISOString(),
-    //   });
-    // }
-    res.status(501).json({ message: 'Profile update endpoint disabled. Use user-service.' });
+    try {
+      const userId = req.user?.userId;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_001', message: 'Unauthorized' },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const { email, phone, fullName, avatar, preferences } = req.body;
+
+      // Check if email is being changed and if it already exists
+      if (email) {
+        const existingEmail = await userRepository.findByEmail(email);
+        if (existingEmail && existingEmail.user_id !== userId) {
+          return res.status(409).json({
+            success: false,
+            error: { code: 'USER_002', message: 'Email already exists' },
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+
+      // Check if phone is being changed and if it already exists
+      if (phone) {
+        const existingPhone = await userRepository.findByPhone(phone);
+        if (existingPhone && existingPhone.user_id !== userId) {
+          return res.status(409).json({
+            success: false,
+            error: { code: 'USER_003', message: 'Phone already exists' },
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+
+      // Update user profile
+      const updateData = {};
+      if (email) updateData.email = email;
+      if (phone) updateData.phone = phone;
+      if (fullName) updateData.fullName = fullName;
+      if (avatar) updateData.avatar = avatar;
+
+      // Chuẩn hóa preferences nếu có
+      if (preferences) {
+        let normalizedPreferences = preferences;
+
+        // Chuẩn hóa cấu trúc notifications
+        if (
+          !normalizedPreferences.notifications ||
+          typeof normalizedPreferences.notifications !== 'object'
+        ) {
+          normalizedPreferences.notifications = {
+            bookingConfirmations: { email: true, sms: true },
+            tripReminders: { email: true, sms: false },
+            tripUpdates: { email: true, sms: true },
+            promotionalEmails: false,
+          };
+        } else {
+          // Chuẩn hóa từng phần của notifications
+          if (!normalizedPreferences.notifications.bookingConfirmations) {
+            normalizedPreferences.notifications.bookingConfirmations = { email: true, sms: true };
+          } else {
+            normalizedPreferences.notifications.bookingConfirmations.email =
+              !!normalizedPreferences.notifications.bookingConfirmations.email;
+            normalizedPreferences.notifications.bookingConfirmations.sms =
+              !!normalizedPreferences.notifications.bookingConfirmations.sms;
+          }
+
+          if (!normalizedPreferences.notifications.tripReminders) {
+            normalizedPreferences.notifications.tripReminders = { email: true, sms: false };
+          } else {
+            normalizedPreferences.notifications.tripReminders.email =
+              !!normalizedPreferences.notifications.tripReminders.email;
+            normalizedPreferences.notifications.tripReminders.sms =
+              !!normalizedPreferences.notifications.tripReminders.sms;
+          }
+
+          if (!normalizedPreferences.notifications.tripUpdates) {
+            normalizedPreferences.notifications.tripUpdates = { email: true, sms: true };
+          } else {
+            normalizedPreferences.notifications.tripUpdates.email =
+              !!normalizedPreferences.notifications.tripUpdates.email;
+            normalizedPreferences.notifications.tripUpdates.sms =
+              !!normalizedPreferences.notifications.tripUpdates.sms;
+          }
+
+          normalizedPreferences.notifications.promotionalEmails =
+            !!normalizedPreferences.notifications.promotionalEmails;
+        }
+
+        updateData.preferences = normalizedPreferences;
+      }
+
+      const updatedUser = await userRepository.update(userId, updateData);
+
+      res.json({
+        success: true,
+        data: {
+          userId: updatedUser.user_id,
+          email: updatedUser.email,
+          phone: updatedUser.phone,
+          fullName: updatedUser.full_name,
+          role: updatedUser.role,
+          avatar: updatedUser.avatar,
+          emailVerified: updatedUser.email_verified,
+          phoneVerified: updatedUser.phone_verified,
+          preferences: updatedUser.preferences,
+          createdAt: updatedUser.created_at,
+        },
+        message: 'Profile updated successfully',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('⚠️', error);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_001', message: 'Internal server error' },
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 }
 

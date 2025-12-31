@@ -60,30 +60,86 @@ module.exports = {
       const userId = req.user?.userId;
       const { currentPassword, newPassword } = req.body;
       if (!userId) {
-        return res.status(401).json({ success: false, error: { code: 'AUTH_001', message: 'Unauthorized' }, timestamp: new Date().toISOString() });
+        return res
+          .status(401)
+          .json({
+            success: false,
+            error: { code: 'AUTH_001', message: 'Unauthorized' },
+            timestamp: new Date().toISOString(),
+          });
       }
       const user = await userService.findById(userId);
       if (!user) {
-        return res.status(404).json({ success: false, error: { code: 'USER_001', message: 'User not found' }, timestamp: new Date().toISOString() });
+        return res
+          .status(404)
+          .json({
+            success: false,
+            error: { code: 'USER_001', message: 'User not found' },
+            timestamp: new Date().toISOString(),
+          });
       }
       if (user.google_id) {
-        return res.status(400).json({ success: false, error: { code: 'AUTH_010', message: 'Password change not available for Google OAuth accounts' }, timestamp: new Date().toISOString() });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            error: {
+              code: 'AUTH_010',
+              message: 'Password change not available for Google OAuth accounts',
+            },
+            timestamp: new Date().toISOString(),
+          });
       }
       if (!user.password_hash) {
-        return res.status(400).json({ success: false, error: { code: 'AUTH_011', message: 'No password set for this account' }, timestamp: new Date().toISOString() });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            error: { code: 'AUTH_011', message: 'No password set for this account' },
+            timestamp: new Date().toISOString(),
+          });
       }
       if (!(await bcrypt.compare(currentPassword, user.password_hash))) {
-        return res.status(401).json({ success: false, error: { code: 'AUTH_001', message: 'Current password is incorrect' }, timestamp: new Date().toISOString() });
+        return res
+          .status(401)
+          .json({
+            success: false,
+            error: { code: 'AUTH_001', message: 'Current password is incorrect' },
+            timestamp: new Date().toISOString(),
+          });
       }
       if (await bcrypt.compare(newPassword, user.password_hash)) {
-        return res.status(400).json({ success: false, error: { code: 'AUTH_009', message: 'New password must be different from current password' }, timestamp: new Date().toISOString() });
+        return res
+          .status(400)
+          .json({
+            success: false,
+            error: {
+              code: 'AUTH_009',
+              message: 'New password must be different from current password',
+            },
+            timestamp: new Date().toISOString(),
+          });
       }
       const newPasswordHash = await bcrypt.hash(newPassword, 12);
       await userService.updatePassword(userId, newPasswordHash);
-      res.json({ success: true, message: 'Password changed successfully', timestamp: new Date().toISOString() });
+      res.json({
+        success: true,
+        message: 'Password changed successfully',
+        timestamp: new Date().toISOString(),
+      });
     } catch (error) {
       console.error('⚠️ changePassword error:', error && error.stack ? error.stack : error);
-      res.status(500).json({ success: false, error: { code: 'SYS_001', message: 'Internal server error', details: error && error.message ? error.message : error }, timestamp: new Date().toISOString() });
+      res
+        .status(500)
+        .json({
+          success: false,
+          error: {
+            code: 'SYS_001',
+            message: 'Internal server error',
+            details: error && error.message ? error.message : error,
+          },
+          timestamp: new Date().toISOString(),
+        });
     }
   },
   async updateProfile(req, res) {
@@ -111,7 +167,10 @@ module.exports = {
       if (!phone || typeof phone !== 'string' || !phoneRegex.test(phone.trim())) {
         return res.status(400).json({
           success: false,
-          error: { code: 'USER_005', message: 'Số điện thoại phải đúng định dạng +84xxxxxxxxx hoặc 0xxxxxxxxx.' },
+          error: {
+            code: 'USER_005',
+            message: 'Số điện thoại phải đúng định dạng +84xxxxxxxxx hoặc 0xxxxxxxxx.',
+          },
         });
       }
       // Validate phone unique
@@ -141,7 +200,7 @@ module.exports = {
           });
         }
         // Tính kích thước thực tế của file (bytes)
-        const fileSizeBytes = Math.floor(base64Data.length * 3 / 4);
+        const fileSizeBytes = Math.floor((base64Data.length * 3) / 4);
         if (fileSizeBytes > BASE64_SIZE_LIMIT) {
           return res.status(400).json({
             success: false,
@@ -157,25 +216,48 @@ module.exports = {
       } // Nếu không gửi avatar, giữ nguyên avatar cũ
       // Nếu avatar là rỗng/null/undefined thì KHÔNG cập nhật avatar (giữ nguyên DB)
       // (Không set avatar mặc định vào DB)
-      // Validate & chuẩn hóa preferences
+      // Validate & chuẩn hóa preferences theo đúng cấu trúc
       let newPreferences = preferences || {};
-      // Validate language
-      const allowedLanguages = ['vi', 'en'];
-      if (!newPreferences.language || !allowedLanguages.includes(newPreferences.language)) {
-        newPreferences.language = 'vi';
-      }
-      // Validate currency
-      const allowedCurrencies = ['VND', 'USD'];
-      if (!newPreferences.currency || !allowedCurrencies.includes(newPreferences.currency)) {
-        newPreferences.currency = 'VND';
-      }
-      // Validate notifications
+
+      // Chuẩn hóa cấu trúc notifications
       if (!newPreferences.notifications || typeof newPreferences.notifications !== 'object') {
-        newPreferences.notifications = { email: true, sms: true, push: false };
+        newPreferences.notifications = {
+          bookingConfirmations: { email: true, sms: true },
+          tripReminders: { email: true, sms: false },
+          tripUpdates: { email: true, sms: true },
+          promotionalEmails: false,
+        };
       } else {
-        newPreferences.notifications.email = !!newPreferences.notifications.email;
-        newPreferences.notifications.sms = !!newPreferences.notifications.sms;
-        newPreferences.notifications.push = !!newPreferences.notifications.push;
+        // Chuẩn hóa từng phần của notifications
+        if (!newPreferences.notifications.bookingConfirmations) {
+          newPreferences.notifications.bookingConfirmations = { email: true, sms: true };
+        } else {
+          newPreferences.notifications.bookingConfirmations.email =
+            !!newPreferences.notifications.bookingConfirmations.email;
+          newPreferences.notifications.bookingConfirmations.sms =
+            !!newPreferences.notifications.bookingConfirmations.sms;
+        }
+
+        if (!newPreferences.notifications.tripReminders) {
+          newPreferences.notifications.tripReminders = { email: true, sms: false };
+        } else {
+          newPreferences.notifications.tripReminders.email =
+            !!newPreferences.notifications.tripReminders.email;
+          newPreferences.notifications.tripReminders.sms =
+            !!newPreferences.notifications.tripReminders.sms;
+        }
+
+        if (!newPreferences.notifications.tripUpdates) {
+          newPreferences.notifications.tripUpdates = { email: true, sms: true };
+        } else {
+          newPreferences.notifications.tripUpdates.email =
+            !!newPreferences.notifications.tripUpdates.email;
+          newPreferences.notifications.tripUpdates.sms =
+            !!newPreferences.notifications.tripUpdates.sms;
+        }
+
+        newPreferences.notifications.promotionalEmails =
+          !!newPreferences.notifications.promotionalEmails;
       }
       // Only include avatar if a new avatar is provided (not null/undefined/empty string)
       const updateData = { fullName, phone, preferences: newPreferences };
@@ -207,7 +289,11 @@ module.exports = {
       }
       res.status(500).json({
         success: false,
-        error: { code: 'SYS_001', message: 'Internal server error', details: error && error.message ? error.message : error },
+        error: {
+          code: 'SYS_001',
+          message: 'Internal server error',
+          details: error && error.message ? error.message : error,
+        },
       });
     }
   },

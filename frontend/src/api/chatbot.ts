@@ -17,6 +17,7 @@ export interface ChatbotQueryResponse {
   success: boolean
   data: {
     sessionId: string
+    messageId?: string
     response: {
       text: string
       intent?: string
@@ -114,6 +115,61 @@ export const chatbotApi = {
   ): Promise<{ success: boolean; data: { message: string } }> {
     return apiRequest(`/chatbot/sessions/${sessionId}/reset`, {
       method: 'POST',
+      token,
+    })
+  },
+
+  /**
+   * Submit passenger information form
+   */
+  async submitPassengerInfo(
+    request: {
+      sessionId: string
+      passengers: Array<{
+        seat_code: string
+        full_name: string
+        phone: string
+        email: string
+        id_number?: string
+      }>
+    },
+    token?: string
+  ): Promise<{
+    success: boolean
+    data: {
+      text: string
+      actions?: ChatAction[]
+      suggestions?: string[]
+    }
+  }> {
+    return apiRequest('/chatbot/submit-passenger-info', {
+      method: 'POST',
+      body: request,
+      token,
+    })
+  },
+
+  /**
+   * Submit feedback for a chatbot message
+   */
+  async submitFeedback(
+    request: {
+      sessionId: string
+      messageId: string
+      rating: 'positive' | 'negative'
+      comment?: string
+    },
+    token?: string
+  ): Promise<{
+    success: boolean
+    data: {
+      success: boolean
+      message: string
+    }
+  }> {
+    return apiRequest('/chatbot/feedback', {
+      method: 'POST',
+      body: request,
       token,
     })
   },

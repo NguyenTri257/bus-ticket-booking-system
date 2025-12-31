@@ -104,7 +104,7 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
           }
 
           const botMsg: ChatMessage = {
-            id: `msg_${Date.now()}_bot`,
+            id: response.data.messageId || `msg_${Date.now()}_bot`,
             role: 'assistant',
             content:
               typeof response.data.response.text === 'string'
@@ -253,6 +253,14 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
     addMessage,
   ])
 
+  const handleMessageFromAction = useCallback(
+    (message: ChatMessage) => {
+      // Add the message from an action (like form submission) to the chat
+      addMessage(message)
+    },
+    [addMessage]
+  )
+
   return (
     <>
       {/* Trigger Button */}
@@ -264,12 +272,14 @@ export const ChatbotWidget: React.FC<ChatbotWidgetProps> = ({
           title={title}
           messages={messages}
           onSendMessage={handleSendMessage}
+          onMessageFromAction={handleMessageFromAction}
           onClose={() => setIsOpen(false)}
           onMinimize={() => setIsMinimized(!isMinimized)}
           onNewSession={handleNewSession}
           isLoading={isLoading}
           isMinimized={isMinimized}
           error={error}
+          sessionId={sessionId || undefined}
         />
       )}
     </>

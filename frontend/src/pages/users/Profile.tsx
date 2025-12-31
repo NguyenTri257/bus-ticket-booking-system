@@ -96,9 +96,10 @@ const Profile = () => {
     language: string
     currency: string
     notifications: {
-      email: boolean
-      sms: boolean
-      push: boolean
+      bookingConfirmations: { email: boolean; sms: boolean }
+      tripReminders: { email: boolean; sms: boolean }
+      tripUpdates: { email: boolean; sms: boolean }
+      promotionalEmails: boolean
     }
   }
 
@@ -107,11 +108,7 @@ const Profile = () => {
       return {
         language: raw?.language || 'vi',
         currency: raw?.currency || 'VND',
-        notifications: {
-          email: raw?.notifications?.email ?? true,
-          sms: raw?.notifications?.sms ?? true,
-          push: raw?.notifications?.push ?? false,
-        },
+        notifications: raw?.notifications,
       }
     },
     []
@@ -220,16 +217,14 @@ const Profile = () => {
       return
     }
     try {
-      // Chỉ gửi avatar nếu có file mới
+      // ⚠️ KHÔNG gửi preferences - chỉ gửi fullName, phone, avatar
       const payload: {
         fullName: string
         phone: string
-        preferences: Preferences
         avatar?: File
       } = {
         fullName: form.fullName,
         phone: form.phone,
-        preferences: form.preferences,
       }
       if (avatarFile) {
         payload.avatar = avatarFile

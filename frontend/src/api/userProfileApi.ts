@@ -101,9 +101,9 @@ export function fileToBase64(file: File): Promise<string> {
 export const getDefaultPreferences = (): UserPreferences => {
   return {
     notifications: {
-      bookingConfirmations: { email: true, sms: true },
+      bookingConfirmations: { email: true, sms: false },
       tripReminders: { email: true, sms: false },
-      tripUpdates: { email: true, sms: true },
+      tripUpdates: { email: true, sms: false },
       promotionalEmails: false,
     },
   }

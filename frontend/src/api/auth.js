@@ -313,6 +313,14 @@ export async function verifyEmail({ token }) {
   return response?.data
 }
 
+export async function resendVerificationEmail({ email }) {
+  const payload = { email }
+  const response = await request('/auth/resend-verification', {
+    body: payload,
+  })
+  return response?.data
+}
+
 export function storeTokens({ accessToken, refreshToken }) {
   if (accessToken) {
     setAccessToken(accessToken)

@@ -24,11 +24,14 @@ module.exports = {
       let preferences = user.preferences || {};
       if (!preferences.language) preferences.language = 'vi';
       if (!preferences.currency) preferences.currency = 'VND';
-      if (!preferences.notifications) {
+
+      // ⚠️ LƯU Ý: Chỉ chuẩn hóa nếu notifications bị thiếu hoàn toàn, KHÔNG thay đổi giá trị hiện có
+      if (!preferences.notifications || typeof preferences.notifications !== 'object') {
         preferences.notifications = {
-          email: true,
-          sms: true,
-          push: false,
+          bookingConfirmations: { email: true, sms: false },
+          tripReminders: { email: true, sms: false },
+          tripUpdates: { email: true, sms: false },
+          promotionalEmails: false,
         };
       }
       res.json({
@@ -60,65 +63,53 @@ module.exports = {
       const userId = req.user?.userId;
       const { currentPassword, newPassword } = req.body;
       if (!userId) {
-        return res
-          .status(401)
-          .json({
-            success: false,
-            error: { code: 'AUTH_001', message: 'Unauthorized' },
-            timestamp: new Date().toISOString(),
-          });
+        return res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_001', message: 'Unauthorized' },
+          timestamp: new Date().toISOString(),
+        });
       }
       const user = await userService.findById(userId);
       if (!user) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            error: { code: 'USER_001', message: 'User not found' },
-            timestamp: new Date().toISOString(),
-          });
+        return res.status(404).json({
+          success: false,
+          error: { code: 'USER_001', message: 'User not found' },
+          timestamp: new Date().toISOString(),
+        });
       }
       if (user.google_id) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: {
-              code: 'AUTH_010',
-              message: 'Password change not available for Google OAuth accounts',
-            },
-            timestamp: new Date().toISOString(),
-          });
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'AUTH_010',
+            message: 'Password change not available for Google OAuth accounts',
+          },
+          timestamp: new Date().toISOString(),
+        });
       }
       if (!user.password_hash) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: { code: 'AUTH_011', message: 'No password set for this account' },
-            timestamp: new Date().toISOString(),
-          });
+        return res.status(400).json({
+          success: false,
+          error: { code: 'AUTH_011', message: 'No password set for this account' },
+          timestamp: new Date().toISOString(),
+        });
       }
       if (!(await bcrypt.compare(currentPassword, user.password_hash))) {
-        return res
-          .status(401)
-          .json({
-            success: false,
-            error: { code: 'AUTH_001', message: 'Current password is incorrect' },
-            timestamp: new Date().toISOString(),
-          });
+        return res.status(401).json({
+          success: false,
+          error: { code: 'AUTH_001', message: 'Current password is incorrect' },
+          timestamp: new Date().toISOString(),
+        });
       }
       if (await bcrypt.compare(newPassword, user.password_hash)) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: {
-              code: 'AUTH_009',
-              message: 'New password must be different from current password',
-            },
-            timestamp: new Date().toISOString(),
-          });
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'AUTH_009',
+            message: 'New password must be different from current password',
+          },
+          timestamp: new Date().toISOString(),
+        });
       }
       const newPasswordHash = await bcrypt.hash(newPassword, 12);
       await userService.updatePassword(userId, newPasswordHash);
@@ -129,17 +120,15 @@ module.exports = {
       });
     } catch (error) {
       console.error('⚠️ changePassword error:', error && error.stack ? error.stack : error);
-      res
-        .status(500)
-        .json({
-          success: false,
-          error: {
-            code: 'SYS_001',
-            message: 'Internal server error',
-            details: error && error.message ? error.message : error,
-          },
-          timestamp: new Date().toISOString(),
-        });
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYS_001',
+          message: 'Internal server error',
+          details: error && error.message ? error.message : error,
+        },
+        timestamp: new Date().toISOString(),
+      });
     }
   },
   async updateProfile(req, res) {
@@ -184,6 +173,7 @@ module.exports = {
           });
         }
       }
+
       // Xử lý avatar: nếu là base64 thì upload lên Cloudinary, nếu là url thì giữ nguyên
       let avatarUrl;
       if (typeof avatar === 'string' && avatar.startsWith('data:image/')) {
@@ -216,51 +206,10 @@ module.exports = {
       } // Nếu không gửi avatar, giữ nguyên avatar cũ
       // Nếu avatar là rỗng/null/undefined thì KHÔNG cập nhật avatar (giữ nguyên DB)
       // (Không set avatar mặc định vào DB)
-      // Validate & chuẩn hóa preferences theo đúng cấu trúc
-      let newPreferences = preferences || {};
 
-      // Chuẩn hóa cấu trúc notifications
-      if (!newPreferences.notifications || typeof newPreferences.notifications !== 'object') {
-        newPreferences.notifications = {
-          bookingConfirmations: { email: true, sms: true },
-          tripReminders: { email: true, sms: false },
-          tripUpdates: { email: true, sms: true },
-          promotionalEmails: false,
-        };
-      } else {
-        // Chuẩn hóa từng phần của notifications
-        if (!newPreferences.notifications.bookingConfirmations) {
-          newPreferences.notifications.bookingConfirmations = { email: true, sms: true };
-        } else {
-          newPreferences.notifications.bookingConfirmations.email =
-            !!newPreferences.notifications.bookingConfirmations.email;
-          newPreferences.notifications.bookingConfirmations.sms =
-            !!newPreferences.notifications.bookingConfirmations.sms;
-        }
-
-        if (!newPreferences.notifications.tripReminders) {
-          newPreferences.notifications.tripReminders = { email: true, sms: false };
-        } else {
-          newPreferences.notifications.tripReminders.email =
-            !!newPreferences.notifications.tripReminders.email;
-          newPreferences.notifications.tripReminders.sms =
-            !!newPreferences.notifications.tripReminders.sms;
-        }
-
-        if (!newPreferences.notifications.tripUpdates) {
-          newPreferences.notifications.tripUpdates = { email: true, sms: true };
-        } else {
-          newPreferences.notifications.tripUpdates.email =
-            !!newPreferences.notifications.tripUpdates.email;
-          newPreferences.notifications.tripUpdates.sms =
-            !!newPreferences.notifications.tripUpdates.sms;
-        }
-
-        newPreferences.notifications.promotionalEmails =
-          !!newPreferences.notifications.promotionalEmails;
-      }
-      // Only include avatar if a new avatar is provided (not null/undefined/empty string)
-      const updateData = { fullName, phone, preferences: newPreferences };
+      // ⚠️ LƯU Ý: KHÔNG cập nhật preferences trong updateProfile
+      // Chỉ cập nhật: fullName, phone, avatar
+      const updateData = { fullName, phone };
       if (typeof avatarUrl === 'string' && avatarUrl.trim() !== '') {
         updateData.avatar = avatarUrl;
       }

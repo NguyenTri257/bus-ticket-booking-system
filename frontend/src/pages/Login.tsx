@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GoogleSignInButton } from '@/components/GoogleSignInButton'
-import { login, loginWithGoogle } from '@/api/auth'
+import { login, loginWithGoogle, resendVerificationEmail } from '@/api/auth'
 import { hasErrors, validateLogin } from '@/lib/validation'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { useAuth } from '@/context/AuthContext'
@@ -24,6 +24,13 @@ interface ErrorState {
 interface StatusState {
   type: 'idle' | 'success' | 'error'
   message: string
+  code?: string
+}
+
+interface ResendState {
+  isLoading: boolean
+  message: string
+  type: 'idle' | 'success' | 'error'
 }
 
 const initialState: FormState = {
@@ -43,6 +50,11 @@ export default function Login() {
     message: '',
   })
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false)
+  const [resendState, setResendState] = useState<ResendState>({
+    isLoading: false,
+    message: '',
+    type: 'idle',
+  })
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target
@@ -72,9 +84,13 @@ export default function Login() {
         message: 'Login successful. Redirecting...',
       })
     } catch (error) {
+      const errorMessage =
+        (error as Error).message || 'Unable to sign in right now.'
+      const errorCode = (error as unknown).code || ''
       setStatus({
         type: 'error',
-        message: (error as Error).message || 'Unable to sign in right now.',
+        message: errorMessage,
+        code: errorCode,
       })
     } finally {
       setIsSubmitting(false)
@@ -84,6 +100,39 @@ export default function Login() {
   const goToForgotPassword = (event: MouseEvent<HTMLButtonElement>) => {
     event.preventDefault()
     navigate('/forgot-password')
+  }
+
+  const handleResendVerification = async (
+    event: MouseEvent<HTMLButtonElement>
+  ) => {
+    event.preventDefault()
+    if (!form.identifier) {
+      setResendState({
+        isLoading: false,
+        message: 'Please enter your email address',
+        type: 'error',
+      })
+      return
+    }
+
+    setResendState({ isLoading: true, message: '', type: 'idle' })
+
+    try {
+      await resendVerificationEmail({ email: form.identifier })
+      setResendState({
+        isLoading: false,
+        message:
+          'Verification email sent successfully. Please check your inbox.',
+        type: 'success',
+      })
+    } catch (error) {
+      setResendState({
+        isLoading: false,
+        message:
+          (error as Error).message || 'Failed to resend verification email',
+        type: 'error',
+      })
+    }
   }
 
   const handleGoogleSuccess = async (credential: string) => {
@@ -132,7 +181,7 @@ export default function Login() {
       </div>
       <section
         className="flex min-h-screen items-center justify-center px-4 py-12 
-  bg-gradient-to-br 
+  bg-linear-to-br 
   from-background 
   via-background 
   to-primary/10 
@@ -196,13 +245,39 @@ export default function Login() {
                       : 'border-emerald-200 bg-emerald-50 text-emerald-700'
                   }`}
                 >
-                  {status.message}
+                  <div className="mb-2">{status.message}</div>
+                  {status.type === 'error' && status.code === 'AUTH_005' && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleResendVerification}
+                      disabled={resendState.isLoading}
+                      className="w-full"
+                    >
+                      {resendState.isLoading
+                        ? 'Sending...'
+                        : 'Resend Verification Email'}
+                    </Button>
+                  )}
                 </div>
               )}
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? 'Signing in…' : 'Sign in'}
               </Button>
+
+              {resendState.message && (
+                <div
+                  className={`rounded-lg border px-4 py-3 text-sm ${
+                    resendState.type === 'error'
+                      ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  }`}
+                >
+                  {resendState.message}
+                </div>
+              )}
             </form>
 
             <div className="my-8 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">

@@ -19,10 +19,10 @@ BEGIN
         JOIN trips t ON b.trip_id = t.trip_id
         JOIN routes r ON t.route_id = r.route_id
         JOIN buses bus ON t.bus_id = bus.bus_id
-        WHERE b.user_id IS NOT NULL
-        AND b.status = 'confirmed'
+        WHERE b.user_id = (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1)
+        AND b.status = 'completed'
         ORDER BY b.created_at DESC
-        LIMIT 10
+        LIMIT 20
     LOOP
         counter := counter + 1;
 
@@ -32,73 +32,68 @@ BEGIN
                 booking_id, trip_id, operator_id, user_id,
                 overall_rating, cleanliness_rating, driver_behavior_rating,
                 punctuality_rating, comfort_rating, value_for_money_rating,
-                review_text, photos, is_flagged, flag_reason, is_approved,
-                helpful_count, unhelpful_count
+                review_text, photos, is_flagged, flag_reason, is_approved
             ) VALUES (
                 booking_record.booking_id, booking_record.trip_id, booking_record.operator_id, booking_record.user_id,
                 5, 5, 5, 5, 5, 5,
                 'Excellent service! The bus was clean, driver was professional, and we arrived exactly on time. Highly recommend!',
                 '["https://example.com/photo1.jpg", "https://example.com/photo2.jpg"]',
-                FALSE, NULL, TRUE, 12, 1
+                FALSE, NULL, TRUE
             );
         ELSIF counter = 2 THEN
             INSERT INTO ratings (
                 booking_id, trip_id, operator_id, user_id,
                 overall_rating, cleanliness_rating, driver_behavior_rating,
                 punctuality_rating, comfort_rating, value_for_money_rating,
-                review_text, photos, is_flagged, flag_reason, is_approved,
-                helpful_count, unhelpful_count
+                review_text, photos, is_flagged, flag_reason, is_approved
             ) VALUES (
                 booking_record.booking_id, booking_record.trip_id, booking_record.operator_id, booking_record.user_id,
                 4, 4, 4, 5, 4, 4,
                 'Good trip overall. Bus was comfortable and clean. Driver was courteous. Only minor delay but still arrived within acceptable time.',
-                '[]', FALSE, NULL, TRUE, 8, 0
+                '[]', FALSE, NULL, TRUE
             );
         ELSIF counter = 3 THEN
             INSERT INTO ratings (
                 booking_id, trip_id, operator_id, user_id,
                 overall_rating, cleanliness_rating, driver_behavior_rating,
                 punctuality_rating, comfort_rating, value_for_money_rating,
-                review_text, photos, is_flagged, flag_reason, is_approved,
-                helpful_count, unhelpful_count
+                review_text, photos, is_flagged, flag_reason, is_approved
             ) VALUES (
                 booking_record.booking_id, booking_record.trip_id, booking_record.operator_id, booking_record.user_id,
                 3, 3, 2, 4, 3, 3,
                 NULL,
                 '["https://example.com/photo3.jpg"]',
-                FALSE, NULL, TRUE, 3, 2
+                FALSE, NULL, TRUE
             );
         ELSIF counter = 4 THEN
             INSERT INTO ratings (
                 booking_id, trip_id, operator_id, user_id,
                 overall_rating, cleanliness_rating, driver_behavior_rating,
                 punctuality_rating, comfort_rating, value_for_money_rating,
-                review_text, photos, is_flagged, flag_reason, is_approved,
-                helpful_count, unhelpful_count
+                review_text, photos, is_flagged, flag_reason, is_approved
             ) VALUES (
                 booking_record.booking_id, booking_record.trip_id, booking_record.operator_id, booking_record.user_id,
                 2, 1, 3, 2, 2, 1,
                 'Terrible experience! Bus was filthy, arrived 2 hours late, and the driver was rude. Never again!',
                 '["https://example.com/photo4.jpg", "https://example.com/photo5.jpg", "https://example.com/photo6.jpg"]',
-                TRUE, 'Inappropriate language in review', TRUE, 1, 5
+                TRUE, 'Inappropriate language in review', TRUE
             );
         ELSIF counter = 5 THEN
             INSERT INTO ratings (
                 booking_id, trip_id, operator_id, user_id,
                 overall_rating, cleanliness_rating, driver_behavior_rating,
                 punctuality_rating, comfort_rating, value_for_money_rating,
-                review_text, photos, is_flagged, flag_reason, is_approved,
-                helpful_count, unhelpful_count
+                review_text, photos, is_flagged, flag_reason, is_approved
             ) VALUES (
                 booking_record.booking_id, booking_record.trip_id, booking_record.operator_id, booking_record.user_id,
                 5, 5, 5, 5, 5, 5,
                 'Perfect sleeper bus experience! Comfortable bed, quiet environment, and arrived right on time. Will definitely book again.',
-                '[]', FALSE, NULL, TRUE, 15, 0
+                '[]', FALSE, NULL, TRUE
             );
         END IF;
 
-        -- Exit after 5 ratings to avoid too many
-        IF counter >= 5 THEN
+        -- Exit after 3 ratings to ensure some bookings have no ratings
+        IF counter >= 3 THEN
             EXIT;
         END IF;
     END LOOP;
@@ -106,124 +101,97 @@ BEGIN
     RAISE NOTICE 'Inserted % ratings', counter;
 END $$;
 
--- Insert additional sample ratings
+-- Insert additional sample ratings (matching ratings to existing completed bookings)
 INSERT INTO ratings (
     booking_id, trip_id, operator_id, user_id,
     overall_rating, cleanliness_rating, driver_behavior_rating,
     punctuality_rating, comfort_rating, value_for_money_rating,
-    review_text, photos, is_flagged, flag_reason, is_approved,
-    helpful_count, unhelpful_count
-) VALUES
-(
-    (SELECT booking_id FROM bookings WHERE user_id IS NOT NULL LIMIT 1 OFFSET 3),
-    (SELECT trip_id FROM trips LIMIT 1 OFFSET 5),
-    (SELECT operator_id FROM operators LIMIT 1 OFFSET 2),
-    (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
-    3, 3, 3, 3, 3, 3,
-    'Standard service. Nothing to complain about, nothing to rave about.',
-    '[]',
-    FALSE, NULL, TRUE, 4, 2
-),
-(
-    (SELECT booking_id FROM bookings WHERE user_id IS NOT NULL LIMIT 1 OFFSET 4),
-    (SELECT trip_id FROM trips LIMIT 1 OFFSET 6),
-    (SELECT operator_id FROM operators LIMIT 1 OFFSET 3),
-    (SELECT user_id FROM users WHERE email = 'admin@bus-ticket.com' LIMIT 1),
-    5, 5, 5, 5, 5, 5,
-    'Amazing customer service! The staff remembered me from previous trips and made me feel welcome.',
-    '[]',
-    FALSE, NULL, TRUE, 14, 0
-),
-(
-    (SELECT booking_id FROM bookings WHERE user_id IS NOT NULL LIMIT 1 OFFSET 5),
-    (SELECT trip_id FROM trips LIMIT 1 OFFSET 7),
-    (SELECT operator_id FROM operators LIMIT 1 OFFSET 0),
-    (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
-    4, 4, 4, 4, 4, 4,
-    'Good overall experience. The onboard WiFi was a nice touch.',
-    '[]',
-    FALSE, NULL, TRUE, 7, 1
-),
-(
-    (SELECT booking_id FROM bookings WHERE user_id IS NOT NULL LIMIT 1 OFFSET 6),
-    (SELECT trip_id FROM trips LIMIT 1 OFFSET 0),
-    (SELECT operator_id FROM operators LIMIT 1 OFFSET 1),
-    (SELECT user_id FROM users WHERE email = 'google.user@bus-ticket.com' LIMIT 1),
-    2, 2, 2, 2, 2, 2,
-    'Below average. The bus was dirty and the air conditioning wasn''t working properly.',
-    '["https://example.com/photo16.jpg"]',
-    FALSE, NULL, TRUE, 2, 6
-),
-(
-    (SELECT booking_id FROM bookings WHERE user_id IS NOT NULL LIMIT 1 OFFSET 7),
-    (SELECT trip_id FROM trips LIMIT 1 OFFSET 1),
-    (SELECT operator_id FROM operators LIMIT 1 OFFSET 2),
-    (SELECT user_id FROM users WHERE email = 'admin@bus-ticket.com' LIMIT 1),
-    5, 5, 5, 5, 5, 5,
-    'Exceptional service from start to finish. Will definitely be a repeat customer!',
-    '["https://example.com/photo17.jpg"]',
-    FALSE, NULL, TRUE, 19, 0
-),
-(
-    (SELECT booking_id FROM bookings WHERE user_id IS NOT NULL LIMIT 1 OFFSET 8),
-    (SELECT trip_id FROM trips LIMIT 1 OFFSET 2),
-    (SELECT operator_id FROM operators LIMIT 1 OFFSET 3),
-    (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
-    4, 4, 4, 4, 4, 4,
-    'Professional and efficient. Everything ran like clockwork.',
-    '[]',
-    FALSE, NULL, TRUE, 12, 1
-),
-(
-    (SELECT booking_id FROM bookings WHERE user_id IS NOT NULL LIMIT 1 OFFSET 9),
-    (SELECT trip_id FROM trips LIMIT 1 OFFSET 3),
-    (SELECT operator_id FROM operators LIMIT 1 OFFSET 0),
-    (SELECT user_id FROM users WHERE email = 'google.user@bus-ticket.com' LIMIT 1),
-    3, 3, 3, 3, 3, 3,
-    'Acceptable service. Met basic expectations but room for improvement.',
-    '[]',
-    FALSE, NULL, TRUE, 3, 2
-),
-(
-    (SELECT booking_id FROM bookings WHERE user_id IS NOT NULL LIMIT 1 OFFSET 10),
-    (SELECT trip_id FROM trips LIMIT 1 OFFSET 4),
-    (SELECT operator_id FROM operators LIMIT 1 OFFSET 1),
-    (SELECT user_id FROM users WHERE email = 'admin@bus-ticket.com' LIMIT 1),
-    5, 5, 5, 5, 5, 5,
-    'Outstanding attention to detail. Every aspect of the journey was well thought out.',
-    '["https://example.com/photo18.jpg", "https://example.com/photo19.jpg"]',
-    FALSE, NULL, TRUE, 21, 0
-),
-(
-    (SELECT booking_id FROM bookings WHERE user_id IS NOT NULL LIMIT 1 OFFSET (29 % 29)),
-    (SELECT trip_id FROM trips LIMIT 1 OFFSET 5),
-    (SELECT operator_id FROM operators LIMIT 1 OFFSET 2),
-    (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
-    4, 4, 4, 4, 4, 4,
-    'Solid performance across all categories. A dependable choice.',
-    '[]',
-    FALSE, NULL, TRUE, 9, 1
-),
-(
-    (SELECT booking_id FROM bookings WHERE user_id IS NOT NULL LIMIT 1 OFFSET (30 % 29)),
-    (SELECT trip_id FROM trips LIMIT 1 OFFSET 6),
-    (SELECT operator_id FROM operators LIMIT 1 OFFSET 3),
-    (SELECT user_id FROM users WHERE email = 'google.user@bus-ticket.com' LIMIT 1),
-    2, 2, 2, 2, 2, 2,
-    'Poor experience. Multiple issues with the vehicle and service.',
-    '[]',
-    FALSE, NULL, TRUE, 1, 7
-),
-(
-    (SELECT booking_id FROM bookings WHERE user_id IS NOT NULL LIMIT 1 OFFSET (31 % 29)),
-    (SELECT trip_id FROM trips LIMIT 1 OFFSET 7),
-    (SELECT operator_id FROM operators LIMIT 1 OFFSET 0),
-    (SELECT user_id FROM users WHERE email = 'admin@bus-ticket.com' LIMIT 1),
-    5, 5, 5, 5, 5, 5,
-    'Premium service that exceeds expectations. Truly world-class transportation.',
-    '["https://example.com/photo20.jpg", "https://example.com/photo21.jpg", "https://example.com/photo22.jpg"]',
-    FALSE, NULL, TRUE, 28, 0
+    review_text, photos, is_flagged, flag_reason, is_approved
 )
+SELECT
+    b.booking_id,
+    t.trip_id,
+    o.operator_id,
+    b.user_id,
+    CASE WHEN b.row_num % 4 = 0 THEN 5 WHEN b.row_num % 4 = 1 THEN 4 WHEN b.row_num % 4 = 2 THEN 3 ELSE 2 END,
+    CASE WHEN b.row_num % 4 = 0 THEN 5 WHEN b.row_num % 4 = 1 THEN 4 WHEN b.row_num % 4 = 2 THEN 3 ELSE 2 END,
+    CASE WHEN b.row_num % 4 = 0 THEN 5 WHEN b.row_num % 4 = 1 THEN 4 WHEN b.row_num % 4 = 2 THEN 3 ELSE 2 END,
+    CASE WHEN b.row_num % 4 = 0 THEN 5 WHEN b.row_num % 4 = 1 THEN 5 WHEN b.row_num % 4 = 2 THEN 4 ELSE 3 END,
+    CASE WHEN b.row_num % 4 = 0 THEN 5 WHEN b.row_num % 4 = 1 THEN 4 WHEN b.row_num % 4 = 2 THEN 3 ELSE 2 END,
+    CASE WHEN b.row_num % 4 = 0 THEN 5 WHEN b.row_num % 4 = 1 THEN 4 WHEN b.row_num % 4 = 2 THEN 3 ELSE 1 END,
+    CASE WHEN b.row_num % 4 = 0 THEN 'Outstanding service! Highly recommend!'
+         WHEN b.row_num % 4 = 1 THEN 'Good overall experience. Professional service.'
+         WHEN b.row_num % 4 = 2 THEN 'Acceptable service. Met expectations.'
+         ELSE 'Below average experience. Issues with cleanliness and punctuality.' END,
+    '[]',
+    FALSE, NULL, TRUE
+FROM (
+    SELECT booking_id, user_id, ROW_NUMBER() OVER (ORDER BY booking_id) as row_num
+    FROM bookings
+    WHERE status = 'completed'
+    AND user_id = (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1)
+    AND booking_id NOT IN (SELECT booking_id FROM ratings)  -- Only bookings without ratings
+    ORDER BY booking_id
+    LIMIT 2  -- Only add 2 more ratings to ensure some bookings remain without ratings
+) b
+INNER JOIN (
+    SELECT trip_id, ROW_NUMBER() OVER (ORDER BY trip_id) - 1 as trip_idx
+    FROM trips
+    ORDER BY trip_id
+    LIMIT 20
+) t ON (b.row_num - 1) % (SELECT COUNT(*) FROM trips) = t.trip_idx
+INNER JOIN (
+    SELECT operator_id, ROW_NUMBER() OVER (ORDER BY operator_id) - 1 as op_idx
+    FROM operators
+    ORDER BY operator_id
+    LIMIT 4
+) o ON (b.row_num - 1) % 4 = o.op_idx
+ON CONFLICT (booking_id) DO NOTHING;
+
+-- Insert additional sample ratings for google.user@bus-ticket.com
+INSERT INTO ratings (
+    booking_id, trip_id, operator_id, user_id,
+    overall_rating, cleanliness_rating, driver_behavior_rating,
+    punctuality_rating, comfort_rating, value_for_money_rating,
+    review_text, photos, is_flagged, flag_reason, is_approved
+)
+SELECT
+    b.booking_id,
+    t.trip_id,
+    o.operator_id,
+    b.user_id,
+    CASE WHEN b.row_num % 4 = 0 THEN 5 WHEN b.row_num % 4 = 1 THEN 4 WHEN b.row_num % 4 = 2 THEN 3 ELSE 2 END,
+    CASE WHEN b.row_num % 4 = 0 THEN 5 WHEN b.row_num % 4 = 1 THEN 4 WHEN b.row_num % 4 = 2 THEN 3 ELSE 2 END,
+    CASE WHEN b.row_num % 4 = 0 THEN 5 WHEN b.row_num % 4 = 1 THEN 4 WHEN b.row_num % 4 = 2 THEN 3 ELSE 2 END,
+    CASE WHEN b.row_num % 4 = 0 THEN 5 WHEN b.row_num % 4 = 1 THEN 5 WHEN b.row_num % 4 = 2 THEN 4 ELSE 3 END,
+    CASE WHEN b.row_num % 4 = 0 THEN 5 WHEN b.row_num % 4 = 1 THEN 4 WHEN b.row_num % 4 = 2 THEN 3 ELSE 2 END,
+    CASE WHEN b.row_num % 4 = 0 THEN 5 WHEN b.row_num % 4 = 1 THEN 4 WHEN b.row_num % 4 = 2 THEN 3 ELSE 1 END,
+    CASE WHEN b.row_num % 4 = 0 THEN 'Outstanding service! Highly recommend!'
+         WHEN b.row_num % 4 = 1 THEN 'Good overall experience. Professional service.'
+         WHEN b.row_num % 4 = 2 THEN 'Acceptable service. Met expectations.'
+         ELSE 'Below average experience. Issues with cleanliness and punctuality.' END,
+    '[]',
+    FALSE, NULL, TRUE
+FROM (
+    SELECT booking_id, user_id, ROW_NUMBER() OVER (ORDER BY booking_id) as row_num
+    FROM bookings
+    WHERE status = 'completed'
+    AND user_id = (SELECT user_id FROM users WHERE email = 'google.user@bus-ticket.com' LIMIT 1)
+    ORDER BY booking_id
+    LIMIT 10
+) b
+INNER JOIN (
+    SELECT trip_id, ROW_NUMBER() OVER (ORDER BY trip_id) - 1 as trip_idx
+    FROM trips
+    ORDER BY trip_id
+    LIMIT 10
+) t ON (b.row_num - 1) % (SELECT COUNT(*) FROM trips) = t.trip_idx
+INNER JOIN (
+    SELECT operator_id, ROW_NUMBER() OVER (ORDER BY operator_id) - 1 as op_idx
+    FROM operators
+    ORDER BY operator_id
+    LIMIT 4
+) o ON (b.row_num - 1) % 4 = o.op_idx
 ON CONFLICT (booking_id) DO NOTHING;
 
 -- Insert sample rating votes
@@ -341,3 +309,18 @@ FROM (SELECT rating_id FROM ratings WHERE review_text LIKE '%with the vehicle an
 CROSS JOIN (SELECT user_id FROM users WHERE email = 'admin@bus-ticket.com' LIMIT 1) u11
 WHERE r.rating_id IS NOT NULL
 ON CONFLICT (rating_id, user_id) DO NOTHING;
+
+-- Update helpful counts based on actual votes
+UPDATE ratings
+SET
+    helpful_count = COALESCE(vote_counts.helpful, 0),
+    unhelpful_count = COALESCE(vote_counts.unhelpful, 0)
+FROM (
+    SELECT
+        rating_id,
+        COUNT(CASE WHEN is_helpful THEN 1 END) as helpful,
+        COUNT(CASE WHEN NOT is_helpful THEN 1 END) as unhelpful
+    FROM rating_votes
+    GROUP BY rating_id
+) vote_counts
+WHERE ratings.rating_id = vote_counts.rating_id;

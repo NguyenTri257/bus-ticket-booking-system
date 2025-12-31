@@ -20,29 +20,12 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Auth middleware (extract user from token or session)
-const authMiddleware = (req, res, next) => {
-  // This should be replaced with actual auth logic from your API gateway
-  // For now, we'll extract from headers or session
-  try {
-    const userId = req.headers['x-user-id'] || req.user?.userId;
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        error: { code: 'AUTH_001', message: 'Unauthorized' },
-        timestamp: new Date().toISOString(),
-      });
-    }
-    req.user = { id: userId };
-    next();
-  } catch (error) {
-    return res.status(401).json({
-      success: false,
-      error: { code: 'AUTH_001', message: 'Unauthorized' },
-      timestamp: new Date().toISOString(),
-    });
-  }
-};
+// Initialize Passport
+const passport = require('passport');
+app.use(passport.initialize());
+
+// Import auth middleware
+const { authenticate } = require('./middleware/authMiddleware');
 
 // Health check
 app.get('/health', (req, res) => {
@@ -55,18 +38,18 @@ app.get('/health', (req, res) => {
 });
 
 // Notifications History Routes
-app.get('/', authMiddleware, (req, res) => {
+app.get('/', authenticate, (req, res) => {
   notificationsController.getNotifications(req, res);
 });
 
-app.get('/stats', authMiddleware, (req, res) => {
+app.get('/stats', authenticate, (req, res) => {
   notificationsController.getStats(req, res);
 });
-app.get('/:notificationId', authMiddleware, (req, res) => {
+app.get('/:notificationId', authenticate, (req, res) => {
   notificationsController.getNotification(req, res);
 });
 
-app.put('/:notificationId/read', authMiddleware, (req, res) => {
+app.put('/:notificationId/read', authenticate, (req, res) => {
   notificationsController.markAsRead(req, res);
 });
 

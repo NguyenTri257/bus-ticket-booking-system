@@ -84,10 +84,10 @@ services:
       - REDIS_PORT=6379
       - AUTH_SERVICE_URL=http://auth-service:3001
       - API_GATEWAY_URL=http://api-gateway:3000
-      - JWT_SECRET=super-secret-jwt-key-for-development-change-in-production-2025
-      - CLOUDINARY_CLOUD_NAME=dleqkiaj0
-      - CLOUDINARY_API_KEY=957383667687537
-      - CLOUDINARY_API_SECRET=FzIR1-p0xgW6-uw78AeAaebuIlw
+      - JWT_SECRET=${JWT_SECRET}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
     ports:
       - "3002:3002"
     depends_on:
@@ -115,10 +115,12 @@ services:
       - DB_NAME=bus_ticket_dev
       - DB_USER=postgres
       - DB_PASSWORD=postgres
-      - SENDGRID_API_KEY=${SENDGRID_API_KEY:-default-sendgrid-api-key}
-      - EMAIL_FROM=${EMAIL_FROM:-default@email.com}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+      - EMAIL_FROM=${EMAIL_FROM:-noreply@quad-n.me}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:5173}
       - API_URL=http://api-gateway:3000
+      - JWT_SECRET=${JWT_SECRET}
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
     networks:
       - bus-ticket-network
     volumes:
@@ -140,7 +142,7 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-default-jwt-secret}
+      - JWT_SECRET=${JWT_SECRET}
       - AUTH_SERVICE_URL=http://auth-service:3001
       - TRIP_SERVICE_URL=http://trip-service:3002
       - NOTIFICATION_SERVICE_URL=http://notification-service:3003
@@ -208,8 +210,6 @@ services:
       context: ./services/chatbot-service
       dockerfile: Dockerfile
     container_name: bus-ticket-chatbot-service
-    env_file:
-      - ./services/chatbot-service/.env
     environment:
       - NODE_ENV=development
       - PORT=3007
@@ -219,8 +219,8 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-default-jwt-secret}
-      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-your-google-ai-api-key}
+      - JWT_SECRET=${JWT_SECRET}
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
       - GOOGLE_AI_MODEL=${GOOGLE_AI_MODEL:-gemini-2.5-flash}
       - GOOGLE_AI_TEMPERATURE=${GOOGLE_AI_TEMPERATURE:-0.7}
       - GOOGLE_AI_MAX_TOKENS=${GOOGLE_AI_MAX_TOKENS:-1000}
@@ -257,7 +257,7 @@ services:
       - BOOKING_SERVICE_URL=http://booking-service:3004
       - ANALYTICS_SERVICE_URL=http://analytics-service:3006
       - CHATBOT_SERVICE_URL=http://chatbot-service:3007
-      - JWT_SECRET=${JWT_SECRET:-default-jwt-secret}
+      - JWT_SECRET=${JWT_SECRET}
     ports:
       - "3000:3000"
     networks:

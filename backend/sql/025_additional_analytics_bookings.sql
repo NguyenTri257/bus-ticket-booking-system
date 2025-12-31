@@ -188,7 +188,27 @@ INSERT INTO bookings (
 (generate_booking_ref('2025-12-11', 3),
  (SELECT trip_id FROM temp_trips WHERE trip_order = 13),
  NULL, 'startweek@email.com', '+84995556677', 'cancelled', 510000, 25500, 535500, 'VND',
- 'zalopay', 'refunded', '2025-12-11 10:00:00+07', '2025-12-11 09:45:00+07', '2025-12-11 10:15:00+07');
+ 'zalopay', 'refunded', '2025-12-11 10:00:00+07', '2025-12-11 09:45:00+07', '2025-12-11 10:15:00+07'),
+
+-- Additional confirmed bookings for passenger@bus-ticket.com
+(generate_booking_ref('2025-12-19', 1),
+ (SELECT trip_id FROM temp_trips WHERE trip_order = 14),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'confirmed', 500000, 25000, 525000, 'VND',
+ 'momo', 'paid', '2025-12-19 08:30:00+07', '2025-12-19 08:15:00+07', '2025-12-19 08:30:00+07'),
+
+(generate_booking_ref('2025-12-20', 1),
+ (SELECT trip_id FROM temp_trips WHERE trip_order = 15),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'confirmed', 480000, 24000, 504000, 'VND',
+ 'card', 'paid', '2025-12-20 09:45:00+07', '2025-12-20 09:30:00+07', '2025-12-20 09:45:00+07'),
+
+(generate_booking_ref('2025-12-21', 1),
+ (SELECT trip_id FROM temp_trips WHERE trip_order = 16),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'confirmed', 550000, 27500, 577500, 'VND',
+ 'zalopay', 'paid', '2025-12-21 10:20:00+07', '2025-12-21 10:05:00+07', '2025-12-21 10:20:00+07')
+ON CONFLICT (booking_reference) DO NOTHING;
 
 -- Clean up temp table
 DROP TABLE temp_trips;
@@ -199,15 +219,93 @@ SET cancellation_reason = 'Customer request',
     refund_amount = total_price
 WHERE status = 'cancelled' AND refund_amount IS NULL;
 
--- Mark some bookings as completed (for past trips)
+-- Mark ONLY older bookings as completed to maintain diverse statuses for passengers
 UPDATE bookings
 SET status = 'completed'
 WHERE status = 'confirmed'
-  AND trip_id IN (
-    SELECT trip_id FROM trips
-    WHERE departure_time < CURRENT_TIMESTAMP - INTERVAL '2 hours'
-  )
-  AND created_at < CURRENT_TIMESTAMP - INTERVAL '2 hours';
+  AND created_at < '2025-12-14'::TIMESTAMP WITH TIME ZONE
+  AND user_id IS NOT NULL
+  AND booking_reference LIKE '%01' OR booking_reference LIKE '%03' OR booking_reference LIKE '%05';
+
+-- Add more completed bookings
+INSERT INTO bookings (
+    booking_reference, trip_id, user_id, contact_email, contact_phone,
+    status, subtotal, service_fee, total_price, currency,
+    payment_method, payment_status, paid_at, created_at, updated_at
+) VALUES
+(generate_booking_ref('2025-12-10', 1),
+ (SELECT trip_id FROM trips LIMIT 1 OFFSET 0),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'completed', 520000, 26000, 546000, 'VND',
+ 'momo', 'paid', '2025-12-10 07:00:00+07', '2025-12-10 06:45:00+07', '2025-12-10 06:45:00+07'),
+
+(generate_booking_ref('2025-12-09', 1),
+ (SELECT trip_id FROM trips LIMIT 1 OFFSET 1),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'completed', 480000, 24000, 504000, 'VND',
+ 'card', 'paid', '2025-12-09 08:30:00+07', '2025-12-09 08:15:00+07', '2025-12-09 08:15:00+07'),
+
+(generate_booking_ref('2025-12-08', 1),
+ (SELECT trip_id FROM trips LIMIT 1 OFFSET 2),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'completed', 550000, 27500, 577500, 'VND',
+ 'zalopay', 'paid', '2025-12-08 09:00:00+07', '2025-12-08 08:45:00+07', '2025-12-08 08:45:00+07'),
+
+(generate_booking_ref('2025-12-07', 1),
+ (SELECT trip_id FROM trips LIMIT 1 OFFSET 3),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'completed', 420000, 21000, 441000, 'VND',
+ 'momo', 'paid', '2025-12-07 06:30:00+07', '2025-12-07 06:15:00+07', '2025-12-07 06:15:00+07'),
+
+(generate_booking_ref('2025-12-06', 1),
+ (SELECT trip_id FROM trips LIMIT 1 OFFSET 4),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'completed', 500000, 25000, 525000, 'VND',
+ 'card', 'paid', '2025-12-06 07:45:00+07', '2025-12-06 07:30:00+07', '2025-12-06 07:30:00+07'),
+
+(generate_booking_ref('2025-12-05', 1),
+ (SELECT trip_id FROM trips LIMIT 1 OFFSET 5),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'completed', 480000, 24000, 504000, 'VND',
+ 'zalopay', 'paid', '2025-12-05 10:00:00+07', '2025-12-05 09:45:00+07', '2025-12-05 09:45:00+07'),
+
+(generate_booking_ref('2025-12-04', 1),
+ (SELECT trip_id FROM trips LIMIT 1 OFFSET 6),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'completed', 550000, 27500, 577500, 'VND',
+ 'momo', 'paid', '2025-12-04 08:15:00+07', '2025-12-04 08:00:00+07', '2025-12-04 08:00:00+07'),
+
+(generate_booking_ref('2025-12-03', 1),
+ (SELECT trip_id FROM trips LIMIT 1 OFFSET 7),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'completed', 420000, 21000, 441000, 'VND',
+ 'card', 'paid', '2025-12-03 09:30:00+07', '2025-12-03 09:15:00+07', '2025-12-03 09:15:00+07'),
+
+(generate_booking_ref('2025-12-02', 1),
+ (SELECT trip_id FROM trips LIMIT 1 OFFSET 8),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'completed', 500000, 25000, 525000, 'VND',
+ 'zalopay', 'paid', '2025-12-02 07:00:00+07', '2025-12-02 06:45:00+07', '2025-12-02 06:45:00+07'),
+
+(generate_booking_ref('2025-12-01', 1),
+ (SELECT trip_id FROM trips LIMIT 1 OFFSET 9),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'completed', 480000, 24000, 504000, 'VND',
+ 'momo', 'paid', '2025-12-01 08:45:00+07', '2025-12-01 08:30:00+07', '2025-12-01 08:30:00+07')
+ON CONFLICT (booking_reference) DO NOTHING;
+
+-- Add a PENDING booking for passenger@bus-ticket.com 
+INSERT INTO bookings (
+    booking_reference, trip_id, user_id, contact_email, contact_phone,
+    status, subtotal, service_fee, total_price, currency,
+    payment_method, payment_status, paid_at, created_at, updated_at
+) VALUES
+(generate_booking_ref('2025-12-22', 1),
+ (SELECT trip_id FROM trips LIMIT 1 OFFSET 0),
+ (SELECT user_id FROM users WHERE email = 'passenger@bus-ticket.com' LIMIT 1),
+ 'passenger@bus-ticket.com', '+84987654321', 'pending', 600000, 30000, 630000, 'VND',
+ NULL, 'unpaid', NULL, '2025-12-22 10:00:00+07', '2025-12-22 10:00:00+07')
+ON CONFLICT (booking_reference) DO NOTHING;
 
 -- Add some passenger details for the bookings (optional)
 INSERT INTO booking_passengers (
@@ -297,7 +395,51 @@ INSERT INTO booking_passengers (
  '23B', 320000, 'Dinh Van AA', '+84973332211', '852741369'),
 
 ((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251211003' LIMIT 1),
- '24C', 510000, 'Bui Thi BB', '+84972221100', '741963258');
+ '24C', 510000, 'Bui Thi BB', '+84972221100', '741963258'),
+
+-- Add passengers for the new confirmed bookings for passenger@bus-ticket.com
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251219001' LIMIT 1),
+ 'A1', 500000, 'Nguyen Van Passenger', '+84987654321', '111111111'),
+
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251220001' LIMIT 1),
+ 'B2', 480000, 'Nguyen Van Passenger', '+84987654321', '222222222'),
+
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251221001' LIMIT 1),
+ 'C3', 550000, 'Nguyen Van Passenger', '+84987654321', '333333333'),
+
+-- Add passengers for the new COMPLETED bookings
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251210001' LIMIT 1),
+ '25A', 520000, 'Nguyen Van Passenger', '+84987654321', '444444444'),
+
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251209001' LIMIT 1),
+ '26B', 480000, 'Nguyen Van Passenger', '+84987654321', '555555555'),
+
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251208001' LIMIT 1),
+ '27C', 550000, 'Nguyen Van Passenger', '+84987654321', '666666666'),
+
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251207001' LIMIT 1),
+ '28A', 420000, 'Nguyen Van Passenger', '+84987654321', '777777777'),
+
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251206001' LIMIT 1),
+ '29B', 500000, 'Nguyen Van Passenger', '+84987654321', '888888888'),
+
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251205001' LIMIT 1),
+ '30C', 480000, 'Nguyen Van Passenger', '+84987654321', '999999999'),
+
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251204001' LIMIT 1),
+ '31A', 550000, 'Nguyen Van Passenger', '+84987654321', '101010101'),
+
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251203001' LIMIT 1),
+ '32B', 420000, 'Nguyen Van Passenger', '+84987654321', '121212121'),
+
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251202001' LIMIT 1),
+ '33C', 500000, 'Nguyen Van Passenger', '+84987654321', '131313131'),
+
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251201001' LIMIT 1),
+ '34A', 480000, 'Nguyen Van Passenger', '+84987654321', '141414141'),
+
+((SELECT booking_id FROM bookings WHERE booking_reference = 'BK20251222001' LIMIT 1),
+ 'P1', 600000, 'Nguyen Van Passenger', '+84987654321', '151515151');
 SELECT
     DATE(created_at) as booking_date,
     COUNT(*) as total_bookings,
@@ -307,6 +449,6 @@ SELECT
     COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
     SUM(total_price) as total_revenue
 FROM bookings
-WHERE created_at >= '2025-12-11'
+WHERE created_at >= '2025-12-01'
 GROUP BY DATE(created_at)
 ORDER BY booking_date DESC;

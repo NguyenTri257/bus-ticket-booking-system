@@ -2,7 +2,7 @@ const axios = require('axios');
 const passport = require('passport');
 const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
 
-const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL;
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
 
 // Configure Passport JWT Strategy (same as auth-service)
 const jwtOptions = {
@@ -41,18 +41,4 @@ passport.use(
 // Passport-based authentication middleware
 const authenticate = passport.authenticate('jwt', { session: false });
 
-// Authorization middleware
-const authorize = (roles) => {
-  return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        error: { code: 'AUTH_003', message: 'Insufficient permissions' },
-        timestamp: new Date().toISOString(),
-      });
-    }
-    next();
-  };
-};
-
-module.exports = { authenticate, authorize };
+module.exports = { authenticate };

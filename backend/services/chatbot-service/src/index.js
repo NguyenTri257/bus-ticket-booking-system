@@ -18,6 +18,10 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Initialize Passport
+const passport = require('passport');
+app.use(passport.initialize());
+
 // Health check
 app.get('/health', chatbotController.healthCheck);
 

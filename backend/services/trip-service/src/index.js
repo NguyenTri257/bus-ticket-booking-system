@@ -28,6 +28,10 @@ app.use(cors());
 app.use(morgan('combined'));
 app.use(express.json());
 
+// Initialize Passport
+const passport = require('passport');
+app.use(passport.initialize());
+
 // Start lock cleanup service after Redis is ready
 (async () => {
   try {
@@ -215,7 +219,11 @@ app.get('/:tripId/reviews', optionalAuthenticate, ratingController.getTripReview
 app.get('/operators/:operatorId/ratings', ratingController.getOperatorRatings);
 
 // Get reviews for an operator with pagination (public)
-app.get('/operators/:operatorId/reviews', optionalAuthenticate, ratingController.getOperatorReviews);
+app.get(
+  '/operators/:operatorId/reviews',
+  optionalAuthenticate,
+  ratingController.getOperatorReviews
+);
 
 // Update a review (within 24 hours)
 app.patch('/ratings/:ratingId', authenticate, ratingController.updateReview);

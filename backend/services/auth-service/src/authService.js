@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const passport = require('passport');
+const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
 const redis = require('redis');
 
 class AuthService {
@@ -34,8 +36,51 @@ class AuthService {
     this.redisClient.on('end', () => {
       console.log('🔌 Redis connection ended');
     });
+
+    // Configure Passport JWT Strategy
+    this.configurePassport();
   }
 
+  configurePassport() {
+    const jwtOptions = {
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      secretOrKey: process.env.JWT_SECRET,
+      passReqToCallback: true, // Pass req to callback to check blacklist
+    };
+
+    passport.use(
+      new JwtStrategy(jwtOptions, async (req, payload, done) => {
+        try {
+          // Check if token is blacklisted
+          const authHeader = req.headers.authorization;
+          if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7);
+            const isBlacklisted = await this.isTokenBlacklisted(token);
+            if (isBlacklisted) {
+              return done(null, false, { message: 'Token has been revoked' });
+            }
+          }
+
+          // Token is valid and not blacklisted
+          return done(null, payload);
+        } catch (error) {
+          return done(error, false);
+        }
+      })
+    );
+  }
+
+  // Initialize Passport (call this in app.js)
+  initialize() {
+    return passport.initialize();
+  }
+
+  // Get Passport JWT middleware
+  authenticate() {
+    return passport.authenticate('jwt', { session: false });
+  }
+
+  // Keep old methods for backward compatibility
   generateAccessToken(payload) {
     return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN });
   }
@@ -44,6 +89,15 @@ class AuthService {
     return jwt.sign(payload, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
     }); // Using same secret for simplicity
+  }
+
+  // This method is now handled by Passport strategy
+  verifyAccessToken(token) {
+    try {
+      return jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      return null;
+    }
   }
 
   async storeRefreshToken(userId, refreshToken) {
@@ -99,14 +153,6 @@ class AuthService {
   }
 
   verifyRefreshToken(token) {
-    try {
-      return jwt.verify(token, process.env.JWT_SECRET);
-    } catch (error) {
-      return null;
-    }
-  }
-
-  verifyAccessToken(token) {
     try {
       return jwt.verify(token, process.env.JWT_SECRET);
     } catch (error) {

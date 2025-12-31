@@ -33,6 +33,10 @@ app.use('/trips/upload', express.raw({ type: 'multipart/form-data', limit: '50mb
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Initialize Passport
+const passport = require('passport');
+app.use(passport.initialize());
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({

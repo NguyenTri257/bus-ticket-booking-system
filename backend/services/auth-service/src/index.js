@@ -19,6 +19,9 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Initialize Passport
+app.use(authService.initialize());
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({

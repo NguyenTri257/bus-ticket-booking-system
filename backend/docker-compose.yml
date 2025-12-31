@@ -262,10 +262,10 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-default-jwt-secret}
-#      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-your_cloud_name}
-#      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY:-your_api_key}
-#      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET:-your_api_secret}
+      - JWT_SECRET=${JWT_SECRET}
+    #      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-your_cloud_name}
+    #      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY:-your_api_key}
+    #      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET:-your_api_secret}
     depends_on:
       postgres:
         condition: service_healthy

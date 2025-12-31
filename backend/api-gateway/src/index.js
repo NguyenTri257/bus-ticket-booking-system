@@ -153,6 +153,23 @@ app.all('/users/profile', upload.any(), async (req, res) => {
       headers,
       timeout: 30000,
     });
+    Object.keys(response.headers).forEach((key) => {
+      res.set(key, response.headers[key]);
+    });
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(`❌ User service /users/profile error:`, error.message);
+    if (error.response) {
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({
+        success: false,
+        error: { code: 'GATEWAY_001', message: 'User service unavailable' },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+});
 
 // Admin Management routes - proxy to auth-service
 app.use('/admin', async (req, res) => {

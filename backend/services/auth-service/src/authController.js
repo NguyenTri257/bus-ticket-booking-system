@@ -1022,6 +1022,10 @@ class AuthController {
       }
 
       const user = await userRepository.findById(userId);
+      console.log(
+        '[getProfile] user.preferences from DB:',
+        JSON.stringify(user.preferences, null, 2)
+      );
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -1033,33 +1037,31 @@ class AuthController {
       // Ensure preferences have the correct structure
       let preferences = user.preferences || {};
 
-      // Chuẩn hóa cấu trúc notifications nếu chưa có
-      if (!preferences.notifications || typeof preferences.notifications !== 'object') {
+      // Normalize preferences structure - move promotionalEmails inside notifications if it's at root level
+      if (preferences.promotionalEmails !== undefined && !preferences.notifications) {
         preferences = {
           ...preferences,
           notifications: {
-            bookingConfirmations: { email: true, sms: true },
+            bookingConfirmations: { email: true, sms: false },
+            tripReminders: { email: true, sms: false },
+            tripUpdates: { email: true, sms: true },
+            promotionalEmails: preferences.promotionalEmails,
+          },
+        };
+        // Remove promotionalEmails from root level
+        delete preferences.promotionalEmails;
+      } else if (!preferences.notifications) {
+        preferences = {
+          ...preferences,
+          notifications: {
+            bookingConfirmations: { email: true, sms: false },
             tripReminders: { email: true, sms: false },
             tripUpdates: { email: true, sms: true },
             promotionalEmails: false,
           },
         };
-      } else {
-        // Chuẩn hóa từng phần của notifications
-        if (!preferences.notifications.bookingConfirmations) {
-          preferences.notifications.bookingConfirmations = { email: true, sms: true };
-        }
-        if (!preferences.notifications.tripReminders) {
-          preferences.notifications.tripReminders = { email: true, sms: false };
-        }
-        if (!preferences.notifications.tripUpdates) {
-          preferences.notifications.tripUpdates = { email: true, sms: true };
-        }
-        if (preferences.notifications.promotionalEmails === undefined) {
-          preferences.notifications.promotionalEmails = false;
-        }
       }
-      console.log('User preferences:', preferences);
+
       res.json({
         success: true,
         data: {
@@ -1129,53 +1131,28 @@ class AuthController {
       if (phone) updateData.phone = phone;
       if (fullName) updateData.fullName = fullName;
       if (avatar) updateData.avatar = avatar;
-
-      // Chuẩn hóa preferences nếu có
       if (preferences) {
-        let normalizedPreferences = preferences;
+        // Normalize preferences structure before storing
+        let normalizedPreferences = { ...preferences };
 
-        // Chuẩn hóa cấu trúc notifications
-        if (
-          !normalizedPreferences.notifications ||
-          typeof normalizedPreferences.notifications !== 'object'
-        ) {
+        // Move promotionalEmails inside notifications if it's at root level
+        if (normalizedPreferences.promotionalEmails !== undefined) {
+          if (!normalizedPreferences.notifications) {
+            normalizedPreferences.notifications = {};
+          }
+          normalizedPreferences.notifications.promotionalEmails =
+            normalizedPreferences.promotionalEmails;
+          delete normalizedPreferences.promotionalEmails;
+        }
+
+        // Ensure notifications structure is complete
+        if (!normalizedPreferences.notifications) {
           normalizedPreferences.notifications = {
-            bookingConfirmations: { email: true, sms: true },
+            bookingConfirmations: { email: true, sms: false },
             tripReminders: { email: true, sms: false },
             tripUpdates: { email: true, sms: true },
             promotionalEmails: false,
           };
-        } else {
-          // Chuẩn hóa từng phần của notifications
-          if (!normalizedPreferences.notifications.bookingConfirmations) {
-            normalizedPreferences.notifications.bookingConfirmations = { email: true, sms: true };
-          } else {
-            normalizedPreferences.notifications.bookingConfirmations.email =
-              !!normalizedPreferences.notifications.bookingConfirmations.email;
-            normalizedPreferences.notifications.bookingConfirmations.sms =
-              !!normalizedPreferences.notifications.bookingConfirmations.sms;
-          }
-
-          if (!normalizedPreferences.notifications.tripReminders) {
-            normalizedPreferences.notifications.tripReminders = { email: true, sms: false };
-          } else {
-            normalizedPreferences.notifications.tripReminders.email =
-              !!normalizedPreferences.notifications.tripReminders.email;
-            normalizedPreferences.notifications.tripReminders.sms =
-              !!normalizedPreferences.notifications.tripReminders.sms;
-          }
-
-          if (!normalizedPreferences.notifications.tripUpdates) {
-            normalizedPreferences.notifications.tripUpdates = { email: true, sms: true };
-          } else {
-            normalizedPreferences.notifications.tripUpdates.email =
-              !!normalizedPreferences.notifications.tripUpdates.email;
-            normalizedPreferences.notifications.tripUpdates.sms =
-              !!normalizedPreferences.notifications.tripUpdates.sms;
-          }
-
-          normalizedPreferences.notifications.promotionalEmails =
-            !!normalizedPreferences.notifications.promotionalEmails;
         }
 
         updateData.preferences = normalizedPreferences;

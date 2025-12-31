@@ -111,6 +111,10 @@ export const NotificationPreferences = () => {
             !updatedProfile.preferences.notifications.promotionalEmails,
         },
       }
+      // Clean up: remove promotionalEmails from root level if it exists
+      if (updatedProfile.preferences.promotionalEmails !== undefined) {
+        delete updatedProfile.preferences.promotionalEmails
+      }
     } else if (channel) {
       updatedProfile.preferences = {
         ...updatedProfile.preferences,
@@ -125,15 +129,22 @@ export const NotificationPreferences = () => {
       }
     }
 
+    // Update UI immediately
+    setProfile(updatedProfile)
     setSaving(true)
+
     try {
       await updateUserProfile(updatedProfile)
-      setProfile(updatedProfile)
-      setMessage({ type: 'success', text: 'Preferences updated successfully' })
+      setMessage({
+        type: 'success',
+        text: 'Preferences updated successfully',
+      })
       setTimeout(() => setMessage(null), 3000)
     } catch (error) {
       console.error('Failed to update preferences:', error)
       setMessage({ type: 'error', text: 'Failed to save preferences' })
+      // Revert on error
+      setProfile(profile)
     } finally {
       setSaving(false)
     }

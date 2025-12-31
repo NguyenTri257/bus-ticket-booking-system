@@ -74,6 +74,14 @@ export const updateUserProfile = async (
 ): Promise<UserProfile> => {
   try {
     const body = { ...profileData }
+    console.log(
+      '[updateUserProfile] Sending body:',
+      JSON.stringify(body, null, 2)
+    )
+    console.log(
+      '[updateUserProfile] preferences:',
+      JSON.stringify(body.preferences, null, 2)
+    )
     const response = await request('/auth/me', {
       method: 'PUT',
       body,

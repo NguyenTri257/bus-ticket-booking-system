@@ -31,7 +31,7 @@ interface SeatMapApiResponse {
       seat_code: string
       row: number
       column: number
-      seat_type: 'standard' | 'vip' | 'window' | 'aisle'
+      seat_type: 'standard' | 'vip'
       position: 'window' | 'aisle'
       price: number
       status: 'available' | 'occupied' | 'locked' | 'disabled'
@@ -45,7 +45,7 @@ interface SeatMapApiResponse {
     seat_code: string
     row: number
     column: number
-    seat_type: 'standard' | 'vip' | 'window' | 'aisle'
+    seat_type: 'standard' | 'vip'
     position: 'window' | 'aisle'
     price: number
     status: 'available' | 'occupied' | 'locked' | 'disabled'
@@ -67,7 +67,7 @@ function transformSeatMapResponse(
     seats: (seatMapData.seats || []).map((seat) => ({
       ...seat,
       seat_type:
-        seat.seat_type === 'window' || seat.seat_type === 'aisle'
+        seat.position === 'window' || seat.position === 'aisle'
           ? 'standard'
           : (seat.seat_type as 'standard' | 'vip'),
       status:

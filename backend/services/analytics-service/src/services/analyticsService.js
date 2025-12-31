@@ -23,31 +23,22 @@ class AnalyticsService {
       }
 
       // Get all booking statistics in parallel
-      const [
-        totalBookings,
-        bookingTrends,
-        statusDistribution,
-        topRoutes,
-        cancellationStats,
-      ] = await Promise.all([
-        analyticsRepository.getTotalBookings(fromDate, toDate),
-        analyticsRepository.getBookingTrends(fromDate, toDate, groupBy),
-        analyticsRepository.getBookingStatusDistribution(fromDate, toDate),
-        analyticsRepository.getTopRoutes(fromDate, toDate, 10),
-        analyticsRepository.getCancellationStats(fromDate, toDate),
-      ]);
+      const [totalBookings, bookingTrends, statusDistribution, topRoutes, cancellationStats] =
+        await Promise.all([
+          analyticsRepository.getTotalBookings(fromDate, toDate),
+          analyticsRepository.getBookingTrends(fromDate, toDate, groupBy),
+          analyticsRepository.getBookingStatusDistribution(fromDate, toDate),
+          analyticsRepository.getTopRoutes(fromDate, toDate, 10),
+          analyticsRepository.getCancellationStats(fromDate, toDate),
+        ]);
 
       // Calculate success rate
-      const confirmedCount =
-        statusDistribution.find((s) => s.status === 'confirmed')?.count || 0;
-      const cancelledCount =
-        statusDistribution.find((s) => s.status === 'cancelled')?.count || 0;
+      const confirmedCount = statusDistribution.find((s) => s.status === 'confirmed')?.count || 0;
+      const cancelledCount = statusDistribution.find((s) => s.status === 'cancelled')?.count || 0;
       const totalCompleted = confirmedCount + cancelledCount;
 
       const successRate =
-        totalCompleted > 0
-          ? ((confirmedCount / totalCompleted) * 100).toFixed(2)
-          : 0;
+        totalCompleted > 0 ? ((confirmedCount / totalCompleted) * 100).toFixed(2) : 0;
 
       const cancellationRate = cancellationStats.cancellation_rate || 0;
 
@@ -121,19 +112,14 @@ class AnalyticsService {
       }
 
       // Get all revenue statistics in parallel
-      const [
-        totalRevenueData,
-        revenueTrends,
-        revenueByRoute,
-        revenueByStatus,
-        revenueByOperator,
-      ] = await Promise.all([
-        analyticsRepository.getTotalRevenue(fromDate, toDate),
-        analyticsRepository.getRevenueTrends(fromDate, toDate, groupBy),
-        analyticsRepository.getRevenueByRoute(fromDate, toDate, 10),
-        analyticsRepository.getRevenueByStatus(fromDate, toDate),
-        analyticsRepository.getRevenueByOperator(fromDate, toDate, 10),
-      ]);
+      const [totalRevenueData, revenueTrends, revenueByRoute, revenueByStatus, revenueByOperator] =
+        await Promise.all([
+          analyticsRepository.getTotalRevenue(fromDate, toDate),
+          analyticsRepository.getRevenueTrends(fromDate, toDate, groupBy),
+          analyticsRepository.getRevenueByRoute(fromDate, toDate, 10),
+          analyticsRepository.getRevenueByStatus(fromDate, toDate),
+          analyticsRepository.getRevenueByOperator(fromDate, toDate, 10),
+        ]);
 
       // Format revenue trends
       const formattedTrends = revenueTrends.map((trend) => ({
@@ -187,9 +173,7 @@ class AnalyticsService {
         summary: {
           totalRevenue: parseFloat(totalRevenueData.total_revenue),
           totalBookings: parseInt(totalRevenueData.booking_count),
-          averageBookingValue: parseFloat(
-            totalRevenueData.average_booking_value
-          ),
+          averageBookingValue: parseFloat(totalRevenueData.average_booking_value),
           currency: 'VND',
         },
         trends: formattedTrends,
@@ -208,12 +192,12 @@ class AnalyticsService {
    */
   async getDashboardSummary(fromDate, toDate) {
     try {
-      const [totalRevenue, totalBookings, cancellationStats] =
-        await Promise.all([
-          analyticsRepository.getTotalRevenue(fromDate, toDate),
-          analyticsRepository.getTotalBookings(fromDate, toDate),
-          analyticsRepository.getCancellationStats(fromDate, toDate),
-        ]);
+      const [totalRevenue, totalBookings, cancellationStats, activeUsers] = await Promise.all([
+        analyticsRepository.getTotalRevenue(fromDate, toDate),
+        analyticsRepository.getTotalBookings(fromDate, toDate),
+        analyticsRepository.getCancellationStats(fromDate, toDate),
+        analyticsRepository.getActiveUsersCount(),
+      ]);
 
       return {
         period: {
@@ -231,6 +215,7 @@ class AnalyticsService {
           cancelled: parseInt(cancellationStats.cancelled_bookings),
           cancellationRate: parseFloat(cancellationStats.cancellation_rate),
         },
+        activeUsers: activeUsers,
       };
     } catch (error) {
       console.error('Error in getDashboardSummary:', error);

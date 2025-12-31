@@ -4,6 +4,7 @@ const {
   chatBookingSchema,
   sessionIdSchema,
   feedbackSchema,
+  passengerInfoFormSchema,
 } = require('../validators/chatValidators');
 const { extractUserInfo } = require('../utils/helpers');
 
@@ -40,16 +41,22 @@ class ChatbotController {
         });
       }
 
-      const { sessionId, message, context } = value;
+      const { sessionId, message, context, actionData } = value;
       const userInfo = extractUserInfo(req);
-      const authToken = req.headers.authorization;
+
+      // Extract token from Authorization header (remove "Bearer " prefix)
+      let authToken = req.headers.authorization;
+      if (authToken && authToken.startsWith('Bearer ')) {
+        authToken = authToken.substring(7); // Remove "Bearer " prefix
+      }
 
       // Process the query
       const result = await chatbotService.processQuery(
         sessionId,
         message,
         userInfo.userId,
-        authToken
+        authToken,
+        actionData
       );
 
       return res.json({
@@ -89,15 +96,16 @@ class ChatbotController {
         });
       }
 
-      const { sessionId, tripId, seats, passengerInfo } = value;
+      const { sessionId, tripId, seats, passengerInfo, contactInfo } = value;
       const authToken = req.headers.authorization;
 
-      // Create booking
+      // Create booking with separate contact info and passenger info
       const result = await chatbotService.createBooking(
         sessionId,
         tripId,
         seats,
         passengerInfo,
+        contactInfo,
         authToken
       );
 
@@ -108,7 +116,7 @@ class ChatbotController {
       });
     } catch (error) {
       console.error('[ChatbotController] Error in book:', error);
-      
+
       // Handle specific booking errors
       if (error.message.includes('already booked')) {
         return res.status(409).json({
@@ -242,12 +250,7 @@ class ChatbotController {
       const { sessionId, messageId, rating, comment } = value;
 
       // Save feedback
-      const result = await chatbotService.saveFeedback(
-        sessionId,
-        messageId,
-        rating,
-        comment
-      );
+      const result = await chatbotService.saveFeedback(sessionId, messageId, rating, comment);
 
       return res.json({
         success: true,
@@ -266,6 +269,61 @@ class ChatbotController {
       });
     }
   }
+
+  /**
+   * Submit passenger information form
+   * POST /chatbot/submit-passenger-info
+   */
+  async submitPassengerInfo(req, res) {
+    try {
+      // Validate request
+      const { error, value } = passengerInfoFormSchema.validate(req.body);
+      if (error) {
+        return res.status(422).json({
+          success: false,
+          error: {
+            code: 'VAL_001',
+            message: error.details.map((d) => d.message).join(', '),
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const { sessionId, passengers } = value;
+      const userInfo = extractUserInfo(req);
+
+      // Extract token from Authorization header
+      let authToken = req.headers.authorization;
+      if (authToken && authToken.startsWith('Bearer ')) {
+        authToken = authToken.substring(7);
+      }
+
+      // Process passenger information
+      const result = await chatbotService.processPassengerInfo(
+        sessionId,
+        passengers,
+        userInfo.userId,
+        authToken
+      );
+
+      return res.json({
+        success: true,
+        data: result,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('[ChatbotController] Error submitting passenger info:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'CHAT_006',
+          message: error.message || 'Failed to process passenger information',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
 }
 
 module.exports = new ChatbotController();
+

@@ -7,11 +7,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ChevronDown, Star, Image as ImageIcon } from 'lucide-react'
+import {
+  ChevronDown,
+  Star,
+  Image as ImageIcon,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { ReviewData } from './ReviewCard'
+import type { ReviewData } from './reviews.types'
 import { ReviewCard } from './ReviewCard'
 import type { OperatorRatingStats } from '@/api/trips'
+import { request } from '@/api/auth'
 
 interface ReviewsListProps {
   reviews: ReviewData[]
@@ -22,7 +29,19 @@ interface ReviewsListProps {
   onSortChange?: (sort: string) => void
   ratingFilter?: number | null
   onRatingFilterChange?: (rating: number | null) => void
+  routeFilter?: string | null
+  onRouteFilterChange?: (route: string | null) => void
+  hasImageFilter?: boolean | null
+  onHasImageFilterChange?: (hasImage: boolean | null) => void
   operatorStats?: OperatorRatingStats | null
+  currentPage?: number
+  totalPages?: number
+  onPageChange?: (page: number) => void
+  limit?: number
+  onLimitChange?: (limit: number) => void
+  onEditReview?: (review: ReviewData) => void
+  onDeleteReview?: (reviewId: string) => Promise<void>
+  onVote?: () => void
 }
 
 export function ReviewsList({
@@ -34,14 +53,24 @@ export function ReviewsList({
   onSortChange,
   ratingFilter = null,
   onRatingFilterChange,
+  routeFilter = null,
+  onRouteFilterChange,
+  hasImageFilter = null,
+  onHasImageFilterChange,
   operatorStats,
+  currentPage = 1,
+  totalPages = 1,
+  onPageChange,
+  limit = 10,
+  onLimitChange,
+  onEditReview,
+  onDeleteReview,
+  onVote,
 }: ReviewsListProps) {
   console.log('ReviewsList received:', { reviews, sortBy, ratingFilter })
 
   const [showFilters, setShowFilters] = useState(false)
-  const [filterType, setFilterType] = useState<'all' | 'images'>('all')
   const [selectedSeatType, setSelectedSeatType] = useState<string | null>(null)
-  const [selectedRoute, setSelectedRoute] = useState<string | null>(null)
 
   const stats = useMemo(() => {
     if (!operatorStats) return null
@@ -66,50 +95,118 @@ export function ReviewsList({
 
   // Get unique seat types and routes
   const uniqueSeatTypes = useMemo(() => {
-    const types = new Set(reviews.map((r) => r.seatType).filter(Boolean))
+    const types = new Set(
+      reviews
+        .map((r) => r.seatType)
+        .filter((type): type is string => type != null && type !== '')
+    )
     return Array.from(types).sort()
   }, [reviews])
 
   const uniqueRoutes = useMemo(() => {
-    const routes = new Set(reviews.map((r) => r.route).filter(Boolean))
+    const routes = new Set(
+      reviews
+        .map((r) => r.route)
+        .filter((route): route is string => route != null && route !== '')
+    )
     return Array.from(routes).sort()
   }, [reviews])
 
   const filteredReviews = useMemo(() => {
     let result = reviews
 
-    // Filter by type
-    if (filterType === 'images') {
-      result = result.filter((r) => r.photos && r.photos.length > 0)
-    }
-
-    // Filter by rating
-    if (ratingFilter) {
-      result = result.filter((review) => {
-        return Math.round(review.rating || 0) === ratingFilter
-      })
-    }
+    // Has Image filter is server-side, no client filtering needed
 
     // Filter by seat type
     if (selectedSeatType) {
       result = result.filter((r) => r.seatType === selectedSeatType)
     }
 
-    // Filter by route
-    if (selectedRoute) {
-      result = result.filter((r) => r.route === selectedRoute)
-    }
+    // Route filter is server-side, no client filtering needed
 
     return result
-  }, [reviews, filterType, ratingFilter, selectedSeatType, selectedRoute])
+  }, [reviews, selectedSeatType])
 
-  if (reviews.length === 0) {
+  // Show rating summary and empty state even when no reviews
+  if (
+    reviews.length === 0 &&
+    !ratingFilter &&
+    !routeFilter &&
+    !hasImageFilter
+  ) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground mb-2">No reviews yet</p>
-        <p className="text-sm text-muted-foreground">
-          Be the first to share your experience!
-        </p>
+      <div className="space-y-6">
+        {stats && (
+          <div className="bg-card border border-border/50 rounded-lg p-6 space-y-6">
+            <div className="flex items-start gap-6">
+              <div className="flex flex-col items-center">
+                <div className="text-4xl font-bold text-foreground mb-1">
+                  {stats.averageRating.toFixed(1)}
+                </div>
+                <div className="flex gap-1 mb-2">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      size={18}
+                      className={cn(
+                        'transition-colors',
+                        i < Math.round(stats.averageRating)
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'text-muted-foreground/30'
+                      )}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {stats.totalRatings}{' '}
+                  {stats.totalRatings === 1 ? 'rating' : 'ratings'}
+                </p>
+              </div>
+
+              {Object.keys(stats.categoryAverages).length > 0 && (
+                <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Object.entries(stats.categoryAverages)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 6)
+                    .map(([category, rating]) => (
+                      <div
+                        key={category}
+                        className="p-3 bg-muted/30 dark:bg-muted/20 rounded-lg border border-border/50"
+                      >
+                        <p className="text-xs font-medium text-muted-foreground mb-1 capitalize">
+                          {category.replace(/_/g, ' & ')}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-foreground">
+                            {rating.toFixed(1)}
+                          </span>
+                          <div className="flex gap-0.5">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                size={12}
+                                className={cn(
+                                  i < Math.round(rating)
+                                    ? 'fill-amber-400 text-amber-400'
+                                    : 'text-muted-foreground/20'
+                                )}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        <div className="text-center py-12">
+          <p className="text-muted-foreground mb-2">No reviews yet</p>
+          <p className="text-sm text-muted-foreground">
+            Be the first to share your experience!
+          </p>
+        </div>
       </div>
     )
   }
@@ -188,10 +285,10 @@ export function ReviewsList({
       {/* Quick Filter Buttons */}
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => setFilterType('all')}
+          onClick={() => onHasImageFilterChange?.(null)}
           className={cn(
             'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-            filterType === 'all'
+            hasImageFilter === null
               ? 'bg-primary text-primary-foreground'
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           )}
@@ -199,10 +296,10 @@ export function ReviewsList({
           All ({reviews.length})
         </button>
         <button
-          onClick={() => setFilterType('images')}
+          onClick={() => onHasImageFilterChange?.(true)}
           className={cn(
             'px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2',
-            filterType === 'images'
+            hasImageFilter === true
               ? 'bg-primary text-primary-foreground'
               : 'bg-muted text-muted-foreground hover:bg-muted/80'
           )}
@@ -241,6 +338,27 @@ export function ReviewsList({
                 <SelectItem value="helpful">Most Helpful</SelectItem>
                 <SelectItem value="rating-high">Highest Rating</SelectItem>
                 <SelectItem value="rating-low">Lowest Rating</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Limit Dropdown */}
+        {onLimitChange && (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium text-foreground">Per Page</p>
+            <Select
+              value={limit.toString()}
+              onValueChange={(value) => onLimitChange(Number(value))}
+            >
+              <SelectTrigger className="w-full sm:w-32">
+                <SelectValue placeholder="Per page" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="20">20</SelectItem>
+                <SelectItem value="50">50</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -330,13 +448,15 @@ export function ReviewsList({
           {/* Route Filter */}
           {uniqueRoutes.length > 0 && (
             <div>
-              <p className="text-sm font-medium text-foreground mb-3">Route</p>
+              <p className="text-sm font-medium text-foreground mb-3">
+                Filter by Route
+              </p>
               <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => setSelectedRoute(null)}
+                  onClick={() => onRouteFilterChange?.(null)}
                   className={cn(
                     'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                    selectedRoute === null
+                    routeFilter === null
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-card text-muted-foreground hover:bg-card/80'
                   )}
@@ -346,10 +466,10 @@ export function ReviewsList({
                 {uniqueRoutes.map((route) => (
                   <button
                     key={route}
-                    onClick={() => setSelectedRoute(route)}
+                    onClick={() => onRouteFilterChange?.(route)}
                     className={cn(
                       'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                      selectedRoute === route
+                      routeFilter === route
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-card text-muted-foreground hover:bg-card/80'
                     )}
@@ -375,8 +495,16 @@ export function ReviewsList({
               key={review.id}
               review={review}
               onHelpful={async (helpful) => {
-                console.log('Helpful vote:', helpful)
+                await request(`/trips/ratings/${review.id}/votes`, {
+                  method: 'POST',
+                  body: { isHelpful: helpful },
+                })
+                onVote?.()
               }}
+              onEdit={onEditReview ? () => onEditReview(review) : undefined}
+              onDelete={
+                onDeleteReview ? () => onDeleteReview(review.id) : undefined
+              }
             />
           ))
         ) : (
@@ -388,8 +516,50 @@ export function ReviewsList({
         )}
       </div>
 
-      {/* Load More */}
-      {hasMore && filteredReviews.length > 0 && (
+      {/* Pagination */}
+      {totalPages > 1 && filteredReviews.length > 0 && onPageChange && (
+        <div className="flex justify-center items-center gap-2 pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage <= 1 || isLoading}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+
+          <div className="flex items-center gap-1">
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const pageNum =
+                Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i
+              if (pageNum > totalPages) return null
+              return (
+                <Button
+                  key={pageNum}
+                  variant={pageNum === currentPage ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => onPageChange(pageNum)}
+                  disabled={isLoading}
+                >
+                  {pageNum}
+                </Button>
+              )
+            })}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage >= totalPages || isLoading}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
+
+      {/* Load More (fallback) */}
+      {totalPages <= 1 && hasMore && onLoadMore && (
         <div className="flex justify-center pt-4">
           <Button variant="outline" onClick={onLoadMore} disabled={isLoading}>
             {isLoading ? 'Loading...' : 'Load More Reviews'}

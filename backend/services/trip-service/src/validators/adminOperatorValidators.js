@@ -6,10 +6,14 @@ const approveSchema = Joi.object({
   notes: Joi.string().max(500).optional().allow(''),
 });
 
+const suspendSchema = Joi.object({
+  notes: Joi.string().max(500).required(),
+});
+
 const listQuerySchema = Joi.object({
   status: Joi.string().valid('pending', 'approved', 'rejected', 'suspended').optional(),
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(20),
 });
 
-module.exports = { approveSchema, listQuerySchema };
+module.exports = { approveSchema, suspendSchema, listQuerySchema };

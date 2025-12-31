@@ -1,15 +1,19 @@
 // controllers/tripController.js
 const tripService = require('../services/tripService');
+const axios = require('axios');
 const {
   create_trip_schema: createTripSchema,
   update_trip_schema: updateTripSchema,
   search_trip_schema: searchTripSchema,
+  admin_create_trip_schema: adminCreateTripSchema,
+  admin_update_trip_schema: adminUpdateTripSchema,
 } = require('../validators/tripValidators');
 
 class TripController {
   async create(req, res) {
     try {
-      const { error, value } = createTripSchema.validate(req.body);
+      // Use admin schema since this endpoint requires admin authorization
+      const { error, value } = adminCreateTripSchema.validate(req.body);
       if (error) {
         return res.status(422).json({
           success: false,
@@ -58,7 +62,8 @@ class TripController {
 
   async update(req, res) {
     try {
-      const { error, value } = updateTripSchema.validate(req.body);
+      // Use admin schema since this endpoint requires admin authorization
+      const { error, value } = adminUpdateTripSchema.validate(req.body);
       if (error) {
         return res.status(422).json({
           success: false,
@@ -66,7 +71,7 @@ class TripController {
         });
       }
 
-      const trip = await tripService.updateTrip(req.params.id, value);
+      const trip = await tripService.updateTrip(req.params.id, value, req.headers.authorization);
       res.json({
         success: true,
         data: trip,
@@ -88,13 +93,82 @@ class TripController {
 
   async delete(req, res) {
     try {
-      const result = await tripService.deleteTrip(req.params.id);
+      const tripId = req.params.id;
+
+      // Get trip details and bookings before cancelling
+      const trip = await tripService.getTripWithDetails(tripId);
+      if (!trip) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'TRIP_NOT_FOUND', message: 'Trip not found' },
+        });
+      }
+
+      // Get all confirmed bookings for this trip
+      const bookings = await tripService.getBookingsForTrip(tripId);
+
+      // Cancel the trip
+      const result = await tripService.deleteTrip(tripId);
       if (!result) {
         return res.status(404).json({
           success: false,
           error: { code: 'TRIP_NOT_FOUND', message: 'Trip not found' },
         });
       }
+
+      // Send notifications to all passengers
+      if (bookings && bookings.length > 0) {
+        const notificationServiceUrl =
+          process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3003';
+
+        for (const booking of bookings) {
+          try {
+            // Prepare update data for notification
+            const updateData = {
+              bookingReference: booking.booking_reference,
+              updateType: 'cancellation',
+              reason: 'Trip cancelled by admin',
+              originalDepartureTime: trip.departure_time,
+              newDepartureTime: null,
+              originalArrivalTime: trip.arrival_time,
+              newArrivalTime: null,
+              fromLocation: trip.origin,
+              toLocation: trip.destination,
+              seats: booking.passengers?.map((p) => p.seat_code) || [],
+              contactEmail: 'support@quad-n.me',
+              contactPhone: '+84-1800-TICKET',
+              customerEmail: booking.contact_email,
+              customerPhone: booking.contact_phone,
+              passengers: booking.passengers || [],
+              operatorName: trip.operator_name,
+              busModel: trip.bus_model,
+              alternatives: [], // Could add alternative trips here
+              nextSteps: [
+                'Check your email for refund details',
+                'Look for alternative trips',
+                'Check refund policy',
+              ],
+            };
+
+            // Send notification
+            await axios.post(`${notificationServiceUrl}/notifications/send-trip-update`, {
+              email: booking.contact_email,
+              updateData,
+            });
+
+            console.log(
+              `📧 Cancellation notification sent to ${booking.contact_email} for booking ${booking.booking_reference}`
+            );
+          } catch (notificationError) {
+            console.error(
+              `⚠️ Failed to send cancellation notification to ${booking.contact_email}:`,
+              notificationError.message
+            );
+            // Don't fail the whole operation if notification fails
+          }
+        }
+      }
+
       res.json({ success: true, message: 'Trip cancelled successfully' });
     } catch (err) {
       res.status(500).json({
@@ -114,15 +188,16 @@ class TripController {
         });
       }
 
-      const trips = await tripService.searchTrips(value);
+      const result = await tripService.searchTrips(value);
 
       res.json({
         success: true,
-        data: trips,
-        meta: {
-          limit: value.limit,
-          page: value.page,
-          count: trips.length,
+        data: {
+          trips: result.trips,
+          totalCount: result.totalCount,
+          page: result.page,
+          totalPages: result.totalPages,
+          limit: result.limit,
         },
       });
     } catch (err) {
@@ -130,6 +205,74 @@ class TripController {
       res.status(500).json({
         success: false,
         error: { code: 'SYS_ERROR', message: 'Error searching trips' },
+      });
+    }
+  }
+
+  // ========== ADMIN LIST ENDPOINT ==========
+
+  /**
+   * Get all trips with admin filtering, searching, sorting, and pagination
+   * GET / (Admin endpoint)
+   */
+  async getAll(req, res) {
+    try {
+      // Pagination
+      const page = parseInt(req.query.page) || 1;
+      const limit = parseInt(req.query.limit) || 20;
+
+      // Filters
+      const status = req.query.status;
+      const route_id = req.query.route_id;
+      const bus_id = req.query.bus_id;
+      const operator_id = req.query.operator_id;
+      const license_plate = req.query.license_plate;
+      const departure_date_from = req.query.departure_date_from;
+      const departure_date_to = req.query.departure_date_to;
+
+      // Search
+      const search = req.query.search; // Search in route origin/destination
+
+      // Sorting
+      const sort_by = req.query.sort_by || 'departure_time'; // departure_time, bookings, created_at
+      const sort_order = req.query.sort_order === 'asc' ? 'asc' : 'desc'; // asc or desc
+
+      // Convert page to offset
+      const offset = (page - 1) * limit;
+
+      const result = await tripService.getAllTripsAdmin({
+        limit,
+        offset,
+        status,
+        route_id,
+        bus_id,
+        operator_id,
+        license_plate,
+        departure_date_from,
+        departure_date_to,
+        search,
+        sort_by,
+        sort_order,
+      });
+
+      // Calculate total pages
+      const totalPages = Math.ceil(result.total / limit);
+
+      res.json({
+        success: true,
+        data: {
+          trips: result.data,
+          total: result.total,
+          page,
+          limit,
+          total_pages: totalPages,
+        },
+      });
+    } catch (err) {
+      console.error('Error in getAll trips:', err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_001', message: 'Error fetching trips list' },
       });
     }
   }
@@ -170,6 +313,7 @@ class TripController {
             columns: seatMapData.columns,
             driver: seatMapData.driver,
             doors: seatMapData.doors,
+            layout_structure: seatMapData.layout_structure, // Add layout_structure
             seats: transformedSeats,
           },
           legend: {
@@ -201,6 +345,389 @@ class TripController {
       res.status(500).json({
         success: false,
         error: { code: 'SYS_ERROR', message: 'Internal Server Error' },
+      });
+    }
+  }
+
+  // ========== ADMIN ENDPOINTS ==========
+
+  /**
+   * Assign a bus to a trip
+   * POST /trips/:id/assign-bus
+   */
+  async assignBus(req, res) {
+    try {
+      const { bus_id } = req.body;
+      if (!bus_id) {
+        return res.status(422).json({
+          success: false,
+          error: { code: 'VAL_001', message: 'bus_id is required' },
+        });
+      }
+
+      const trip = await tripService.updateTrip(req.params.id, { bus_id });
+      res.json({
+        success: true,
+        data: trip,
+        message: 'Bus assigned to trip successfully',
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_ERROR', message: 'Failed to assign bus' },
+      });
+    }
+  }
+
+  /**
+   * Assign a route to a trip
+   * POST /trips/:id/assign-route
+   */
+  async assignRoute(req, res) {
+    try {
+      const { route_id } = req.body;
+      if (!route_id) {
+        return res.status(422).json({
+          success: false,
+          error: { code: 'VAL_001', message: 'route_id is required' },
+        });
+      }
+
+      const trip = await tripService.updateTrip(req.params.id, { route_id });
+      res.json({
+        success: true,
+        data: trip,
+        message: 'Route assigned to trip successfully',
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_ERROR', message: 'Failed to assign route' },
+      });
+    }
+  }
+
+  /**
+   * Update trip status
+   * PATCH /trips/:id/status
+   */
+  async updateStatus(req, res) {
+    try {
+      const { status } = req.body;
+      if (!status) {
+        return res.status(422).json({
+          success: false,
+          error: { code: 'VAL_001', message: 'status is required' },
+        });
+      }
+
+      const trip = await tripService.updateTrip(
+        req.params.id,
+        { status },
+        req.headers.authorization
+      );
+      res.json({
+        success: true,
+        data: trip,
+        message: 'Trip status updated successfully',
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_ERROR', message: 'Failed to update status' },
+      });
+    }
+  }
+
+  /**
+   * Mark trip as departed
+   * POST /trips/:id/mark-departed
+   */
+  async markDeparted(req, res) {
+    try {
+      const trip = await tripService.updateTrip(
+        req.params.id,
+        {
+          status: 'in_progress',
+          departure_time: new Date(),
+        },
+        req.headers.authorization
+      );
+      res.json({
+        success: true,
+        data: trip,
+        message: 'Trip marked as departed successfully',
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_ERROR', message: 'Failed to mark trip as departed' },
+      });
+    }
+  }
+
+  /**
+   * Mark trip as arrived
+   * POST /trips/:id/mark-arrived
+   */
+  async markArrived(req, res) {
+    try {
+      const trip = await tripService.updateTrip(
+        req.params.id,
+        {
+          status: 'completed',
+          arrival_time: new Date(),
+        },
+        req.headers.authorization
+      );
+      res.json({
+        success: true,
+        data: trip,
+        message: 'Trip marked as arrived successfully',
+      });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_ERROR', message: 'Failed to mark trip as arrived' },
+      });
+    }
+  }
+
+  /**
+   * Cancel a trip (with potential refund processing)
+   * POST /trips/:id/cancel
+   */
+  async cancelTrip(req, res) {
+    try {
+      const { refund_reason } = req.body || {};
+      const tripId = req.params.id;
+
+      // Update trip status to cancelled
+      const trip = await tripService.updateTrip(
+        tripId,
+        {
+          status: 'cancelled',
+        },
+        req.headers.authorization
+      );
+
+      // Process bulk refund for all confirmed bookings of this trip
+      try {
+        console.log(`[TripController] Processing bulk refund for cancelled trip ${tripId}`);
+
+        const apiGatewayUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
+        const refundReason = refund_reason || 'Trip cancelled by admin';
+
+        const refundResponse = await axios.post(
+          `${apiGatewayUrl}/bookings/admin/trips/${tripId}/bulk-refund`,
+          { reason: refundReason },
+          {
+            headers: {
+              Authorization: req.headers.authorization, // Pass admin JWT token
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000, // 30 second timeout for bulk operations
+          }
+        );
+
+        console.log(
+          `[TripController] Bulk refund completed for trip ${tripId}:`,
+          refundResponse.data
+        );
+
+        res.json({
+          success: true,
+          data: {
+            trip,
+            refundResult: refundResponse.data.data,
+          },
+          message: 'Trip cancelled successfully. All confirmed bookings have been refunded.',
+        });
+      } catch (refundError) {
+        console.error(
+          `[TripController] Bulk refund failed for trip ${tripId}:`,
+          refundError.message
+        );
+
+        // Trip is cancelled but refund failed - return partial success
+        res.status(207).json({
+          success: true,
+          data: {
+            trip,
+            refundError: refundError.message,
+          },
+          message:
+            'Trip cancelled successfully, but bulk refund processing failed. Please check booking service logs.',
+        });
+      }
+    } catch (err) {
+      console.error('[TripController] Error cancelling trip:', err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_ERROR', message: 'Failed to cancel trip' },
+      });
+    }
+  }
+
+  // ========== ALTERNATIVE TRIP SUGGESTIONS ==========
+
+  /**
+   * Get alternative trip suggestions when no trips found
+   * GET /alternatives?origin=...&destination=...&date=...&flexibleDays=...
+   */
+  async getAlternatives(req, res) {
+    try {
+      const { origin, destination, date, flexibleDays, page } = req.query;
+      const days = parseInt(flexibleDays) || 7; // Default to 7 days
+      const pageNum = parseInt(page) || 1; // Default to page 1
+
+      if (!origin || !date) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'MISSING_PARAMS', message: 'Origin and date are required' },
+        });
+      }
+
+      const alternatives = await tripService.getAlternativeTrips(
+        origin,
+        destination,
+        date,
+        days,
+        pageNum
+      );
+
+      console.log('[TripController] Alternatives response:', JSON.stringify(alternatives, null, 2));
+
+      res.json({
+        success: true,
+        data: alternatives,
+      });
+    } catch (err) {
+      console.error('[TripController] Error getting alternatives:', err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_ERROR', message: 'Failed to get alternative suggestions' },
+      });
+    }
+  }
+
+  /**
+   * Get alternative dates for same route
+   * GET /alternatives/dates?origin=...&destination=...&date=...
+   */
+  async getAlternativeDates(req, res) {
+    try {
+      const { origin, destination, date } = req.query;
+
+      if (!origin || !destination || !date) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'MISSING_PARAMS', message: 'Origin, destination, and date are required' },
+        });
+      }
+
+      const alternativeDates = await tripService.getAlternativeDates(origin, destination, date);
+
+      res.json({
+        success: true,
+        data: alternativeDates,
+      });
+    } catch (err) {
+      console.error('[TripController] Error getting alternative dates:', err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_ERROR', message: 'Failed to get alternative dates' },
+      });
+    }
+  }
+
+  /**
+   * Get alternative destinations from origin
+   * GET /alternatives/destinations?origin=...&exclude=...&date=...
+   */
+  async getAlternativeDestinations(req, res) {
+    try {
+      const { origin, exclude, date } = req.query;
+
+      if (!origin) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'MISSING_PARAMS', message: 'Origin is required' },
+        });
+      }
+
+      if (!date) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'MISSING_PARAMS', message: 'Date is required' },
+        });
+      }
+
+      const alternativeDestinations = await tripService.getAlternativeDestinations(
+        origin,
+        exclude,
+        date
+      );
+
+      res.json({
+        success: true,
+        data: alternativeDestinations,
+      });
+    } catch (err) {
+      console.error('[TripController] Error getting alternative destinations:', err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_ERROR', message: 'Failed to get alternative destinations' },
+      });
+    }
+  }
+
+  /**
+   * Get passenger list for a trip (Admin only)
+   * GET /:id/passengers
+   */
+  async getPassengers(req, res) {
+    try {
+      const { id: tripId } = req.params;
+
+      const passengers = await tripService.getBookingsForTrip(tripId);
+
+      if (!passengers) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'TRIP_NOT_FOUND', message: 'Trip not found' },
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          trip_id: tripId,
+          total_passengers: passengers.reduce(
+            (sum, booking) => sum + (booking.passengers?.length || 0),
+            0
+          ),
+          total_bookings: passengers.length,
+          bookings: passengers.map((booking) => ({
+            booking_id: booking.booking_id,
+            booking_reference: booking.booking_reference,
+            contact_email: booking.contact_email,
+            contact_phone: booking.contact_phone,
+            passengers: booking.passengers || [],
+            passenger_count: booking.passengers?.length || 0,
+          })),
+        },
+      });
+    } catch (err) {
+      console.error('[TripController] Error getting passengers:', err);
+      res.status(500).json({
+        success: false,
+        error: { code: 'SYS_ERROR', message: 'Failed to get passenger list' },
       });
     }
   }

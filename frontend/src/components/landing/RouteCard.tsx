@@ -50,7 +50,7 @@ export function RouteCard({
             <div className="text-center mb-3">
               <p className="text-xs text-muted-foreground">Starting from</p>
               <p className="text-2xl font-bold text-primary">
-                {price.toLocaleString()}đ
+                {price != null ? price.toLocaleString() + 'đ' : 'N/A'}
               </p>
             </div>
             <Button className="w-full" variant="outline">

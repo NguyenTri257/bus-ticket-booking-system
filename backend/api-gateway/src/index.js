@@ -28,8 +28,15 @@ app.use(
   })
 );
 app.use(morgan('combined'));
+// For upload routes, skip JSON parsing and pass raw buffer
+app.use('/trips/upload', express.raw({ type: 'multipart/form-data', limit: '50mb' }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Initialize Passport
+const passport = require('passport');
+app.use(passport.initialize());
 
 // Health check
 app.get('/health', (req, res) => {
@@ -82,6 +89,7 @@ app.use('/auth', async (req, res) => {
     }
   }
 });
+
 
 // Proxy /users/profile về auth-service (hỗ trợ cả multipart/form-data và JSON)
 // Proxy /users/profile và /users/change-password về user-service (hỗ trợ cả multipart/form-data và JSON)
@@ -145,23 +153,55 @@ app.all('/users/profile', upload.any(), async (req, res) => {
       headers,
       timeout: 30000,
     });
+
+// Admin Management routes - proxy to auth-service
+app.use('/admin', async (req, res) => {
+  try {
+    const authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:3001';
+    const queryString = Object.keys(req.query).length
+      ? '?' + new URLSearchParams(req.query).toString()
+      : '';
+    console.log(
+      `🔐 Proxying ${req.method} ${req.originalUrl} to ${authServiceUrl}/admin${req.path}${queryString}`
+    );
+    const response = await axios({
+      method: req.method,
+      url: `${authServiceUrl}/admin${req.path}${queryString}`,
+      data: req.body,
+      headers: {
+        authorization: req.headers.authorization,
+        'content-type': 'application/json',
+      },
+      timeout: 30000,
+    });
+    console.log(`✅ Admin service responded with status ${response.status}`);
     Object.keys(response.headers).forEach((key) => {
       res.set(key, response.headers[key]);
     });
     res.status(response.status).json(response.data);
   } catch (error) {
-    console.error(`❌ User service /users/profile error:`, error.message);
+    // console.error(`❌ User service /users/profile error:`, error.message);
+    // if (error.response) {
+    //   res.status(error.response.status).json(error.response.data);
+    // } else {
+    //   res.status(500).json({
+    //     success: false,
+    //     error: { code: 'GATEWAY_001', message: 'User service unavailable' },
+    console.error(`❌ Admin service error:`, error.message);
     if (error.response) {
+      console.log(`❌ Admin service responded with error status ${error.response.status}`);
       res.status(error.response.status).json(error.response.data);
     } else {
-      res.status(500).json({
+      console.log(`❌ Admin service unavailable or timeout`);
+      res.status(503).json({
         success: false,
-        error: { code: 'GATEWAY_001', message: 'User service unavailable' },
+        error: { code: 'GATEWAY_007', message: 'Admin service unavailable' },
         timestamp: new Date().toISOString(),
       });
     }
   }
 });
+
 // Notification service routes (if needed for direct access)
 app.use('/notification', authenticate, async (req, res) => {
   try {
@@ -328,14 +368,40 @@ app.use('/trips', async (req, res) => {
       `Proxying ${req.method} ${req.originalUrl} → ${tripServiceUrl}${req.path}${queryString}`
     );
 
+    // Build headers - preserve original content-type for file uploads
+    const headers = {
+      authorization: req.headers.authorization, // ← Quan trọng: chuyển token sang trip-service
+    };
+
+    // Log upload requests for debugging
+    if (req.path.includes('/upload')) {
+      console.log('[API-Gateway Upload] Content-Type:', req.headers['content-type']);
+      console.log(
+        '[API-Gateway Upload] Body type:',
+        typeof req.body,
+        Buffer.isBuffer(req.body) ? `(${req.body.length} bytes)` : ''
+      );
+    }
+
+    // Only set content-type if it's not a multipart upload
+    if (
+      req.headers['content-type'] &&
+      req.headers['content-type'].includes('multipart/form-data')
+    ) {
+      headers['content-type'] = req.headers['content-type'];
+      console.log('[API-Gateway Upload] Passing multipart header:', headers['content-type']);
+    } else if (!req.body || Object.keys(req.body).length === 0) {
+      // No body, don't set content-type
+    } else {
+      // Default JSON for other requests
+      headers['content-type'] = 'application/json';
+    }
+
     const response = await axios({
       method: req.method,
       url: `${tripServiceUrl}${req.path}${queryString}`,
       data: req.body,
-      headers: {
-        authorization: req.headers.authorization, // ← Quan trọng: chuyển token sang trip-service
-        'content-type': 'application/json',
-      },
+      headers: headers,
       timeout: 15000,
     });
 
@@ -412,6 +478,44 @@ app.use('/analytics', authenticate, authorize(['admin']), async (req, res) => {
   }
 });
 
+// Payment service routes
+app.use('/payment', async (req, res) => {
+  try {
+    const paymentServiceUrl = process.env.PAYMENT_SERVICE_URL || 'http://localhost:3005';
+    const queryString = Object.keys(req.query).length
+      ? '?' + new URLSearchParams(req.query).toString()
+      : '';
+    console.log(
+      `💳 Proxying ${req.method} ${req.originalUrl} to ${paymentServiceUrl}/api/payment${req.path}${queryString}`
+    );
+    const response = await axios({
+      method: req.method,
+      url: `${paymentServiceUrl}/api/payment${req.path}${queryString}`,
+      data: req.body,
+      headers: {
+        authorization: req.headers.authorization,
+        'content-type': 'application/json',
+      },
+      timeout: 30000,
+    });
+    console.log(`✅ Payment service responded with status ${response.status}`);
+    res.status(response.status).json(response.data);
+  } catch (error) {
+    console.error(`❌ Payment service error:`, error.message);
+    if (error.response) {
+      console.log(`❌ Payment service responded with error status ${error.response.status}`);
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      console.log(`❌ Payment service unavailable or timeout`);
+      res.status(500).json({
+        success: false,
+        error: { code: 'GATEWAY_006', message: 'Payment service unavailable' },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+});
+
 // Chatbot service routes (Supports both guest and authenticated users)
 app.use('/chatbot', async (req, res) => {
   try {
@@ -459,442 +563,6 @@ app.use('/chatbot', async (req, res) => {
     }
   }
 });
-
-// Dashboard routes (API composition - aggregates data from multiple services)
-app.get('/dashboard/summary', authenticate, async (req, res) => {
-  try {
-    // Aggregate data for passenger dashboard
-    const summaryData = {
-      totalBookings: 5,
-      upcomingTrips: 2,
-      recentActivity: [
-        {
-          id: 1,
-          type: 'booking',
-          description: 'Booked ticket for Hanoi to Ho Chi Minh',
-          timestamp: new Date().toISOString(),
-        },
-        {
-          id: 2,
-          type: 'payment',
-          description: 'Payment completed for booking #12345',
-          timestamp: new Date(Date.now() - 3600000).toISOString(),
-        },
-      ],
-    };
-    return res.json({
-      success: true,
-      data: summaryData,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('⚠️ Dashboard summary error:', error);
-    res.status(500).json({
-      success: false,
-      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-app.get('/dashboard/activity', authenticate, async (req, res) => {
-  try {
-    // Return user activity data
-    const activityData = [
-      {
-        id: 1,
-        type: 'booking',
-        description: 'Booked ticket for Hanoi to Ho Chi Minh',
-        timestamp: new Date().toISOString(),
-      },
-      {
-        id: 2,
-        type: 'payment',
-        description: 'Payment completed for booking #12345',
-        timestamp: new Date(Date.now() - 3600000).toISOString(),
-      },
-      {
-        id: 3,
-        type: 'profile',
-        description: 'Updated profile information',
-        timestamp: new Date(Date.now() - 7200000).toISOString(),
-      },
-    ];
-    return res.json({
-      success: true,
-      data: activityData,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('⚠️ Dashboard activity error:', error);
-    res.status(500).json({
-      success: false,
-      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-app.get('/dashboard/stats', authenticate, authorize(['admin']), async (req, res) => {
-  try {
-    // Admin-only stats - aggregate from multiple services
-    const statsData = {
-      totalUsers: 1250,
-      totalRevenue: 45000000,
-      totalBookings: 3200,
-      activeTrips: 45,
-    };
-    return res.json({
-      success: true,
-      data: statsData,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('⚠️ Dashboard stats error:', error);
-    res.status(500).json({
-      success: false,
-      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-app.get(
-  '/dashboard/passenger-profile',
-  authenticate,
-  authorize(['passenger']),
-  async (req, res) => {
-    try {
-      // Passenger-only profile data
-      const profileData = {
-        loyaltyPoints: 250,
-        favoriteRoutes: ['Hanoi - Ho Chi Minh', 'Hanoi - Da Nang'],
-        travelHistory: 12,
-        nextTrip: {
-          destination: 'Ho Chi Minh City',
-          date: '2025-12-01',
-          status: 'confirmed',
-        },
-      };
-      return res.json({
-        success: true,
-        data: profileData,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error('⚠️ Dashboard passenger profile error:', error);
-      res.status(500).json({
-        success: false,
-        error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
-        timestamp: new Date().toISOString(),
-      });
-    }
-  }
-);
-
-app.get('/dashboard/upcoming-trips', authenticate, authorize(['passenger']), async (req, res) => {
-  try {
-    // Get user's upcoming trips
-    const upcomingTrips = [
-      {
-        bookingId: 'BK2025HS001',
-        from: 'HCM',
-        to: 'Hanoi',
-        date: '2025-11-15',
-        time: '08:00',
-        seats: ['A1', 'A2'],
-        status: 'confirmed',
-        price: 500000,
-      },
-      {
-        bookingId: 'BK2025HH002',
-        from: 'Hanoi',
-        to: 'Hue',
-        date: '2025-11-20',
-        time: '14:00',
-        seats: ['B3'],
-        status: 'confirmed',
-        price: 350000,
-      },
-    ];
-    return res.json({
-      success: true,
-      data: upcomingTrips,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('⚠️ Dashboard upcoming trips error:', error);
-    res.status(500).json({
-      success: false,
-      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-app.get('/dashboard/trip-history', authenticate, authorize(['passenger']), async (req, res) => {
-  try {
-    // Get user's trip history
-    const tripHistory = [
-      {
-        bookingId: 'BK2025HD003',
-        from: 'Hanoi',
-        to: 'Da Nang',
-        date: '2025-10-10',
-        time: '09:00',
-        seats: ['C1', 'C2'],
-        status: 'completed',
-        price: 400000,
-      },
-      {
-        bookingId: 'BK2025HN004',
-        from: 'HCM',
-        to: 'Nha Trang',
-        date: '2025-09-05',
-        time: '07:30',
-        seats: ['D5'],
-        status: 'completed',
-        price: 300000,
-      },
-    ];
-    return res.json({
-      success: true,
-      data: tripHistory,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('⚠️ Dashboard trip history error:', error);
-    res.status(500).json({
-      success: false,
-      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-app.get('/dashboard/payment-history', authenticate, authorize(['passenger']), async (req, res) => {
-  try {
-    // Get user's payment history
-    const paymentHistory = [
-      {
-        paymentId: 'PAY001',
-        bookingId: 'BK2025HS001',
-        amount: 500000,
-        currency: 'VND',
-        date: '2025-11-01',
-        status: 'completed',
-        method: 'credit_card',
-      },
-      {
-        paymentId: 'PAY002',
-        bookingId: 'BK2025HH002',
-        amount: 350000,
-        currency: 'VND',
-        date: '2025-10-15',
-        status: 'completed',
-        method: 'bank_transfer',
-      },
-    ];
-    return res.json({
-      success: true,
-      data: paymentHistory,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('⚠️ Dashboard payment history error:', error);
-    res.status(500).json({
-      success: false,
-      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-app.get('/dashboard/notifications', authenticate, authorize(['passenger']), async (req, res) => {
-  try {
-    // Get user's notifications
-    const notifications = [
-      {
-        id: 1,
-        type: 'trip_reminder',
-        title: 'Trip Reminder',
-        message: 'Your trip to Hanoi is scheduled for tomorrow at 08:00',
-        timestamp: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
-        read: false,
-      },
-      {
-        id: 2,
-        type: 'booking_confirmed',
-        title: 'Booking Confirmed',
-        message: 'Your booking BK2025HH002 has been confirmed',
-        timestamp: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-        read: true,
-      },
-      {
-        id: 3,
-        type: 'new_route',
-        title: 'New Route Available',
-        message: 'Check out our new express route from HCM to Hanoi',
-        timestamp: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
-        read: true,
-      },
-    ];
-    return res.json({
-      success: true,
-      data: notifications,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('⚠️ Dashboard notifications error:', error);
-    res.status(500).json({
-      success: false,
-      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-app.get('/dashboard/admin/stats', authenticate, authorize(['admin']), async (req, res) => {
-  try {
-    // Admin dashboard statistics
-    const statsData = {
-      totalBookings: 1234,
-      activeUsers: 856,
-      revenueToday: 45200000,
-      totalRevenue: 125000000,
-      totalUsers: 2500,
-      activeTrips: 45,
-    };
-    return res.json({
-      success: true,
-      data: statsData,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('⚠️ Dashboard admin stats error:', error);
-    res.status(500).json({
-      success: false,
-      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-app.get('/dashboard/admin/bookings-trend', authenticate, authorize(['admin']), async (req, res) => {
-  try {
-    // Bookings trend data for the last 7 days
-    const bookingsTrend = [
-      { day: 'Mon', bookings: 45, date: '2025-11-18' },
-      { day: 'Tue', bookings: 52, date: '2025-11-19' },
-      { day: 'Wed', bookings: 61, date: '2025-11-20' },
-      { day: 'Thu', bookings: 55, date: '2025-11-21' },
-      { day: 'Fri', bookings: 70, date: '2025-11-22' },
-      { day: 'Sat', bookings: 85, date: '2025-11-23' },
-      { day: 'Sun', bookings: 78, date: '2025-11-24' },
-    ];
-    return res.json({
-      success: true,
-      data: bookingsTrend,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('⚠️ Dashboard bookings trend error:', error);
-    res.status(500).json({
-      success: false,
-      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-app.get('/dashboard/admin/top-routes', authenticate, authorize(['admin']), async (req, res) => {
-  try {
-    // Top performing routes
-    const topRoutes = [
-      { route: 'HCM → Hanoi', bookings: 234, revenue: 8200000 },
-      { route: 'HCM → Dalat', bookings: 189, revenue: 3400000 },
-      { route: 'Hanoi → Haiphong', bookings: 156, revenue: 2800000 },
-      { route: 'Danang → Hue', bookings: 142, revenue: 2100000 },
-    ];
-    return res.json({
-      success: true,
-      data: topRoutes,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('⚠️ Dashboard top routes error:', error);
-    res.status(500).json({
-      success: false,
-      error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
-      timestamp: new Date().toISOString(),
-    });
-  }
-});
-
-app.get(
-  '/dashboard/admin/recent-bookings',
-  authenticate,
-  authorize(['admin']),
-  async (req, res) => {
-    try {
-      // Recent bookings for admin overview
-      const recentBookings = [
-        {
-          id: 'BK-2045',
-          customer: 'Nguyen Van A',
-          route: 'HCM → Hanoi',
-          date: '2025-11-21',
-          amount: 450000,
-          status: 'confirmed',
-        },
-        {
-          id: 'BK-2044',
-          customer: 'Tran Thi B',
-          route: 'HCM → Dalat',
-          date: '2025-11-21',
-          amount: 280000,
-          status: 'confirmed',
-        },
-        {
-          id: 'BK-2043',
-          customer: 'Le Van C',
-          route: 'Hanoi → Haiphong',
-          date: '2025-11-21',
-          amount: 320000,
-          status: 'pending',
-        },
-        {
-          id: 'BK-2042',
-          customer: 'Pham Thi D',
-          route: 'Danang → Hue',
-          date: '2025-11-20',
-          amount: 250000,
-          status: 'confirmed',
-        },
-        {
-          id: 'BK-2041',
-          customer: 'Hoang Van E',
-          route: 'HCM → Hanoi',
-          date: '2025-11-20',
-          amount: 450000,
-          status: 'confirmed',
-        },
-      ];
-      return res.json({
-        success: true,
-        data: recentBookings,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error('⚠️ Dashboard recent bookings error:', error);
-      res.status(500).json({
-        success: false,
-        error: { code: 'GATEWAY_003', message: 'Dashboard service error' },
-        timestamp: new Date().toISOString(),
-      });
-    }
-  }
-);
 
 // Error handling - only handle actual errors
 app.use((err, req, res, next) => {

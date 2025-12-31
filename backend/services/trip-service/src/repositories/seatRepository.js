@@ -21,8 +21,8 @@ class SeatRepository {
       FROM trips t
       JOIN buses b ON t.bus_id = b.bus_id
       JOIN bus_models bm ON b.bus_model_id = bm.bus_model_id
-      LEFT JOIN seat_layouts sl ON bm.bus_model_id = sl.bus_model_id
-      WHERE t.trip_id = $1 AND t.status = 'active'
+      LEFT JOIN seat_layouts sl ON b.bus_id = sl.bus_id
+      WHERE t.trip_id = $1 AND t.status IN ('scheduled', 'active', 'in_progress')
     `;
 
     const tripResult = await pool.query(tripQuery, [tripId]);
@@ -150,6 +150,7 @@ class SeatRepository {
       columns: seatsPerRow,
       driver,
       doors,
+      layout_structure: layoutData,
       seats: transformedSeats,
     };
   }

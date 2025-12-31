@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePaymentStatus } from '@/hooks/usePaymentStatus'
 import { API_BASE_URL } from '@/lib/api'
@@ -144,7 +144,7 @@ const PaymentResult: React.FC = () => {
   const [manualStatus, setManualStatus] = useState<string | null>(null)
 
   // Handler to navigate to booking lookup page
-  const handleViewTicket = () => {
+  const handleViewTicket = useCallback(() => {
     if (!bookingInfo) return
     const params = new URLSearchParams({
       bookingReference: bookingInfo.bookingReference,
@@ -153,7 +153,7 @@ const PaymentResult: React.FC = () => {
       autoSearch: '1',
     })
     navigate(`/booking-lookup?${params.toString()}`)
-  }
+  }, [bookingInfo, navigate])
 
   // Fetch booking info for redirect to lookup page
   // Lấy bookingId từ query hoặc tra cứu từ apptransid nếu cần

@@ -5,6 +5,7 @@ const morgan = require('morgan');
 require('dotenv').config();
 
 const chatbotController = require('./controllers/chatbotController');
+const feedbackController = require('./controllers/feedbackController');
 const { optionalAuthenticate } = require('./middleware/authMiddleware');
 const { errorHandler, notFoundHandler } = require('./middleware/errorMiddleware');
 
@@ -18,6 +19,10 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Initialize Passport
+const passport = require('passport');
+app.use(passport.initialize());
+
 // Health check
 app.get('/health', chatbotController.healthCheck);
 
@@ -25,9 +30,19 @@ app.get('/health', chatbotController.healthCheck);
 // Note: API Gateway adds /chatbot prefix, so routes here don't include it
 app.post('/query', optionalAuthenticate, chatbotController.query);
 app.post('/book', optionalAuthenticate, chatbotController.book);
+app.post('/submit-passenger-info', optionalAuthenticate, chatbotController.submitPassengerInfo);
 app.get('/sessions/:sessionId/history', optionalAuthenticate, chatbotController.getHistory);
 app.post('/sessions/:sessionId/reset', optionalAuthenticate, chatbotController.resetConversation);
 app.post('/feedback', optionalAuthenticate, chatbotController.submitFeedback);
+
+// Admin feedback routes (require admin authentication in production)
+// Note: In production, these should be protected with admin auth middleware
+app.get('/admin/feedback/stats', feedbackController.getStats);
+app.get('/admin/feedback/recent', feedbackController.getRecent);
+app.get('/admin/feedback/negative', feedbackController.getNegative);
+app.get('/admin/feedback/comments', feedbackController.getWithComments);
+app.get('/admin/feedback/trend', feedbackController.getTrend);
+app.get('/admin/feedback/session/:sessionId', feedbackController.getBySession);
 
 // Error handling
 app.use(notFoundHandler);

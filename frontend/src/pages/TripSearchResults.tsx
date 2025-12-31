@@ -12,40 +12,73 @@ import { Pagination } from '@/components/landing/Pagination'
 import { TripResultsCard } from '@/components/landing/TripResultsCard'
 import { SearchHistoryPanel } from '@/components/landing/SearchHistoryPanel'
 import { Header } from '@/components/landing/Header'
-import type { Trip } from '@/types/trip.types'
-import {
-  legacyTripToTripFormat,
-  getTripDisplayProperties,
-} from '@/utils/tripConversion'
-import { legacyMockTripsData } from '@/data/legacyMockTrips'
-import {
-  seatAvailabilityOptions,
-  timeSlots,
-  busTypes,
-  amenities,
-} from '@/constants/filterConstants'
+import type { Trip, AlternativeTrips } from '@/types/trip.types'
+import type { TripSearchParams } from '@/api/trips'
+import { timeSlots, busTypes, amenities } from '@/constants/filterConstants'
 import { useSearchHistory } from '@/hooks/useSearchHistory'
 import { useAuth } from '@/context/AuthContext'
 import { getOperatorRatings } from '@/api/trips'
+import { getTripDisplayProperties } from '@/utils/tripConversion'
+
+const DEFAULT_ITEMS_PER_PAGE = 5
 
 // API functions
 const API_BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
-async function searchTrips(params: Record<string, string>) {
-  console.log('[TripSearchResults] searchTrips called with params:', params)
-  const urlParams = new URLSearchParams(params)
+async function searchTrips(
+  params: TripSearchParams & { flexibleDays?: number }
+) {
+  console.log(
+    '[TripSearchResults] searchTrips called with params:',
+    JSON.stringify(params, null, 2)
+  )
+  const urlParams = new URLSearchParams()
+
+  // Add all params
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      if (Array.isArray(value)) {
+        value.forEach((v) => urlParams.append(key, v))
+      } else {
+        urlParams.set(key, value.toString())
+      }
+    }
+  })
+
   const response = await fetch(
     `${API_BASE_URL}/trips/search?${urlParams.toString()}`
   )
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`)
+    const errorText = await response.text()
+    console.error('Search API error:', response.status, errorText)
+    throw new Error(`HTTP error! status: ${response.status} - ${errorText}`)
   }
   const data = await response.json()
   return data
 }
 
-// Convert legacy mock data to Trip format
-const mockTrips: Trip[] = legacyMockTripsData.map(legacyTripToTripFormat)
+// Fetch alternative trip suggestions
+async function getAlternativeTrips(
+  origin: string,
+  destination: string,
+  date: string,
+  flexibleDays: number,
+  page: number = 1
+) {
+  try {
+    const response = await fetch(
+      `${API_BASE_URL}/trips/alternatives?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&date=${date}&flexibleDays=${flexibleDays}&page=${page}`
+    )
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    const data = await response.json()
+    return data.success ? data.data : null
+  } catch (error) {
+    console.error('Failed to fetch alternative trips:', error)
+    return null
+  }
+}
 
 export function TripSearchResults() {
   const location = useLocation()
@@ -61,10 +94,8 @@ export function TripSearchResults() {
 
   const searchParams = new URLSearchParams(location.search)
 
-  const origin =
-    searchParams.get('from') || searchParams.get('origin') || 'Ho Chi Minh'
-  const destination =
-    searchParams.get('to') || searchParams.get('destination') || 'Lam Dong'
+  const origin = searchParams.get('from') || searchParams.get('origin')
+  const destination = searchParams.get('to') || searchParams.get('destination')
 
   // Parse date from URL with validation to ensure YYYY-MM-DD format
   let date = searchParams.get('date')
@@ -101,27 +132,89 @@ export function TripSearchResults() {
   }
 
   const passengers = searchParams.get('passengers') || '1'
+  const urlFlexibleDays = searchParams.has('flexibleDays')
+    ? parseInt(searchParams.get('flexibleDays')!)
+    : undefined
+  const urlDirection = searchParams.get('direction') as
+    | 'next'
+    | 'previous'
+    | undefined
+
+  // Parse filter params from URL
+  const urlFilters: Partial<Filters> = {
+    departureTimeSlots: searchParams.getAll('departureTime'),
+    priceRange: [
+      parseInt(searchParams.get('minPrice') || '0'),
+      parseInt(searchParams.get('maxPrice') || '5000000'),
+    ],
+    operators: searchParams.getAll('operator'),
+    busTypes: searchParams.getAll('busType'),
+    amenities: searchParams.getAll('amenity'),
+    seatLocations: searchParams.getAll('seatLocation'),
+    minRating: parseFloat(searchParams.get('minRating') || '0'),
+    minSeatsAvailable: Math.max(
+      parseInt(passengers),
+      parseInt(searchParams.get('minSeats') || '1')
+    ),
+  }
+
+  // Parse pagination params from URL
+  const urlPage = parseInt(searchParams.get('page') || '1')
+  const urlLimit = parseInt(
+    searchParams.get('limit') || DEFAULT_ITEMS_PER_PAGE.toString()
+  )
+  const urlSort = searchParams.get('sort') || 'default'
+
+  // State management - MUST be declared before useEffect hooks that use them
+  const [filters, setFilters] = useState<Filters>({
+    departureTimeSlots: urlFilters.departureTimeSlots || [],
+    priceRange: urlFilters.priceRange || [0, 5000000],
+    operators: urlFilters.operators || [],
+    busTypes: urlFilters.busTypes || [],
+    amenities: urlFilters.amenities || [],
+    seatLocations: urlFilters.seatLocations || [],
+    minRating: urlFilters.minRating || 0,
+    minSeatsAvailable: urlFilters.minSeatsAvailable || 1,
+  })
+
+  const [sortBy, setSortBy] = useState<SortOption>(
+    (urlSort as SortOption) || 'default'
+  )
+  const [currentPage, setCurrentPage] = useState(urlPage || 1)
+  const [itemsPerPage, setItemsPerPage] = useState(
+    urlLimit || DEFAULT_ITEMS_PER_PAGE
+  )
+  const [showMobileFilters, setShowMobileFilters] = useState(false)
+  const [useLoadMore, setUseLoadMore] = useState(false)
+  const [loadedItemsCount, setLoadedItemsCount] = useState(
+    DEFAULT_ITEMS_PER_PAGE
+  )
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null)
+  const [flexibleDays, setFlexibleDays] = useState(urlFlexibleDays || 7)
+  const [direction, setDirection] = useState<'next' | 'previous'>(
+    urlDirection || 'next'
+  )
+  const [flexibleSearchPage, setFlexibleSearchPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalCount, setTotalCount] = useState(0)
 
   // State for trips data
-
-  const [trips, setTrips] = useState<Trip[]>(mockTrips)
+  const [alternatives, setAlternatives] = useState<AlternativeTrips | null>(
+    null
+  )
+  const [isLoadingAlternatives, setIsLoadingAlternatives] = useState(false)
+  const [trips, setTrips] = useState<Trip[]>([])
   const [operatorRatingCounts, setOperatorRatingCounts] = useState<
     Record<string, number>
   >({})
   const hasAddedSearchRef = useRef(false)
   const hasFetchedTripsRef = useRef<string | false>(false)
+  const hasFetchedAlternativesRef = useRef<string | false>(false)
 
-  // TODO: Fetch trips from GET /trips/search API
   useEffect(() => {
-    console.log('[TripSearchResults] useEffect running with:', {
-      origin,
-      destination,
-      date,
-      passengers,
-    })
-
     // Prevent multiple API calls for the same search
-    const searchKey = `${origin}-${destination}-${date}-${passengers}`
+    const searchKey = location.search
     if (hasFetchedTripsRef.current === searchKey) {
       console.log(
         '[TripSearchResults] Skipping duplicate fetch for:',
@@ -131,34 +224,92 @@ export function TripSearchResults() {
     }
     hasFetchedTripsRef.current = searchKey
 
-    // TODO: Implement API call to GET /trips/search
     const fetchTrips = async () => {
       try {
         // Validate date format (should be YYYY-MM-DD)
         const dateRegex = /^\d{4}-\d{2}-\d{2}$/
         if (!dateRegex.test(date)) {
           console.error('Invalid date format:', date)
-          setTrips(mockTrips)
+          setTrips([])
           return
         }
 
-        const data = await searchTrips({
+        if (!origin || !destination) {
+          setTrips([])
+          return
+        }
+
+        const searchParams = {
+          origin,
+          destination,
+          date,
+          passengers: filters.minSeatsAvailable,
+          // Add filters
+          departureTime:
+            filters.departureTimeSlots.length > 0
+              ? filters.departureTimeSlots
+              : undefined,
+          minPrice:
+            filters.priceRange[0] > 0 ? filters.priceRange[0] : undefined,
+          maxPrice:
+            filters.priceRange[1] < 5000000 ? filters.priceRange[1] : undefined,
+          operator:
+            filters.operators.length > 0 ? filters.operators : undefined,
+          busType: filters.busTypes.length > 0 ? filters.busTypes : undefined,
+          amenity: filters.amenities.length > 0 ? filters.amenities : undefined,
+          seatLocation:
+            filters.seatLocations.length > 0
+              ? filters.seatLocations
+              : undefined,
+          minRating: filters.minRating > 0 ? filters.minRating : undefined,
+          minSeats:
+            filters.minSeatsAvailable > 1
+              ? filters.minSeatsAvailable
+              : undefined,
+          // Add sort and pagination
+          sort: sortBy !== 'default' ? sortBy : undefined,
+          page: currentPage > 1 ? currentPage : undefined,
+          limit: itemsPerPage,
+          flexibleDays:
+            urlFlexibleDays && urlFlexibleDays > 0
+              ? urlFlexibleDays
+              : undefined,
+          direction: urlDirection || 'next',
+        }
+
+        const data = await searchTrips(searchParams)
+        console.log('[TripSearchResults] API response data:', data)
+        console.log('[TripSearchResults] useEffect running with:', {
           origin,
           destination,
           date,
           passengers,
+          filters,
+          sortBy,
+          currentPage,
+          itemsPerPage,
+          urlFlexibleDays,
+          urlDirection,
         })
-        if (data.success) setTrips(data.data)
+        if (data.success && data.data.trips) {
+          setTrips(data.data.trips)
+          setTotalPages(data.data.totalPages || 1)
+          setTotalCount(data.data.totalCount || 0)
+        } else {
+          setTrips([])
+          setTotalPages(1)
+          setTotalCount(0)
+        }
       } catch (error) {
         console.error('Failed to fetch trips:', error)
-        // Fallback to mock data
-        setTrips(mockTrips)
+        // Fallback to empty array
+        setTrips([])
       }
     }
     fetchTrips()
 
     // Add current search to history only once per search parameters
-    if (!hasAddedSearchRef.current) {
+    if (!hasAddedSearchRef.current && origin && destination) {
       addSearch({
         origin,
         destination,
@@ -167,7 +318,20 @@ export function TripSearchResults() {
       })
       hasAddedSearchRef.current = true
     }
-  }, [origin, destination, date, passengers, addSearch])
+  }, [
+    addSearch,
+    currentPage,
+    date,
+    destination,
+    filters,
+    itemsPerPage,
+    location.search,
+    origin,
+    passengers,
+    sortBy,
+    urlFlexibleDays,
+    urlDirection,
+  ])
 
   // Fetch operator rating counts when trips change
   useEffect(() => {
@@ -211,26 +375,122 @@ export function TripSearchResults() {
     fetchOperatorRatingCounts()
   }, [trips])
 
-  // State management
-  const [filters, setFilters] = useState<Filters>({
-    departureTimeSlots: [],
-    priceRange: [0, 5000000],
-    operators: [],
-    busTypes: [],
-    amenities: [],
-    seatLocations: [],
-    minRating: 0,
-    minSeatsAvailable: 0,
-  })
+  // Fetch alternative suggestions when no trips found
+  useEffect(() => {
+    if (!origin || !destination) return
 
-  const [sortBy, setSortBy] = useState<SortOption>('default')
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(10)
-  const [showMobileFilters, setShowMobileFilters] = useState(false)
-  const [useLoadMore, setUseLoadMore] = useState(false) // Toggle between pagination and load more
-  const [loadedItemsCount, setLoadedItemsCount] = useState(10) // For load more mode
-  const [isLoadingMore, setIsLoadingMore] = useState(false) // Loading state for load more
-  const [selectedTripId, setSelectedTripId] = useState<string | null>(null) // Selected trip for shadow effect
+    // Prevent multiple API calls for the same search
+    const searchKey = `${origin}-${destination}-${date}-${flexibleDays}-${flexibleSearchPage}`
+    if (hasFetchedAlternativesRef.current === searchKey) {
+      console.log(
+        '[TripSearchResults] Skipping duplicate alternatives fetch for:',
+        searchKey
+      )
+      return
+    }
+    hasFetchedAlternativesRef.current = searchKey
+
+    const fetchAlternatives = async () => {
+      if (trips.length > 0) return
+
+      setIsLoadingAlternatives(true)
+      try {
+        console.log(
+          '[TripSearchResults] Fetching alternatives for:',
+          JSON.stringify(
+            {
+              origin,
+              destination,
+              date,
+              flexibleDays,
+              page: flexibleSearchPage,
+            },
+            null,
+            2
+          )
+        )
+        const alternativesData = await getAlternativeTrips(
+          origin,
+          destination,
+          date,
+          flexibleDays,
+          flexibleSearchPage
+        )
+        console.log(
+          '[TripSearchResults] Alternatives data received:',
+          alternativesData
+        )
+        setAlternatives(alternativesData)
+      } catch (error) {
+        console.error('Failed to fetch alternatives:', error)
+        setAlternatives(null)
+      } finally {
+        setIsLoadingAlternatives(false)
+      }
+    }
+
+    fetchAlternatives()
+  }, [
+    trips.length,
+    origin,
+    destination,
+    date,
+    flexibleDays,
+    flexibleSearchPage,
+  ])
+
+  // Update URL when filters, sort, pagination change
+  useEffect(() => {
+    const params = new URLSearchParams()
+
+    // Add search params
+    params.set('from', origin || '')
+    params.set('to', destination || '')
+    params.set('date', date)
+    params.set('passengers', passengers)
+
+    // Add filter params
+    filters.departureTimeSlots.forEach((slot) =>
+      params.append('departureTime', slot)
+    )
+    if (filters.priceRange[0] > 0)
+      params.set('minPrice', filters.priceRange[0].toString())
+    if (filters.priceRange[1] < 5000000)
+      params.set('maxPrice', filters.priceRange[1].toString())
+    filters.operators.forEach((op) => params.append('operator', op))
+    filters.busTypes.forEach((type) => params.append('busType', type))
+    filters.amenities.forEach((amenity) => params.append('amenity', amenity))
+    filters.seatLocations.forEach((location) =>
+      params.append('seatLocation', location)
+    )
+    if (filters.minRating > 0)
+      params.set('minRating', filters.minRating.toString())
+    if (filters.minSeatsAvailable > 1)
+      params.set('minSeats', filters.minSeatsAvailable.toString())
+
+    // Add sort and pagination params
+    if (sortBy !== 'default') params.set('sort', sortBy)
+    params.set('page', currentPage.toString())
+    params.set('limit', itemsPerPage.toString())
+
+    // Update URL without triggering navigation
+    const newSearch = params.toString()
+    if (location.search !== `?${newSearch}`) {
+      navigate(`${location.pathname}?${newSearch}`, { replace: true })
+    }
+  }, [
+    filters,
+    sortBy,
+    currentPage,
+    itemsPerPage,
+    origin,
+    destination,
+    date,
+    passengers,
+    navigate,
+    location.pathname,
+    location.search,
+  ])
 
   // Extract available operators from trips data
   const availableOperators = useMemo(
@@ -356,18 +616,14 @@ export function TripSearchResults() {
     }
 
     // Seat availability
-    if (filters.minSeatsAvailable > 0) {
-      const option = seatAvailabilityOptions.find(
-        (opt: { value: number; label: string }) =>
-          opt.value === filters.minSeatsAvailable
-      )
+    if (filters.minSeatsAvailable > 1) {
       activeFilters.push({
         key: `seats-${filters.minSeatsAvailable}`,
-        label: option?.label || `${filters.minSeatsAvailable}+ seats available`,
+        label: `${filters.minSeatsAvailable}+ seats available`,
         remove: () =>
           setFilters({
             ...filters,
-            minSeatsAvailable: 0,
+            minSeatsAvailable: 1,
           }),
       })
     }
@@ -418,14 +674,6 @@ export function TripSearchResults() {
         if (!hasAllAmenities) return false
       }
 
-      // Seat availability filter
-      if (
-        filters.minSeatsAvailable > 0 &&
-        displayProps.availableSeats < filters.minSeatsAvailable
-      ) {
-        return false
-      }
-
       // Rating filter
       if (filters.minRating > 0 && displayProps.rating < filters.minRating) {
         return false
@@ -449,6 +697,11 @@ export function TripSearchResults() {
           const bTime = parseInt(bProps.departureTime.replace(':', ''))
           return aTime - bTime
         }
+        case 'departure-desc': {
+          const aTime = parseInt(aProps.departureTime.replace(':', ''))
+          const bTime = parseInt(bProps.departureTime.replace(':', ''))
+          return bTime - aTime
+        }
         case 'duration-asc': {
           const aDuration = parseInt(aProps.duration)
           const bDuration = parseInt(bProps.duration)
@@ -466,23 +719,15 @@ export function TripSearchResults() {
   }, [filters, sortBy, trips])
 
   // Pagination / Load More logic
-  const totalPages = Math.ceil(filteredAndSortedTrips.length / itemsPerPage)
   const paginatedTrips = useMemo(() => {
     if (useLoadMore) {
       // Load more mode: show first N items
       return filteredAndSortedTrips.slice(0, loadedItemsCount)
     } else {
-      // Pagination mode: show current page items
-      const startIndex = (currentPage - 1) * itemsPerPage
-      return filteredAndSortedTrips.slice(startIndex, startIndex + itemsPerPage)
+      // BE handles pagination, so filteredAndSortedTrips is already the current page
+      return filteredAndSortedTrips
     }
-  }, [
-    filteredAndSortedTrips,
-    currentPage,
-    itemsPerPage,
-    useLoadMore,
-    loadedItemsCount,
-  ])
+  }, [filteredAndSortedTrips, useLoadMore, loadedItemsCount])
 
   const hasMoreResults =
     useLoadMore && loadedItemsCount < filteredAndSortedTrips.length
@@ -492,7 +737,7 @@ export function TripSearchResults() {
     // Simulate API delay
     await new Promise((resolve) => setTimeout(resolve, 500))
     setLoadedItemsCount((prev) =>
-      Math.min(prev + 10, filteredAndSortedTrips.length)
+      Math.min(prev + DEFAULT_ITEMS_PER_PAGE, filteredAndSortedTrips.length)
     )
     setIsLoadingMore(false)
   }
@@ -506,10 +751,10 @@ export function TripSearchResults() {
       amenities: [],
       seatLocations: [],
       minRating: 0,
-      minSeatsAvailable: 0,
+      minSeatsAvailable: 1,
     })
     setCurrentPage(1)
-    setLoadedItemsCount(10) // Reset load more count
+    setLoadedItemsCount(DEFAULT_ITEMS_PER_PAGE) // Reset load more count
   }
 
   const handleSelectTrip = (tripId: string) => {
@@ -563,14 +808,15 @@ export function TripSearchResults() {
                   {destination}
                 </p>
                 <p className="text-xs md:text-sm text-muted-foreground">
-                  {date} • {passengers} passenger{passengers !== '1' ? 's' : ''}
+                  {date} • {passengers} passenger
+                  {parseInt(passengers) !== 1 ? 's' : ''}
                 </p>
               </div>
             </div>
 
             {/* Results count */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground shrink-0">
-              Results: {filteredAndSortedTrips.length} trip
+              Results: {totalCount} trip
               {filteredAndSortedTrips.length !== 1 ? 's' : ''}
             </div>
           </div>
@@ -622,7 +868,7 @@ export function TripSearchResults() {
               filters.priceRange[0] > 0 ||
               filters.priceRange[1] < 5000000 ||
               filters.minRating > 0 ||
-              filters.minSeatsAvailable > 0) && (
+              filters.minSeatsAvailable > 1) && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -648,7 +894,7 @@ export function TripSearchResults() {
               onClearFilters={handleClearFilters}
               availableOperators={availableOperators}
               operatorRatings={operatorRatings}
-              resultsCount={filteredAndSortedTrips.length}
+              resultsCount={totalCount}
             />
           </div>
 
@@ -676,7 +922,7 @@ export function TripSearchResults() {
                     onClearFilters={handleClearFilters}
                     availableOperators={availableOperators}
                     operatorRatings={operatorRatings}
-                    resultsCount={filteredAndSortedTrips.length}
+                    resultsCount={totalCount}
                   />
                 </div>
               </div>
@@ -718,7 +964,7 @@ export function TripSearchResults() {
                               Loading...
                             </>
                           ) : (
-                            `View ${Math.min(10, filteredAndSortedTrips.length - loadedItemsCount)} more trips`
+                            `View ${Math.min(DEFAULT_ITEMS_PER_PAGE, filteredAndSortedTrips.length - loadedItemsCount)} more trips`
                           )}
                         </Button>
                       </div>
@@ -756,7 +1002,7 @@ export function TripSearchResults() {
                       onClick={() => {
                         setUseLoadMore(!useLoadMore)
                         setCurrentPage(1)
-                        setLoadedItemsCount(10)
+                        setLoadedItemsCount(DEFAULT_ITEMS_PER_PAGE)
                       }}
                       className="text-sm text-muted-foreground hover:text-foreground"
                     >
@@ -768,15 +1014,303 @@ export function TripSearchResults() {
                 )}
               </>
             ) : (
-              <Card className="p-12 text-center">
-                <p className="text-lg text-muted-foreground mb-4">
-                  No suitable trips found
-                </p>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Try changing your search criteria or filters
-                </p>
-                <Button onClick={handleClearFilters}>Clear all filters</Button>
-              </Card>
+              <div className="space-y-6">
+                {/* No trips found message */}
+                <Card className="p-8 text-center">
+                  <p className="text-lg text-muted-foreground mb-4">
+                    No trips found for your search
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Try changing your search criteria or check out these
+                    alternatives
+                  </p>
+                  <Button onClick={handleClearFilters}>
+                    Clear all filters
+                  </Button>
+                </Card>
+
+                {/* Alternative trip suggestions */}
+                {isLoadingAlternatives ? (
+                  <Card className="p-8 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Loading alternatives...
+                    </p>
+                  </Card>
+                ) : alternatives ? (
+                  <>
+                    <Card className="p-6">
+                      <h3 className="text-lg font-semibold mb-4">
+                        Alternative Options
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Same route, different dates */}
+                        {alternatives.alternativeDates &&
+                          alternatives.alternativeDates.length > 0 && (
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                                Same Route, Different Dates
+                              </h4>
+                              <div className="space-y-2">
+                                {alternatives.alternativeDates.map(
+                                  (altDate) => (
+                                    <Button
+                                      key={altDate.date}
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full justify-start text-left"
+                                      onClick={() => {
+                                        const newParams = new URLSearchParams({
+                                          from: origin || '',
+                                          to: destination || '',
+                                          date: altDate.date,
+                                          passengers,
+                                        })
+                                        navigate(
+                                          `/trip-search-results?${newParams.toString()}`
+                                        )
+                                      }}
+                                    >
+                                      <div className="flex items-center justify-between w-full">
+                                        <span>
+                                          {altDate.dayName}, {altDate.monthDay}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                          +{altDate.daysAhead} day
+                                          {altDate.daysAhead !== 1
+                                            ? 's'
+                                            : ''} • {altDate.tripCount} trip
+                                          {altDate.tripCount !== 1 ? 's' : ''}
+                                        </span>
+                                      </div>
+                                    </Button>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                        {/* Popular alternative routes */}
+                        {alternatives.alternativeDestinations &&
+                          alternatives.alternativeDestinations.length > 0 && (
+                            <div className="space-y-3">
+                              <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                                Popular Routes from {origin}
+                              </h4>
+                              <div className="space-y-2">
+                                {alternatives.alternativeDestinations.map(
+                                  (altDest) => (
+                                    <Button
+                                      key={altDest.destination}
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full justify-start text-left"
+                                      onClick={() => {
+                                        const newParams = new URLSearchParams({
+                                          from: origin || '',
+                                          to: altDest.destination,
+                                          date,
+                                          passengers,
+                                        })
+                                        navigate(
+                                          `/trip-search-results?${newParams.toString()}`
+                                        )
+                                      }}
+                                    >
+                                      <div className="flex items-center justify-between w-full">
+                                        <span>
+                                          {origin} → {altDest.destination}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                          {altDest.tripCount} trip
+                                          {altDest.tripCount !== 1 ? 's' : ''}
+                                        </span>
+                                      </div>
+                                    </Button>
+                                  )
+                                )}
+                              </div>
+                            </div>
+                          )}
+                      </div>
+
+                      {/* Additional suggestions */}
+                      <div className="mt-6 pt-4 border-t border-border">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {/* Flexible search */}
+                          <div className="space-y-2 md:col-span-2">
+                            <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                              Flexible Search
+                            </h4>
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={direction}
+                                onChange={(e) =>
+                                  setDirection(
+                                    e.target.value as 'next' | 'previous'
+                                  )
+                                }
+                                className="px-2 py-1 text-sm border border-input rounded"
+                              >
+                                <option value="next">Next</option>
+                                <option value="previous">Previous</option>
+                              </select>
+                              <input
+                                type="number"
+                                min="1"
+                                max="30"
+                                value={flexibleDays}
+                                onChange={(e) =>
+                                  setFlexibleDays(parseInt(e.target.value) || 7)
+                                }
+                                className="w-16 px-2 py-1 text-sm border border-input rounded"
+                              />
+                              <span className="text-sm">days</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="flex-1 justify-start text-left"
+                                onClick={() => {
+                                  console.log(
+                                    'Flexible search button clicked, flexibleDays:',
+                                    flexibleDays,
+                                    'direction:',
+                                    direction
+                                  )
+
+                                  // Calculate new date based on direction and flexibleDays
+                                  const currentDate = new Date(date)
+                                  const newDate = new Date(currentDate)
+
+                                  if (direction === 'next') {
+                                    newDate.setDate(
+                                      currentDate.getDate() + flexibleDays
+                                    )
+                                  } else if (direction === 'previous') {
+                                    newDate.setDate(
+                                      currentDate.getDate() - flexibleDays
+                                    )
+                                  }
+
+                                  const newDateStr = newDate
+                                    .toISOString()
+                                    .split('T')[0]
+
+                                  const newParams = new URLSearchParams({
+                                    from: origin || '',
+                                    to: destination || '',
+                                    date: newDateStr,
+                                    passengers,
+                                    flexibleDays: flexibleDays.toString(),
+                                    direction,
+                                    t: Date.now().toString(), // Force URL change
+                                  })
+                                  console.log(
+                                    'Navigating to:',
+                                    `/trip-search-results?${newParams.toString()}`
+                                  )
+                                  navigate(
+                                    `/trip-search-results?${newParams.toString()}`
+                                  )
+                                }}
+                              >
+                                Search {direction}
+                                {flexibleDays > 1
+                                  ? ` ${flexibleDays} days`
+                                  : ' day'}
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Same date, different routes */}
+                          {/* <div className="space-y-2 md:col-span-2">
+                            <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                              Same Date, Different Routes
+                            </h4>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full justify-start text-left"
+                              onClick={() => {
+                                const newParams = new URLSearchParams({
+                                  from: origin,
+                                  to: '', // Clear destination to show all routes
+                                  date,
+                                  passengers,
+                                })
+                                navigate(
+                                  `/trip-search-results?${newParams.toString()}`
+                                )
+                              }}
+                            >
+                              View all routes from {origin}
+                            </Button>
+                          </div> */}
+
+                          {/* Reset search */}
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                              Start Over
+                            </h4>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="w-full justify-start text-left"
+                              onClick={() => navigate('/')}
+                            >
+                              Back to search
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+
+                    {/* Flexible search results */}
+                    {alternatives?.flexibleSearch &&
+                      alternatives.flexibleSearch.trips.length > 0 && (
+                        <Card className="p-6">
+                          <h3 className="text-lg font-semibold mb-4">
+                            {alternatives.flexibleSearch.description}
+                          </h3>
+                          <div className="space-y-4">
+                            {alternatives.flexibleSearch.trips.map((trip) => (
+                              <TripResultsCard
+                                key={trip.trip_id}
+                                trip={trip}
+                                onSelectTrip={() =>
+                                  handleSelectTrip(trip.trip_id)
+                                }
+                                isSelected={selectedTripId === trip.trip_id}
+                              />
+                            ))}
+                          </div>
+                          {/* Pagination for flexible search */}
+                          {(alternatives.flexibleSearch.totalPages ?? 1) >
+                            1 && (
+                            <div className="mt-6 flex justify-center">
+                              <Pagination
+                                currentPage={
+                                  alternatives.flexibleSearch.page ?? 1
+                                }
+                                totalPages={
+                                  alternatives.flexibleSearch.totalPages ?? 1
+                                }
+                                onPageChange={(page) => {
+                                  setFlexibleSearchPage(page)
+                                }}
+                              />
+                            </div>
+                          )}
+                        </Card>
+                      )}
+                  </>
+                ) : (
+                  <Card className="p-8 text-center">
+                    <p className="text-sm text-muted-foreground">
+                      Unable to load alternatives
+                    </p>
+                  </Card>
+                )}
+              </div>
             )}
           </div>
         </div>

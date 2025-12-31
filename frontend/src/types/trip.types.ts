@@ -2,13 +2,23 @@
 // ADMIN ENTITY TYPES - For Management APIs
 // ============================================================================
 
+// Layout structure types for seat maps
+export type SeatItemType =
+  | string
+  | null
+  | { code: string; floor?: number; price?: number }
+
+export type LayoutRow = {
+  row: number
+  seats: SeatItemType[]
+}
+
 /**
  * RouteAdminData - Route information for admin management
  * Matches API:  /trips/routes
  */
 export interface RouteAdminData {
   route_id?: string
-  operator_id: string
   origin: string
   destination: string
   distance_km: number
@@ -25,6 +35,7 @@ export interface RouteAdminData {
  */
 export interface BusAdminData {
   operator_id?: string
+  operator_name?: string
   bus_id?: string
   name: string
   model: string
@@ -32,8 +43,10 @@ export interface BusAdminData {
   type: 'standard' | 'limousine' | 'sleeper'
   capacity: number
   amenities: string[]
-  status: 'active' | 'inactive'
+  status: 'active' | 'inactive' | 'maintenance'
   image_url?: string
+  image_urls?: string[]
+  has_seat_layout?: boolean
   created_at?: string
 }
 
@@ -51,6 +64,7 @@ export interface OperatorAdminData {
   total_routes: number
   total_buses: number
   rating: number
+  rating_count: number
   approved_at?: string
   created_at: string
 }
@@ -90,6 +104,9 @@ export interface SeatMapData {
   driver?: DriverPosition | null
   doors?: DoorPosition[]
   seats: Seat[]
+  layout_structure?: {
+    rows: LayoutRow[]
+  }
 }
 
 /**
@@ -128,7 +145,8 @@ export interface PickupPoint {
   point_id: string
   name: string
   address: string
-  time: string // ISO 8601 format
+  time?: string // ISO 8601 format - optional for backward compatibility
+  departure_offset_minutes: number
 }
 
 /**
@@ -139,7 +157,8 @@ export interface DropoffPoint {
   point_id: string
   name: string
   address: string
-  time: string // ISO 8601 format
+  time?: string // ISO 8601 format - optional for backward compatibility
+  departure_offset_minutes: number
 }
 
 /**
@@ -152,7 +171,6 @@ export interface RouteStop {
   stop_name: string
   sequence: number
   arrival_offset_minutes?: number
-  departure_offset_minutes?: number
   address?: string
 }
 
@@ -171,6 +189,42 @@ export interface Policies {
  * Matches API: GET /trips/search + GET /trips/{tripId} response
  * Matches POST and PUT /trips request
  */
+
+// ============================================================================
+// TRIP CREATION AND UPDATE REQUESTS
+// ============================================================================
+
+export interface TripCreateRequest {
+  route_id: string
+  bus_id: string
+  operator_id: string
+  departure_time: string // ISO 8601 format
+  arrival_time?: string // ISO 8601 format (optional - calculated by backend)
+  base_price: number
+  service_fee?: number
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+  policies?: {
+    cancellation_policy: string
+    refund_policy: string
+    modification_policy: string
+  }
+}
+
+export interface TripUpdateRequest {
+  route_id?: string
+  bus_id?: string
+  operator_id?: string
+  departure_time?: string
+  arrival_time?: string
+  base_price?: number
+  service_fee?: number
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+  policies?: {
+    cancellation_policy: string
+    refund_policy: string
+    modification_policy: string
+  }
+}
 
 export interface Trip {
   trip_id: string
@@ -194,6 +248,7 @@ export interface Trip {
     seat_capacity: number
     bus_type: 'standard' | 'limousine' | 'sleeper'
     amenities: string[]
+    image_urls?: string[]
   }
   schedule: {
     departure_time: string // ISO 8601 format
@@ -210,23 +265,117 @@ export interface Trip {
     available_seats: number
     occupancy_rate?: number
   }
+  bookings?: number // Number of confirmed bookings
   policies: Policies
   pickup_points: PickupPoint[]
   dropoff_points: DropoffPoint[]
   route_stops?: RouteStop[]
-  status: 'active' | 'inactive'
+  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled'
+}
+
+/**
+ * BookingAdminData - Booking information for admin management
+ * Matches API: GET /bookings/admin response
+ */
+export interface BookingAdminData {
+  booking_id: string
+  booking_reference: string
+  trip_id: string
+  user_id?: string
+  contact_email: string
+  contact_phone: string
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+  payment_status: 'unpaid' | 'paid' | 'refunded'
+  total_price: number
+  subtotal?: number
+  service_fee?: number
+  refund_amount?: number
+  cancellation_reason?: string
+  currency: string
+  created_at: string
+  updated_at: string
+  user?: {
+    email: string
+    name: string
+  }
+  passengerCount?: number
+  passengers?: BookingPassenger[]
+  trip?: BookingTripDetails
+}
+
+/**
+ * BookingPassenger - Passenger information in a booking
+ */
+export interface BookingPassenger {
+  passenger_id: string
+  full_name: string
+  phone: string
+  document_id: string
+  seat_code: string
+}
+
+/**
+ * BookingTripDetails - Trip details in booking
+ */
+export interface BookingTripDetails {
+  trip_id: string
+  route: {
+    origin: string
+    destination: string
+  }
+  schedule: {
+    departure_time: string
+    arrival_time: string
+  }
+  pricing: {
+    basePrice: number
+  }
 }
 
 // ============================================================================
-// CONSTANTS
+// ALTERNATIVE TRIP SUGGESTIONS
 // ============================================================================
 
-export const WEEKDAYS = [
-  'MON',
-  'TUE',
-  'WED',
-  'THU',
-  'FRI',
-  'SAT',
-  'SUN',
-] as const
+/**
+ * AlternativeDate - Alternative date suggestion for same route
+ * Matches API: GET /trips/alternatives response.alternativeDates[]
+ */
+export interface AlternativeDate {
+  date: string // YYYY-MM-DD format
+  dayName: string // e.g., "Mon", "Tue"
+  monthDay: string // e.g., "Dec 30"
+  daysAhead: number // Days from original date
+  tripCount: number // Number of available trips
+}
+
+/**
+ * AlternativeDestination - Alternative destination from origin
+ * Matches API: GET /trips/alternatives response.alternativeDestinations[]
+ */
+export interface AlternativeDestination {
+  destination: string
+  tripCount: number // Number of available trips
+}
+
+/**
+ * FlexibleSearch - Flexible search option
+ * Matches API: GET /trips/alternatives response.flexibleSearch
+ */
+export interface FlexibleSearch {
+  trips: Trip[]
+  totalCount: number
+  page: number
+  totalPages: number
+  limit: number
+  description: string // e.g., "Search next 7 days"
+}
+
+/**
+ * AlternativeTrips - Complete alternative trip suggestions
+ * Matches API: GET /trips/alternatives response
+ */
+export interface AlternativeTrips {
+  alternativeDates: AlternativeDate[]
+  alternativeDestinations: AlternativeDestination[]
+  flexibleSearch: FlexibleSearch | null
+}

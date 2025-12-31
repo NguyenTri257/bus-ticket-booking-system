@@ -17,7 +17,17 @@ export function useAdminRoutes() {
   const { toast } = useToast()
 
   const fetchRoutes = useCallback(
-    async (page = 1, limit = 20, searchTerm = '') => {
+    async (
+      page = 1,
+      limit = 20,
+      searchTerm = '',
+      minDistance?: number,
+      maxDistance?: number,
+      minDuration?: number,
+      maxDuration?: number,
+      origin?: string,
+      destination?: string
+    ) => {
       setIsLoading(true)
       setError(null)
       try {
@@ -26,6 +36,24 @@ export function useAdminRoutes() {
         params.append('limit', limit.toString())
         if (searchTerm) {
           params.append('search', searchTerm)
+        }
+        if (minDistance !== undefined) {
+          params.append('min_distance', minDistance.toString())
+        }
+        if (maxDistance !== undefined) {
+          params.append('max_distance', maxDistance.toString())
+        }
+        if (minDuration !== undefined) {
+          params.append('min_duration', minDuration.toString())
+        }
+        if (maxDuration !== undefined) {
+          params.append('max_duration', maxDuration.toString())
+        }
+        if (origin) {
+          params.append('origin', origin)
+        }
+        if (destination) {
+          params.append('destination', destination)
         }
 
         const response = await request(`/trips/routes?${params}`, {
@@ -57,11 +85,13 @@ export function useAdminRoutes() {
         await request('/trips/routes', {
           method: 'POST',
           body: {
-            operator_id: routeData.operator_id,
             origin: routeData.origin,
             destination: routeData.destination,
             distance_km: routeData.distance_km,
             estimated_minutes: routeData.estimated_minutes,
+            pickup_points: routeData.pickup_points,
+            dropoff_points: routeData.dropoff_points,
+            route_stops: routeData.route_stops,
           },
         })
 

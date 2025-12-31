@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS route_points (
   is_dropoff BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(route_id, sequence)
+  UNIQUE (route_id, sequence, is_pickup)
 );
 
 CREATE OR REPLACE FUNCTION update_route_points_updated_at()
@@ -30,4 +30,4 @@ CREATE TRIGGER update_route_points_updated_at
   EXECUTE FUNCTION update_route_points_updated_at();
 
 CREATE INDEX IF NOT EXISTS idx_route_points_route_id ON route_points(route_id);
-CREATE INDEX IF NOT EXISTS idx_route_points_sequence ON route_points(route_id, sequence);
+CREATE INDEX IF NOT EXISTS idx_route_points_sequence ON route_points(route_id, sequence, is_pickup);

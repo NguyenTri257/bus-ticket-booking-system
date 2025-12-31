@@ -1,54 +1,45 @@
 const axios = require('axios');
+const passport = require('passport');
+const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
 
-// Authentication middleware
-const authenticate = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      success: false,
-      error: { code: 'AUTH_001', message: 'Authorization header missing or invalid' },
-      timestamp: new Date().toISOString()
-    });
-  }
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL;
 
-  const token = authHeader.substring(7);
-  try {
-    const authServiceUrl = process.env.AUTH_SERVICE_URL;
-    if (!authServiceUrl) {
-        console.error('⚠️ Auth service URL is not defined in environment variables');
-        return res.status(500).json({
-            success: false,
-            error: { code: 'GATEWAY_001', message: 'Auth service unavailable' },
-            timestamp: new Date().toISOString()
-        });
-    }
-    const response = await axios.post(`${authServiceUrl}/verify`, { token }, {
-      timeout: 5000, // 5 seconds timeout
-    });
-
-    if (response.data.success && response.data.data.valid) {
-      req.user = response.data.data.user;
-      next();
-    } else {
-      return res.status(401).json({
-        success: false,
-        error: { code: 'AUTH_002', message: 'Token expired or invalid' },
-        timestamp: new Date().toISOString()
-      });
-    }
-  } catch (error) {
-    console.error('⚠️ Auth service verification error:', error.message);
-    if (error.response) {
-      return res.status(error.response.status).json(error.response.data);
-    } else {
-      return res.status(500).json({
-        success: false,
-        error: { code: 'GATEWAY_001', message: 'Auth service unavailable' },
-        timestamp: new Date().toISOString()
-      });
-    }
-  }
+// Configure Passport JWT Strategy (same as auth-service)
+const jwtOptions = {
+  jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+  secretOrKey: process.env.JWT_SECRET,
+  passReqToCallback: true,
 };
+
+passport.use(
+  new JwtStrategy(jwtOptions, async (req, payload, done) => {
+    try {
+      // Check if token is blacklisted via auth-service
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+          const blacklistCheck = await axios.post(`${AUTH_SERVICE_URL}/auth/blacklist-check`, {
+            token,
+          });
+          if (blacklistCheck.data.isBlacklisted) {
+            return done(null, false, { message: 'Token has been revoked' });
+          }
+        } catch (error) {
+          // If auth-service is down, allow token for now (fail open)
+          console.warn('⚠️ Could not check token blacklist:', error.message);
+        }
+      }
+
+      return done(null, payload);
+    } catch (error) {
+      return done(error, false);
+    }
+  })
+);
+
+// Passport-based authentication middleware
+const authenticate = passport.authenticate('jwt', { session: false });
 
 // Authorization middleware
 const authorize = (roles) => {
@@ -57,7 +48,7 @@ const authorize = (roles) => {
       return res.status(403).json({
         success: false,
         error: { code: 'AUTH_003', message: 'Insufficient permissions' },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
     }
     next();

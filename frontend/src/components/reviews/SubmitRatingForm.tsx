@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { AlertCircle, CheckCircle, PartyPopper } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Checkbox } from '@/components/ui/checkbox'
 import { StarRating } from './StarRating'
+import { PhotoUpload } from './PhotoUpload'
 import type { RatingSubmission, RatingFormState } from './reviews.types'
 
 interface SubmitRatingFormProps {
@@ -42,22 +44,29 @@ export function SubmitRatingForm({
       RATING_CATEGORIES.reduce((acc, cat) => ({ ...acc, [cat.id]: 0 }), {})
   )
   const [reviewText, setReviewText] = useState(initialValues?.review || '')
+  const [photos, setPhotos] = useState<File[]>(initialValues?.photos || [])
+  const [displayNamePublicly, setDisplayNamePublicly] = useState(
+    initialValues?.displayNamePublicly ?? false
+  )
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
-  const [submittedData, setSubmittedData] = useState<RatingSubmission | null>(
-    null
-  )
+  const [preview, setPreview] = useState(false)
 
   // Save state changes
   useEffect(() => {
     try {
       if (onStateChange) {
-        onStateChange({ ratings, review: reviewText })
+        onStateChange({
+          ratings,
+          review: reviewText,
+          photos,
+          displayNamePublicly,
+        })
       }
     } catch {
       console.error('Error in onStateChange callback')
     }
-  }, [ratings, reviewText, onStateChange])
+  }, [ratings, reviewText, photos, displayNamePublicly, onStateChange])
 
   const handleRatingChange = (categoryId: string, value: number) => {
     setRatings((prev) => ({ ...prev, [categoryId]: value }))
@@ -74,16 +83,7 @@ export function SubmitRatingForm({
       return
     }
 
-    const ratingData: RatingSubmission = {
-      bookingId,
-      tripId: tripReference,
-      ratings,
-      review: reviewText.trim() || undefined,
-      submittedAt: new Date(),
-    }
-
-    setSubmittedData(ratingData)
-    setSubmitted(true)
+    setPreview(true)
   }
 
   if (submitted) {
@@ -106,18 +106,6 @@ export function SubmitRatingForm({
             </p>
           </div>
 
-          {/* Details */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-              <CheckCircle className="w-4 h-4" />
-              <span>Your rating has been recorded</span>
-            </div>
-            <div className="flex items-center justify-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-              <CheckCircle className="w-4 h-4" />
-              <span>Review will be published after moderation</span>
-            </div>
-          </div>
-
           {/* Additional Info */}
           <div className="text-center space-y-2">
             <p className="text-sm text-slate-600 dark:text-slate-400">
@@ -135,21 +123,120 @@ export function SubmitRatingForm({
           {/* Action Button */}
           <Button
             variant="outline"
-            onClick={async () => {
-              if (!submittedData) return
-              try {
-                await onSubmit(submittedData)
-                onCancel?.()
-              } catch {
-                setSubmitted(false)
-                setSubmittedData(null)
-                setError('Failed to submit rating. Please try again.')
-              }
-            }}
+            onClick={onCancel}
             className="border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-900/20"
           >
-            Continue
+            Close
           </Button>
+        </div>
+      </Card>
+    )
+  }
+
+  if (preview) {
+    const ratingData: RatingSubmission = {
+      bookingId,
+      tripId: tripReference,
+      ratings,
+      review: reviewText.trim() || undefined,
+      photos: photos.length > 0 ? photos : undefined,
+      submittedAt: new Date(),
+      displayNamePublicly,
+    }
+
+    return (
+      <Card className="bg-linear-to-br from-slate-50 to-gray-50 dark:from-slate-950/20 dark:to-gray-950/20 border-slate-200 dark:border-slate-800 p-8 shadow-lg">
+        <div className="text-center space-y-6">
+          <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200">
+            Preview Your Rating
+          </h3>
+          <p className="text-slate-700 dark:text-slate-300">
+            Please review your feedback before submitting.
+          </p>
+
+          {/* Rating Categories Preview */}
+          <div className="space-y-4 text-left">
+            <h4 className="font-semibold text-foreground">Your Ratings</h4>
+            <div className="bg-card/50 rounded-lg p-4 space-y-4">
+              {RATING_CATEGORIES.map((category) => (
+                <div
+                  key={category.id}
+                  className="flex items-center justify-between pb-3 last:pb-0 border-b border-border/50 last:border-0"
+                >
+                  <span className="text-sm font-medium text-foreground">
+                    {category.label}
+                  </span>
+                  <StarRating
+                    value={ratings[category.id]}
+                    onChange={() => {}}
+                    size="md"
+                    interactive={false}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Review Preview */}
+          {reviewText.trim() && (
+            <div className="space-y-2 text-left">
+              <h4 className="font-semibold text-foreground">Your Review</h4>
+              <div className="bg-card/50 rounded-lg p-4">
+                <p className="text-sm text-foreground whitespace-pre-wrap">
+                  {reviewText.trim()}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Photos Preview */}
+          {photos.length > 0 && (
+            <div className="space-y-2 text-left">
+              <h4 className="font-semibold text-foreground">
+                Photos ({photos.length})
+              </h4>
+              <div className="bg-card/50 rounded-lg p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {photos.map((photo, index) => (
+                    <div
+                      key={index}
+                      className="aspect-square rounded-lg overflow-hidden border border-border/50"
+                    >
+                      <img
+                        src={URL.createObjectURL(photo)}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-4">
+            <Button
+              onClick={() => setPreview(false)}
+              variant="outline"
+              className="flex-1"
+            >
+              Edit
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  await onSubmit(ratingData)
+                  setSubmitted(true)
+                } catch {
+                  setError('Failed to submit rating. Please try again.')
+                }
+              }}
+              className="flex-1"
+            >
+              Submit Rating
+            </Button>
+          </div>
         </div>
       </Card>
     )
@@ -167,6 +254,21 @@ export function SubmitRatingForm({
       {/* Rating Categories */}
       <div className="space-y-4">
         <h3 className="font-semibold text-foreground">Rate Your Experience</h3>
+
+        {/* Edit Policy Notice */}
+        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
+          <div className="flex gap-2">
+            <AlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div className="text-sm text-blue-800 dark:text-blue-200">
+              <p className="font-medium mb-1">Review Editing Policy</p>
+              <p>
+                You can edit your review text and photos within 24 hours after
+                submission. Ratings cannot be changed once submitted.
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-card/50 rounded-lg p-4 space-y-4">
           {RATING_CATEGORIES.map((category) => (
             <div
@@ -208,9 +310,55 @@ export function SubmitRatingForm({
           rows={4}
         />
         <p className="text-xs text-muted-foreground">
-          Please follow our review guidelines and avoid inappropriate content.
+          Please follow our{' '}
+          <a
+            href="/review-guidelines"
+            className="text-primary hover:underline"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            review guidelines
+          </a>{' '}
+          and avoid inappropriate content. Reviews are shared publicly to help
+          other travelers.
         </p>
       </div>
+
+      {/* Privacy Option */}
+      <div className="space-y-4">
+        <div className="bg-card/50 rounded-lg p-4 border border-border/50">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 mt-0.5">
+              <Checkbox
+                id="display-name-publicly"
+                checked={displayNamePublicly}
+                onCheckedChange={(checked) =>
+                  setDisplayNamePublicly(checked as boolean)
+                }
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <label
+                htmlFor="display-name-publicly"
+                className="text-sm font-medium text-foreground cursor-pointer select-none"
+              >
+                Display my name publicly
+              </label>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                Check to show your name publicly. This cannot be changed later.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Photo Upload */}
+      <PhotoUpload
+        photos={photos}
+        onPhotosChange={setPhotos}
+        maxPhotos={5}
+        disabled={isLoading}
+      />
 
       {/* Actions */}
       <div className="flex gap-3 pt-4">

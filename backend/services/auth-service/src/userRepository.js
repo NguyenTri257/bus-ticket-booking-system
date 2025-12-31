@@ -46,11 +46,11 @@ class UserRepository {
     // Filter by active/inactive status
     if (status === 'active') {
       whereConditions.push(
-        '(password_hash IS NOT NULL AND (account_locked_until IS NULL OR account_locked_until < NOW()))'
+        '((password_hash IS NOT NULL OR google_id IS NOT NULL) AND (account_locked_until IS NULL OR account_locked_until < NOW()))'
       );
     } else if (status === 'inactive') {
       whereConditions.push(
-        '(password_hash IS NULL OR (account_locked_until IS NOT NULL AND account_locked_until >= NOW()))'
+        '((password_hash IS NULL AND google_id IS NULL) OR (account_locked_until IS NOT NULL AND account_locked_until >= NOW()))'
       );
     }
 
@@ -95,7 +95,7 @@ class UserRepository {
         email_verified,
         phone_verified,
         CASE 
-          WHEN password_hash IS NOT NULL AND (account_locked_until IS NULL OR account_locked_until < NOW()) THEN true 
+          WHEN (password_hash IS NOT NULL OR google_id IS NOT NULL) AND (account_locked_until IS NULL OR account_locked_until < NOW()) THEN true 
           ELSE false 
         END as is_active,
         created_at,

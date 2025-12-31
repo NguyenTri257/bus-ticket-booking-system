@@ -1,70 +1,45 @@
-const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const passport = require('passport');
+const { Strategy: JwtStrategy, ExtractJwt } = require('passport-jwt');
 
-/**
- * Middleware to authenticate requests using JWT
- */
-async function authenticate(req, res, next) {
-  try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTH_001',
-          message: 'No token provided'
-        }
-      });
-    }
-    
-    const token = authHeader.substring(7);
-    
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || 'http://auth-service:3001';
+
+// Configure Passport JWT Strategy (same as auth-service)
+const jwtOptions = {
+  jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+  secretOrKey: process.env.JWT_SECRET,
+  passReqToCallback: true,
+};
+
+passport.use(
+  new JwtStrategy(jwtOptions, async (req, payload, done) => {
     try {
-      // Verify token locally
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = decoded;
-      
-      console.log('[AuthMiddleware] Token verified successfully');
-      console.log('[AuthMiddleware] Decoded payload:', JSON.stringify(decoded, null, 2));
-      
-      next();
-    } catch (jwtError) {
-      // If local verification fails, try auth service
-      try {
-        const authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://localhost:3001';
-        const response = await axios.post(
-          `${authServiceUrl}/verify`,
-          {},
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        
-        if (response.data.success) {
-          req.user = response.data.data.user;
-          next();
-        } else {
-          throw new Error('Token validation failed');
-        }
-      } catch (serviceError) {
-        return res.status(401).json({
-          success: false,
-          error: {
-            code: 'AUTH_002',
-            message: 'Invalid or expired token'
+      // Check if token is blacklisted via auth-service
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+          const blacklistCheck = await axios.post(`${AUTH_SERVICE_URL}/auth/blacklist-check`, {
+            token,
+          });
+          if (blacklistCheck.data.isBlacklisted) {
+            return done(null, false, { message: 'Token has been revoked' });
           }
-        });
+        } catch (error) {
+          // If auth-service is down, allow token for now (fail open)
+          console.warn('⚠️ Could not check token blacklist:', error.message);
+        }
       }
+
+      return done(null, payload);
+    } catch (error) {
+      return done(error, false);
     }
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      error: {
-        code: 'SYS_001',
-        message: 'Authentication error'
-      }
-    });
-  }
-}
+  })
+);
+
+// Passport-based authentication middleware
+const authenticate = passport.authenticate('jwt', { session: false });
 
 /**
  * Middleware to authorize based on user roles
@@ -76,21 +51,21 @@ function authorize(allowedRoles = []) {
         success: false,
         error: {
           code: 'AUTH_001',
-          message: 'Authentication required'
-        }
+          message: 'Authentication required',
+        },
       });
     }
-    
+
     if (allowedRoles.length > 0 && !allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         error: {
           code: 'AUTH_003',
-          message: 'Insufficient permissions'
-        }
+          message: 'Insufficient permissions',
+        },
       });
     }
-    
+
     next();
   };
 }
@@ -98,32 +73,34 @@ function authorize(allowedRoles = []) {
 /**
  * Optional authentication - attach user if token is valid, but don't fail if missing
  */
-async function optionalAuthenticate(req, res, next) {
+const optionalAuthenticate = (req, res, next) => {
   const authHeader = req.headers.authorization;
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     req.user = null;
     return next();
   }
-  
-  const token = authHeader.substring(7);
-  
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
-    
-    console.log('[OptionalAuth] Token verified');
-    console.log('[OptionalAuth] Decoded payload:', JSON.stringify(decoded, null, 2));
-  } catch (error) {
-    console.log('[OptionalAuth] Token invalid or expired, treating as guest');
-    req.user = null;
-  }
-  
-  next();
-}
+
+  // Use Passport to authenticate optionally
+  passport.authenticate('jwt', { session: false }, (err, user, info) => {
+    if (err) {
+      console.warn('Optional auth error:', err.message);
+      req.user = null;
+      return next();
+    }
+
+    if (!user) {
+      req.user = null;
+      return next();
+    }
+
+    req.user = user;
+    next();
+  })(req, res, next);
+};
 
 module.exports = {
   authenticate,
   authorize,
-  optionalAuthenticate
+  optionalAuthenticate,
 };

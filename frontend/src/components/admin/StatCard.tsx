@@ -6,6 +6,7 @@ interface StatCardProps {
   value: string | number
   icon: LucideIcon
   iconColor?: string
+  hoverTitle?: string
 }
 
 export function StatCard({

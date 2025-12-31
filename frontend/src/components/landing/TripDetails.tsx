@@ -7,10 +7,10 @@ import {
   Clock,
   Tv,
   Bed,
-  Utensils,
+  Armchair,
   CupSoda,
   Headphones,
-  Cloud,
+  Spotlight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -18,10 +18,23 @@ import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import type { Trip } from '@/types/trip.types'
 import { ReviewsList } from '@/components/reviews/ReviewsList'
-import { useState, useEffect } from 'react'
-import { getOperatorReviews, getOperatorRatings } from '@/api/trips'
-import type { ReviewData } from '@/components/reviews/ReviewCard'
+import { useState, useEffect, useCallback } from 'react'
+import {
+  getOperatorReviews,
+  getOperatorRatings,
+  updateReview,
+  deleteReview,
+} from '@/api/trips'
+import type { ReviewData } from '@/components/reviews/reviews.types'
 import type { OperatorRatingStats } from '@/api/trips'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { EditReviewForm } from '@/components/reviews/EditReviewForm'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface TripDetailsProps {
   trip: Trip
@@ -37,10 +50,103 @@ export function TripDetails({ trip }: TripDetailsProps) {
   const [reviewsRatingFilter, setReviewsRatingFilter] = useState<number | null>(
     null
   )
+  const [reviewsRouteFilter, setReviewsRouteFilter] = useState<string | null>(
+    null
+  )
+  const [reviewsHasImageFilter, setReviewsHasImageFilter] = useState<
+    boolean | null
+  >(null)
   const [reviewsPage, setReviewsPage] = useState(1)
+  const [reviewsLimit, setReviewsLimit] = useState(5)
   const [hasMoreReviews, setHasMoreReviews] = useState(false)
+  const [totalPages, setTotalPages] = useState(1)
   const [operatorStats, setOperatorStats] =
     useState<OperatorRatingStats | null>(null)
+  const [editingReview, setEditingReview] = useState<ReviewData | null>(null)
+  const [reviewsRefreshTrigger, setReviewsRefreshTrigger] = useState(0)
+  const [editLoading, setEditLoading] = useState(false)
+  const [deleteReviewId, setDeleteReviewId] = useState<string | null>(null)
+
+  // Fetch reviews function
+  const fetchReviews = useCallback(async () => {
+    // Skip API calls for mock data operator IDs (they're not UUIDs)
+    if (trip.operator.operator_id.startsWith('operator_')) {
+      setReviews([])
+      setReviewsLoading(false)
+      setHasMoreReviews(false)
+      return
+    }
+
+    setReviewsLoading(true)
+    try {
+      console.log('Fetching reviews with:', {
+        operatorId: trip.operator.operator_id,
+        page: reviewsPage,
+        sortBy: reviewsSortBy,
+        rating: reviewsRatingFilter,
+        route: reviewsRouteFilter,
+        hasImage: reviewsHasImageFilter,
+      })
+
+      const response = await getOperatorReviews(trip.operator.operator_id, {
+        page: reviewsPage,
+        limit: reviewsLimit,
+        sortBy: reviewsSortBy,
+        rating: reviewsRatingFilter || undefined,
+        route: reviewsRouteFilter || undefined,
+        hasImage: reviewsHasImageFilter || undefined,
+      })
+
+      console.log('Reviews response:', response)
+      console.log('Response data:', response.data)
+
+      if (response.success && response.data) {
+        const reviewData = (response.data as ReviewData[]).map((review) => ({
+          id: review.id,
+          authorName: review.authorName,
+          authorEmail: review.authorEmail,
+          avatarUrl: review.avatarUrl,
+          rating: review.rating,
+          categoryRatings: review.categoryRatings,
+          reviewText: review.reviewText,
+          photos: review.photos,
+          route: review.route,
+          seatType: review.seatType,
+          createdAt: review.createdAt,
+          updatedAt: review.updatedAt,
+          isVerifiedBooking: true, // Operator reviews are from verified bookings
+          helpfulCount: review.helpfulCount,
+          userHelpful: review.userHelpful,
+          isAuthor: review.isAuthor,
+          canEdit: review.canEdit,
+          canDelete: review.canDelete,
+          displayNamePublicly: review.displayNamePublicly,
+        }))
+
+        console.log('Mapped reviews:', reviewData)
+
+        console.log('Setting reviews:', reviewData)
+        setReviews(reviewData)
+
+        setHasMoreReviews(reviewsPage < response.pagination.totalPages)
+        setTotalPages(response.pagination.totalPages)
+      }
+    } catch (error) {
+      console.error('Failed to fetch reviews:', error)
+      setReviews([])
+      setHasMoreReviews(false)
+    } finally {
+      setReviewsLoading(false)
+    }
+  }, [
+    trip.operator.operator_id,
+    reviewsPage,
+    reviewsSortBy,
+    reviewsRatingFilter,
+    reviewsRouteFilter,
+    reviewsHasImageFilter,
+    reviewsLimit,
+  ])
 
   // Fetch operator stats when component mounts
   useEffect(() => {
@@ -67,72 +173,6 @@ export function TripDetails({ trip }: TripDetailsProps) {
 
   // Fetch reviews when component mounts or filters change
   useEffect(() => {
-    // Skip API calls for mock data operator IDs (they're not UUIDs)
-    if (trip.operator.operator_id.startsWith('operator_')) {
-      setReviews([])
-      setReviewsLoading(false)
-      setHasMoreReviews(false)
-      return
-    }
-
-    const fetchReviews = async () => {
-      setReviewsLoading(true)
-      try {
-        console.log('Fetching reviews with:', {
-          operatorId: trip.operator.operator_id,
-          page: reviewsPage,
-          sortBy: reviewsSortBy,
-          rating: reviewsRatingFilter,
-        })
-
-        const response = await getOperatorReviews(trip.operator.operator_id, {
-          page: reviewsPage,
-          limit: 10,
-          sortBy: reviewsSortBy,
-          rating: reviewsRatingFilter || undefined,
-        })
-
-        console.log('Reviews response:', response)
-        console.log('Response data:', response.data)
-
-        if (response.success && response.data) {
-          const reviewData = response.data.map((review) => {
-            console.log('Mapping review:', review)
-            return {
-              ...review,
-              createdAt: new Date(review.createdAt),
-              updatedAt: review.updatedAt
-                ? new Date(review.updatedAt)
-                : undefined,
-            }
-          })
-
-          console.log('Mapped reviews:', reviewData)
-
-          if (reviewsPage === 1) {
-            console.log('Setting reviews (page 1):', reviewData)
-            setReviews(reviewData)
-          } else {
-            console.log(
-              'Appending reviews (page',
-              reviewsPage,
-              '):',
-              reviewData
-            )
-            setReviews((prev) => [...prev, ...reviewData])
-          }
-
-          setHasMoreReviews(reviewsPage < response.pagination.totalPages)
-        }
-      } catch (error) {
-        console.error('Failed to fetch reviews:', error)
-        setReviews([])
-        setHasMoreReviews(false)
-      } finally {
-        setReviewsLoading(false)
-      }
-    }
-
     fetchReviews()
   }, [
     trip.operator.operator_id,
@@ -140,7 +180,79 @@ export function TripDetails({ trip }: TripDetailsProps) {
     reviewsPage,
     reviewsSortBy,
     reviewsRatingFilter,
+    reviewsRouteFilter,
+    reviewsHasImageFilter,
+    reviewsLimit,
+    reviewsRefreshTrigger,
+    fetchReviews,
   ])
+
+  // Handle review edit
+  const handleEditReview = (review: ReviewData) => {
+    setEditingReview(review)
+  }
+
+  // Handle review update
+  const handleUpdateReview = async (data: {
+    reviewId: string
+    reviewText: string
+    removedPhotos?: string[]
+    newPhotos?: File[]
+  }) => {
+    setEditLoading(true)
+    try {
+      // Calculate remaining photos after removal
+      const currentPhotos = editingReview?.photos || []
+      const remainingPhotos = currentPhotos.filter(
+        (photo) => !data.removedPhotos?.includes(photo)
+      )
+
+      await updateReview(data.reviewId, {
+        review: data.reviewText,
+        photos: remainingPhotos,
+        removedPhotos: data.removedPhotos,
+        newPhotos: data.newPhotos,
+      })
+
+      // Refresh reviews
+      setReviewsPage(1)
+      setReviewsRefreshTrigger((prev) => prev + 1)
+      setEditingReview(null)
+
+      // Show success message or toast
+      console.log('Review updated successfully')
+    } catch (error) {
+      console.error('Failed to update review:', error)
+      throw error
+    } finally {
+      setEditLoading(false)
+    }
+  }
+
+  // Handle review delete
+  const handleDeleteReview = async (reviewId: string) => {
+    setDeleteReviewId(reviewId)
+  }
+
+  // Handle confirmed delete
+  const handleConfirmDelete = async () => {
+    if (!deleteReviewId) return
+
+    try {
+      await deleteReview(deleteReviewId)
+
+      // Refresh reviews
+      setReviewsPage(1)
+      setReviewsRefreshTrigger((prev) => prev + 1)
+
+      console.log('Review deleted successfully')
+    } catch (error) {
+      console.error('Failed to delete review:', error)
+      throw error
+    } finally {
+      setDeleteReviewId(null)
+    }
+  }
 
   // Helper function to format time
   const formatTime = (timeString: string) => {
@@ -167,21 +279,31 @@ export function TripDetails({ trip }: TripDetailsProps) {
           icon: <Tv className="w-4 h-4" />,
           name: 'Television',
         },
-        blankets: {
+        blanket: {
           icon: <Bed className="w-4 h-4" />,
-          name: 'Blanket & Pillow',
+          name: 'Blanket',
         },
-        pillows: {
-          icon: <Cloud className="w-4 h-4" />,
-          name: 'Pillows',
+        pillow: {
+          icon: (
+            <img
+              className="w-4 h-4"
+              src="https://img.icons8.com/material-outlined/96/pillow.png"
+              alt="pillow"
+            />
+          ),
+          name: 'Pillow',
         },
-        snacks: {
-          icon: <Utensils className="w-4 h-4" />,
-          name: 'Snacks',
-        },
-        refreshments: {
+        water: {
           icon: <CupSoda className="w-4 h-4" />,
-          name: 'Refreshments',
+          name: 'Water',
+        },
+        massage: {
+          icon: <Armchair className="w-4 h-4" />,
+          name: 'Massage Seat',
+        },
+        reading_light: {
+          icon: <Spotlight className="w-4 h-4" />,
+          name: 'Reading Light',
         },
       }
     return amenityMap[amenityId] || null
@@ -294,13 +416,46 @@ export function TripDetails({ trip }: TripDetailsProps) {
                 </div>
               )}
             </div>
+            <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-muted">
+              <p className="text-xs text-muted-foreground">
+                <strong>Note:</strong> The schedule times are estimated. This
+                schedule may change depending on actual conditions.
+              </p>
+            </div>
           </div>
         </TabsContent>
 
         {/* Bus Information Tab */}
         <TabsContent value="bus" className="space-y-6">
+          {/* Bus Images */}
+          {trip.bus.image_urls && trip.bus.image_urls.length > 0 && (
+            <div>
+              <h4 className="font-medium text-foreground mb-3">Bus Images</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {trip.bus.image_urls.map((imageUrl, index) => (
+                  <div
+                    key={index}
+                    className="rounded-lg overflow-hidden border border-border aspect-video bg-muted"
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={`Bus image ${index + 1}`}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                      onError={(e) => {
+                        e.currentTarget.src =
+                          'https://via.placeholder.com/400x300?text=Bus+Image'
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bus Information */}
           {(trip.bus.model || trip.bus.seat_capacity || trip.bus.bus_type) && (
             <div>
+              <h4 className="font-medium text-foreground mb-3">Bus Details</h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {trip.bus.model && (
                   <div className="p-4 bg-muted/30 rounded-lg border border-muted">
@@ -329,6 +484,17 @@ export function TripDetails({ trip }: TripDetailsProps) {
                     </h5>
                     <p className="text-foreground font-medium">
                       {trip.bus.plate_number}
+                    </p>
+                  </div>
+                )}
+                {trip.bus.bus_type && (
+                  <div className="p-4 bg-muted/30 rounded-lg border border-muted">
+                    <h5 className="font-medium text-sm text-muted-foreground mb-1">
+                      Type
+                    </h5>
+                    <p className="text-foreground font-medium">
+                      {trip.bus.bus_type.charAt(0).toUpperCase() +
+                        trip.bus.bus_type.slice(1)}
                     </p>
                   </div>
                 )}
@@ -410,7 +576,7 @@ export function TripDetails({ trip }: TripDetailsProps) {
           {trip.route_stops && trip.route_stops.length > 0 ? (
             <div>
               <div className="relative">
-                <div className="absolute left-16 top-0 bottom-0 w-0.5 bg-border"></div>
+                <div className="absolute left-[6.9rem] top-0 bottom-0 w-0.5 bg-border"></div>
                 <div className="space-y-3">
                   {trip.route_stops
                     .sort((a, b) => a.sequence - b.sequence)
@@ -425,18 +591,14 @@ export function TripDetails({ trip }: TripDetailsProps) {
                           departureDate.getTime() +
                             stop.arrival_offset_minutes * 60000
                         )
-                        actualTime = arrivalTime.toLocaleTimeString('en-US', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          hour12: false,
-                        })
+                        actualTime = formatTime(arrivalTime.toISOString())
                       }
                       return (
                         <div
                           key={index}
                           className="flex items-center gap-3 relative"
                         >
-                          <span className="text-xs text-muted-foreground font-medium min-w-10 text-right">
+                          <span className="text-xs text-muted-foreground font-medium w-22 text-right">
                             {actualTime}
                           </span>
                           <div className="flex flex-col items-center gap-1 relative">
@@ -496,10 +658,64 @@ export function TripDetails({ trip }: TripDetailsProps) {
               setReviewsRatingFilter(rating)
               setReviewsPage(1) // Reset to first page when filter changes
             }}
+            routeFilter={reviewsRouteFilter}
+            onRouteFilterChange={(route) => {
+              setReviewsRouteFilter(route)
+              setReviewsPage(1) // Reset to first page when filter changes
+            }}
+            hasImageFilter={reviewsHasImageFilter}
+            onHasImageFilterChange={(hasImage) => {
+              setReviewsHasImageFilter(hasImage)
+              setReviewsPage(1) // Reset to first page when filter changes
+            }}
             operatorStats={operatorStats}
+            currentPage={reviewsPage}
+            totalPages={totalPages}
+            onPageChange={(page) => setReviewsPage(page)}
+            limit={reviewsLimit}
+            onLimitChange={(limit) => {
+              setReviewsLimit(limit)
+              setReviewsPage(1) // Reset to first page when limit changes
+            }}
+            onEditReview={handleEditReview}
+            onDeleteReview={handleDeleteReview}
+            onVote={() => fetchReviews()}
           />
         </TabsContent>
       </Tabs>
+
+      {/* Edit Review Dialog */}
+      <Dialog
+        open={!!editingReview}
+        onOpenChange={() => setEditingReview(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Review</DialogTitle>
+          </DialogHeader>
+          {editingReview && (
+            <EditReviewForm
+              reviewId={editingReview.id}
+              initialText={editingReview.reviewText || ''}
+              initialPhotos={editingReview.photos || []}
+              onSubmit={handleUpdateReview}
+              onCancel={() => setEditingReview(null)}
+              isLoading={editLoading}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Review Confirmation Dialog */}
+      <ConfirmDialog
+        open={!!deleteReviewId}
+        onClose={() => setDeleteReviewId(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Review"
+        message="Are you sure you want to delete this review? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
 
       {/* Booking Button */}
       <div className="pt-4 mt-6 border-t border-border">

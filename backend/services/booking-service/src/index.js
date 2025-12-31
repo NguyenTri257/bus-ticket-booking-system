@@ -19,8 +19,42 @@ app.use(morgan('combined'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Initialize Passport
+const passport = require('passport');
+app.use(passport.initialize());
+
 // Health check
 app.get('/health', bookingController.healthCheck);
+
+// Admin routes (require admin role) - MUST come BEFORE /:id routes
+app.get('/admin', authenticate, authorize(['admin']), bookingController.getAllBookings);
+app.get('/admin/:id', authenticate, authorize(['admin']), bookingController.getBookingDetailsAdmin);
+app.put(
+  '/admin/:id/status',
+  authenticate,
+  authorize(['admin']),
+  bookingController.updateBookingStatus
+);
+app.post(
+  '/admin/:id/refund',
+  authenticate,
+  authorize(['admin']),
+  bookingController.processRefundAdmin
+);
+app.post(
+  '/admin/trips/:tripId/bulk-refund',
+  authenticate,
+  authorize(['admin']),
+  bookingController.processBulkRefundForTrip
+);
+
+// Update passenger boarding status (Admin only)
+app.patch(
+  '/admin/passengers/:ticketId/boarding-status',
+  authenticate,
+  authorize(['admin']),
+  bookingController.updatePassengerBoardingStatus
+);
 
 // Public routes (no authentication required)
 // Guest booking lookup - accepts phone OR email
@@ -35,24 +69,34 @@ app.get('/reference/:reference', bookingController.getByReference);
 // Share ticket (public endpoint with validation)
 app.post('/:bookingReference/share', bookingController.shareTicket);
 
+// Serve ticket by booking reference (public with verification)
+// Requires either: JWT token OR email/phone query params that match booking
+app.get('/:bookingReference/ticket', optionalAuthenticate, bookingController.serveTicket);
+
+// Internal idempotent confirm-payment endpoint for payment-service webhook
+app.post('/internal/:id/confirm-payment', bookingController.internalConfirmPayment);
+
 // Protected routes (require authentication)
 app.get('/', authenticate, bookingController.getUserBookings);
 app.post('/', optionalAuthenticate, bookingController.create);
 app.get('/:id', authenticate, bookingController.getById);
-app.get('/:id/cancellation-preview', optionalAuthenticate, bookingController.getCancellationPreview);
-app.get('/:id/modification-preview', optionalAuthenticate, bookingController.getModificationPreview);
+app.get(
+  '/:id/cancellation-preview',
+  optionalAuthenticate,
+  bookingController.getCancellationPreview
+);
+app.get(
+  '/:id/modification-preview',
+  optionalAuthenticate,
+  bookingController.getModificationPreview
+);
+app.post('/:id/confirm-payment', authenticate, bookingController.confirmPayment);
 // Nếu chỉ cho user đăng nhập thanh toán, dùng dòng dưới:
 // app.post('/:id/confirm-payment', authenticate, bookingController.confirmPayment);
 // Để cho phép cả guest và user, dùng optionalAuthenticate:
 app.post('/:id/confirm-payment', optionalAuthenticate, bookingController.confirmPayment);
 app.put('/:id/cancel', optionalAuthenticate, bookingController.cancel);
 app.put('/:id/modify', optionalAuthenticate, bookingController.modifyBooking);
-
-// Internal idempotent confirm-payment endpoint for payment-service webhook
-app.post('/internal/:id/confirm-payment', bookingController.internalConfirmPayment);
-
-// Admin routes
-app.get('/admin/bookings', authenticate, authorize(['admin']), bookingController.getAllBookings);
 
 // Serve ticket files (static)
 app.use('/tickets', express.static('tickets'));

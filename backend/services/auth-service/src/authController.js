@@ -295,6 +295,18 @@ class AuthController {
         }
       }
 
+      // Check if account is locked
+      if (user.account_locked_until && user.account_locked_until > new Date()) {
+        return res.status(423).json({
+          success: false,
+          error: {
+            code: 'AUTH_010',
+            message: 'Account is temporarily locked. Please try again later.',
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
       // Generate tokens
       const accessToken = authService.generateAccessToken({
         userId: user.user_id,

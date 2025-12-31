@@ -226,7 +226,8 @@ class BookingRepository {
                   LEFT JOIN ratings ON ratings.booking_id = bookings.booking_id
                   LEFT JOIN trips ON trips.trip_id = bookings.trip_id
                   LEFT JOIN routes ON routes.route_id = trips.route_id
-                  LEFT JOIN operators ON operators.operator_id = routes.operator_id
+                  LEFT JOIN buses ON buses.bus_id = trips.bus_id
+                  LEFT JOIN operators ON operators.operator_id = buses.operator_id
                   WHERE bookings.user_id = $1`;
     const values = [sanitizedUserId];
     let paramIndex = 2;
@@ -257,7 +258,8 @@ class BookingRepository {
                       LEFT JOIN ratings ON ratings.booking_id = bookings.booking_id 
                       LEFT JOIN trips ON trips.trip_id = bookings.trip_id
                       LEFT JOIN routes ON routes.route_id = trips.route_id
-                      LEFT JOIN operators ON operators.operator_id = routes.operator_id
+                      LEFT JOIN buses ON buses.bus_id = trips.bus_id
+                      LEFT JOIN operators ON operators.operator_id = buses.operator_id
                       WHERE bookings.user_id = $1`;
 
     const countValues = [sanitizedUserId];
@@ -494,6 +496,41 @@ class BookingRepository {
   }
 
   /**
+   * Get all bookings for a specific trip with optional status filter
+   * @param {string} tripId - Trip UUID
+   * @param {string|null} statusFilter - Optional status filter
+   * @returns {Promise<Array>} Bookings for the trip
+   */
+  async getBookingsByTripId(tripId, statusFilter = null) {
+    let query = `
+      SELECT
+        b.booking_id, b.booking_reference, b.trip_id, b.user_id,
+        b.contact_email, b.contact_phone, b.status, b.payment_status,
+        b.total_price, b.currency, b.created_at, b.updated_at,
+        b.refund_amount, b.cancellation_reason,
+        COUNT(bp.ticket_id) as passenger_count
+      FROM bookings b
+      LEFT JOIN booking_passengers bp ON b.booking_id = bp.booking_id
+      WHERE b.trip_id = $1
+    `;
+
+    const params = [tripId];
+
+    if (statusFilter) {
+      query += ` AND b.status = $2`;
+      params.push(statusFilter);
+    }
+
+    query += `
+      GROUP BY b.booking_id
+      ORDER BY b.created_at DESC
+    `;
+
+    const result = await db.query(query, params);
+    return result.rows.map(mapToBooking);
+  }
+
+  /**
    * Find upcoming confirmed bookings within a time window
    * @param {Date} startTime - Start of time window
    * @param {Date} endTime - End of time window
@@ -577,6 +614,194 @@ class BookingRepository {
     `;
 
     const result = await db.query(query, [ticketUrl, bookingId]);
+    return result.rows[0] ? mapToBooking(result.rows[0]) : null;
+  }
+
+  // ==================== ADMIN METHODS ====================
+
+  /**
+   * Find all bookings with filters and pagination (Admin only)
+   * @param {object} filters - Query filters
+   * @returns {Promise<object>} Paginated bookings
+   */
+  async findAllWithFilters(filters) {
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      payment_status,
+      fromDate,
+      toDate,
+      sortBy = 'created_at',
+      sortOrder = 'DESC',
+    } = filters;
+
+    const offset = (page - 1) * limit;
+    const conditions = [];
+    const values = [];
+    let paramIndex = 1;
+
+    // Build WHERE conditions
+    if (status) {
+      conditions.push(`b.status = $${paramIndex}`);
+      values.push(status);
+      paramIndex++;
+    }
+
+    if (payment_status) {
+      conditions.push(`b.payment_status = $${paramIndex}`);
+      values.push(payment_status);
+      paramIndex++;
+    }
+
+    if (fromDate) {
+      conditions.push(`b.created_at >= $${paramIndex}`);
+      values.push(fromDate);
+      paramIndex++;
+    }
+
+    if (toDate) {
+      conditions.push(`b.created_at <= $${paramIndex}`);
+      values.push(toDate);
+      paramIndex++;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    // Validate sortBy to prevent SQL injection
+    const validSortColumns = [
+      'created_at',
+      'updated_at',
+      'total_price',
+      'status',
+      'payment_status',
+    ];
+    const safeSortBy = validSortColumns.includes(sortBy) ? sortBy : 'created_at';
+    const safeSortOrder = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    // Get total count
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM bookings b
+      ${whereClause}
+    `;
+
+    const countResult = await db.query(countQuery, values);
+    const total = parseInt(countResult.rows[0].total);
+
+    // Get bookings with pagination
+    const query = `
+      SELECT 
+        b.*,
+        u.email as user_email,
+        u.full_name as user_name,
+        (SELECT COUNT(*) FROM booking_passengers WHERE booking_id = b.booking_id) as passenger_count
+      FROM bookings b
+      LEFT JOIN users u ON b.user_id = u.user_id
+      ${whereClause}
+      ORDER BY b.${safeSortBy} ${safeSortOrder}
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+
+    values.push(limit, offset);
+
+    const result = await db.query(query, values);
+
+    console.log('[BookingRepo] findAllWithFilters - Query result count:', result.rows.length);
+    if (result.rows.length > 0) {
+      console.log('[BookingRepo] First row from DB:', {
+        booking_id: result.rows[0].booking_id,
+        payment_status: result.rows[0].payment_status,
+        total_price: result.rows[0].total_price,
+        typeof_total_price: typeof result.rows[0].total_price,
+      });
+    }
+
+    return {
+      bookings: result.rows.map((row) => {
+        // Map to flat structure for admin API (matching API doc)
+        const mapped = {
+          booking_id: row.booking_id,
+          booking_reference: row.booking_reference,
+          trip_id: row.trip_id,
+          user_id: row.user_id,
+          contact_email: row.contact_email,
+          contact_phone: row.contact_phone,
+          status: row.status || 'pending',
+          payment_status: row.payment_status || 'unpaid',
+          total_price: parseFloat(row.total_price) || 0,
+          subtotal: parseFloat(row.subtotal) || 0,
+          service_fee: parseFloat(row.service_fee) || 0,
+          refund_amount: parseFloat(row.refund_amount) || null,
+          cancellation_reason: row.cancellation_reason || null,
+          currency: row.currency || 'VND',
+          created_at: row.created_at,
+          updated_at: row.updated_at,
+          user: row.user_email
+            ? {
+                email: row.user_email,
+                name: row.user_name,
+              }
+            : null,
+          passengerCount: parseInt(row.passenger_count) || 0,
+        };
+
+        console.log('[BookingRepo] After mapping:', {
+          booking_id: mapped.booking_id,
+          payment_status: mapped.payment_status,
+          total_price: mapped.total_price,
+        });
+
+        return mapped;
+      }),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Update booking with refund information (Admin only)
+   * @param {string} bookingId - Booking UUID
+   * @param {object} refundData - Refund data
+   * @returns {Promise<object>} Updated booking
+   */
+  async updateRefund(bookingId, refundData) {
+    console.log('[BookingRepository] updateRefund called with:', {
+      bookingId,
+      refundData,
+    });
+
+    const query = `
+      UPDATE bookings
+      SET
+        refund_amount = $1,
+        cancellation_reason = $2,
+        status = 'cancelled',
+        payment_status = 'refunded',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE booking_id = $3
+      RETURNING *
+    `;
+
+    console.log('[BookingRepository] Executing refund update query:', {
+      query,
+      values: [refundData.refundAmount, refundData.reason, bookingId],
+    });
+
+    const result = await db.query(query, [refundData.refundAmount, refundData.reason, bookingId]);
+
+    console.log('[BookingRepository] Refund update result:', {
+      rowCount: result.rowCount,
+      returnedRows: result.rows.length,
+      paymentStatus: result.rows[0]?.payment_status,
+      status: result.rows[0]?.status,
+      refundAmount: result.rows[0]?.refund_amount,
+    });
+
     return result.rows[0] ? mapToBooking(result.rows[0]) : null;
   }
 }

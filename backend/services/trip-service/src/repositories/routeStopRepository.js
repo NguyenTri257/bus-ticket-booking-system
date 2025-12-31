@@ -4,30 +4,17 @@ const pool = require('../database');
 class RouteStopRepository {
   // Thêm điểm dừng vào tuyến
   async create(routeId, stopData) {
-    const {
-      stop_name,
-      sequence,
-      arrival_offset_minutes = 0,
-      departure_offset_minutes = 0,
-      address = '',
-    } = stopData;
+    const { stop_name, sequence, arrival_offset_minutes = 0, address = '' } = stopData;
 
     const query = `
       INSERT INTO route_stops (
         route_id, stop_name, sequence,
-        arrival_offset_minutes, departure_offset_minutes, address
-      ) VALUES ($1, $2, $3, $4, $5, $6)
+        arrival_offset_minutes, address
+      ) VALUES ($1, $2, $3, $4, $5)
       RETURNING *;
     `;
 
-    const values = [
-      routeId,
-      stop_name,
-      sequence,
-      arrival_offset_minutes,
-      departure_offset_minutes,
-      address || '',
-    ];
+    const values = [routeId, stop_name, sequence, arrival_offset_minutes, address || ''];
 
     const result = await pool.query(query, values);
     return result.rows[0];
@@ -42,7 +29,6 @@ class RouteStopRepository {
         stop_name,
         sequence,
         arrival_offset_minutes,
-        departure_offset_minutes,
         address,
         created_at,
         updated_at
@@ -56,13 +42,7 @@ class RouteStopRepository {
 
   // Cập nhật điểm dừng
   async update(stopId, stopData) {
-    const {
-      stop_name,
-      sequence,
-      arrival_offset_minutes,
-      departure_offset_minutes,
-      address,
-    } = stopData;
+    const { stop_name, sequence, arrival_offset_minutes, address } = stopData;
 
     const query = `
       UPDATE route_stops
@@ -70,21 +50,13 @@ class RouteStopRepository {
         stop_name = $1,
         sequence = $2,
         arrival_offset_minutes = COALESCE($3, arrival_offset_minutes),
-        departure_offset_minutes = COALESCE($4, departure_offset_minutes),
-        address = COALESCE($5, address),
+        address = COALESCE($4, address),
         updated_at = CURRENT_TIMESTAMP
-      WHERE stop_id = $6
+      WHERE stop_id = $5
       RETURNING *;
     `;
 
-    const values = [
-      stop_name,
-      sequence,
-      arrival_offset_minutes ?? null,
-      departure_offset_minutes ?? null,
-      address ?? null,
-      stopId,
-    ];
+    const values = [stop_name, sequence, arrival_offset_minutes ?? null, address ?? null, stopId];
 
     const result = await pool.query(query, values);
     return result.rows[0] || null;

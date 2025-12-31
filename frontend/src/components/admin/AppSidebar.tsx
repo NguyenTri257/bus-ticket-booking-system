@@ -8,11 +8,12 @@ import {
   FileText,
   Settings,
   MapPin,
-  Grid3X3,
   User,
+  Calendar,
+  MessageSquare,
 } from 'lucide-react'
 import { NavLink } from '@/components/NavLink'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 
 import {
   Sidebar,
@@ -30,11 +31,16 @@ const menuItems = [
   { title: 'Overview', url: '/admin', icon: LayoutDashboard },
   { title: 'Routes', url: '/admin/routes', icon: Route },
   { title: 'Buses', url: '/admin/buses', icon: Bus },
-  { title: 'Seat Maps', url: '/admin/seat-maps', icon: Grid3X3 },
   { title: 'Trips', url: '/admin/trips', icon: MapPin },
+  { title: 'Bookings', url: '/admin/bookings', icon: Calendar },
   { title: 'Operators', url: '/admin/operators', icon: Briefcase },
   { title: 'Users', url: '/admin/users', icon: Users },
   { title: 'Analytics', url: '/admin/analytics', icon: BarChart3 },
+  {
+    title: 'Chatbot Feedback',
+    url: '/admin/chatbot-feedback',
+    icon: MessageSquare,
+  },
   { title: 'Reports', url: '/admin/reports', icon: FileText },
   { title: 'Profile', url: '/admin/profile', icon: User },
   { title: 'Settings', url: '/admin/settings', icon: Settings },
@@ -43,6 +49,7 @@ const menuItems = [
 export function AppSidebar() {
   const { open } = useSidebar()
   const location = useLocation()
+  const navigate = useNavigate()
 
   const isActive = (path: string) => {
     if (path === '/admin') {
@@ -55,14 +62,17 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarContent>
         <div className="px-4 py-6">
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => navigate('/')}
+          >
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
               <Bus className="h-6 w-6 text-primary-foreground" />
             </div>
             {open && (
               <div>
                 <h2 className="text-lg font-semibold text-sidebar-foreground">
-                  Logo
+                  BusGo
                 </h2>
                 <p className="text-xs text-sidebar-foreground/70">
                   Admin Panel

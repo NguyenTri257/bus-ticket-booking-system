@@ -1,5 +1,8 @@
 const bookingService = require('../services/bookingService');
+const bookingRepository = require('../repositories/bookingRepository');
 const { mapToBooking } = require('../utils/helpers');
+const fs = require('fs');
+const path = require('path');
 const {
   createBookingSchema,
   cancelBookingSchema,
@@ -9,50 +12,83 @@ const {
 } = require('../validators/bookingValidators');
 
 class BookingController {
-    /**
-     * Idempotent internal confirm-payment endpoint for payment-service webhook
-     * POST /internal/:id/confirm-payment
-     */
-    async internalConfirmPayment(req, res) {
-      try {
-        const { id } = req.params;
-        const { paymentMethod, transactionRef, amount, paymentStatus } = req.body;
-        console.log('[internalConfirmPayment] Called with:', { id, paymentMethod, transactionRef, amount, paymentStatus });
-        // Confirm booking and update payment status (idempotent)
-        const booking = await bookingService.getBookingById(id, null);
-        console.log('[internalConfirmPayment] booking:', booking ? { booking_id: booking.booking_id, payment_status: booking.payment_status, status: booking.status, payment_method: booking.payment_method } : null);
-        if (!booking) {
-          console.warn('[internalConfirmPayment] Booking not found:', id);
-          return res.status(404).json({
-            success: false,
-            error: { code: 'BOOKING_003', message: 'Booking not found' },
-            timestamp: new Date().toISOString()
-          });
-        }
-        // Luôn gọi confirmBookingWithPayment để đảm bảo idempotent và luôn cập nhật payment info
-        console.log('[internalConfirmPayment] Calling confirmBookingWithPayment (idempotent)...', { id, paymentMethod, transactionRef, amount, paymentStatus });
-        const confirmedBooking = await bookingService.confirmBookingWithPayment(id, {
-          paymentMethod,
-          transactionRef,
-          amount,
-          paymentStatus: paymentStatus || 'paid'
-        });
-        console.log('[internalConfirmPayment] confirmBookingWithPayment result:', confirmedBooking ? { booking_id: confirmedBooking.booking_id, payment_status: confirmedBooking.payment_status, status: confirmedBooking.status, payment_method: confirmedBooking.payment_method } : null);
-        res.json({
-          success: true,
-          data: confirmedBooking,
-          message: 'Booking confirmed successfully. Ticket is being generated and will be emailed to you shortly.',
-          timestamp: new Date().toISOString()
-        });
-      } catch (error) {
-        console.error('⚠️ Internal confirm booking error:', error);
-        return res.status(500).json({
+  /**
+   * Idempotent internal confirm-payment endpoint for payment-service webhook
+   * POST /internal/:id/confirm-payment
+   */
+  async internalConfirmPayment(req, res) {
+    try {
+      const { id } = req.params;
+      const { paymentMethod, transactionRef, amount, paymentStatus } = req.body;
+      console.log('[internalConfirmPayment] Called with:', {
+        id,
+        paymentMethod,
+        transactionRef,
+        amount,
+        paymentStatus,
+      });
+      // Confirm booking and update payment status (idempotent)
+      const booking = await bookingService.getBookingById(id, null);
+      console.log(
+        '[internalConfirmPayment] booking:',
+        booking
+          ? {
+              booking_id: booking.booking_id,
+              payment_status: booking.payment_status,
+              status: booking.status,
+              payment_method: booking.payment_method,
+            }
+          : null
+      );
+      if (!booking) {
+        console.warn('[internalConfirmPayment] Booking not found:', id);
+        return res.status(404).json({
           success: false,
-          error: { code: 'SYS_001', message: 'Internal server error' },
-          timestamp: new Date().toISOString()
+          error: { code: 'BOOKING_003', message: 'Booking not found' },
+          timestamp: new Date().toISOString(),
         });
       }
+      // Luôn gọi confirmBookingWithPayment để đảm bảo idempotent và luôn cập nhật payment info
+      console.log('[internalConfirmPayment] Calling confirmBookingWithPayment (idempotent)...', {
+        id,
+        paymentMethod,
+        transactionRef,
+        amount,
+        paymentStatus,
+      });
+      const confirmedBooking = await bookingService.confirmBookingWithPayment(id, {
+        paymentMethod,
+        transactionRef,
+        amount,
+        paymentStatus: paymentStatus || 'paid',
+      });
+      console.log(
+        '[internalConfirmPayment] confirmBookingWithPayment result:',
+        confirmedBooking
+          ? {
+              booking_id: confirmedBooking.booking_id,
+              payment_status: confirmedBooking.payment_status,
+              status: confirmedBooking.status,
+              payment_method: confirmedBooking.payment_method,
+            }
+          : null
+      );
+      res.json({
+        success: true,
+        data: confirmedBooking,
+        message:
+          'Booking confirmed successfully. Ticket is being generated and will be emailed to you shortly.',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('⚠️ Internal confirm booking error:', error);
+      return res.status(500).json({
+        success: false,
+        error: { code: 'SYS_001', message: 'Internal server error' },
+        timestamp: new Date().toISOString(),
+      });
     }
+  }
   /**
    * Create a new booking
    * POST /bookings
@@ -79,7 +115,6 @@ class BookingController {
       console.log('[BookingController] req.user:', JSON.stringify(req.user, null, 2));
       console.log('[BookingController] extracted userId:', userId);
       console.log('[BookingController] booking data:', JSON.stringify(value, null, 2));
-
 
       // Nếu không có userId (guest), set isGuestCheckout = true
       if (!userId) {
@@ -473,9 +508,10 @@ class BookingController {
           paymentUrl: result.paymentUrl,
           qrCode: result.qrCode,
           data: result,
-          message: result.paymentUrl || result.qrCode
-            ? 'Thanh toán đã được khởi tạo. Vui lòng quét mã QR hoặc nhấn vào link để thanh toán.'
-            : 'Payment confirmed successfully',
+          message:
+            result.paymentUrl || result.qrCode
+              ? 'Thanh toán đã được khởi tạo. Vui lòng quét mã QR hoặc nhấn vào link để thanh toán.'
+              : 'Payment confirmed successfully',
         });
       } else {
         console.log('Guest thanh toán...');
@@ -485,9 +521,10 @@ class BookingController {
           paymentUrl: result.paymentUrl,
           qrCode: result.qrCode,
           data: result,
-          message: result.paymentUrl || result.qrCode
-            ? 'Thanh toán đã được khởi tạo. Vui lòng quét mã QR hoặc nhấn vào link để thanh toán.'
-            : 'Payment confirmed successfully',
+          message:
+            result.paymentUrl || result.qrCode
+              ? 'Thanh toán đã được khởi tạo. Vui lòng quét mã QR hoặc nhấn vào link để thanh toán.'
+              : 'Payment confirmed successfully',
         });
       }
     } catch (err) {
@@ -600,7 +637,8 @@ class BookingController {
       return res.json({
         success: true,
         data: result,
-        message: 'Booking cancelled successfully. Refund will be processed within 3-5 business days.',
+        message:
+          'Booking cancelled successfully. Refund will be processed within 3-5 business days.',
         timestamp: new Date().toISOString(),
       });
     } catch (err) {
@@ -656,37 +694,36 @@ class BookingController {
    */
   async getAllBookings(req, res) {
     try {
-      // Validate query parameters
-      // Validate query parameters
-      const { error, value } = getBookingsQuerySchema.validate(req.query);
-      if (error) {
-        console.error('[BookingController] Validation error:', error.details);
-        return res.status(422).json({
-          success: false,
-          error: {
-            code: 'VAL_001',
-            message: error.details.map((d) => d.message).join(', '),
-          },
-        });
-      }
+      const filters = {
+        page: parseInt(req.query.page) || 1,
+        limit: parseInt(req.query.limit) || 20,
+        status: req.query.status, // pending, confirmed, cancelled, completed
+        payment_status: req.query.payment_status, // unpaid, paid, refunded
+        fromDate: req.query.fromDate,
+        toDate: req.query.toDate,
+        sortBy: req.query.sortBy || 'created_at',
+        sortOrder: req.query.sortOrder || 'DESC',
+      };
 
-      // TODO: Implement admin get all bookings with validated filters
-      console.log('[BookingController] Admin getAllBookings - filters:', value);
+      console.log('[BookingController] Admin getAllBookings with filters:', filters);
+
+      const result = await bookingService.getAllBookingsAdmin(filters);
 
       return res.json({
         success: true,
-        data: [],
-        message: 'Admin endpoint - to be implemented',
+        data: result.bookings,
+        pagination: result.pagination,
+        timestamp: new Date().toISOString(),
       });
     } catch (err) {
-      console.error('Error getting all bookings:', err);
-
+      console.error('Error getting all bookings (admin):', err);
       return res.status(500).json({
         success: false,
         error: {
           code: 'SYS_001',
           message: 'Failed to retrieve bookings',
         },
+        timestamp: new Date().toISOString(),
       });
     }
   }
@@ -757,6 +794,205 @@ class BookingController {
         error: {
           code: 'SYS_001',
           message: 'Failed to share ticket',
+        },
+      });
+    }
+  }
+
+  /**
+   * Serve ticket PDF file by booking reference
+   * GET /:bookingReference/ticket
+   * Query params (for guests): email or phone
+   */
+  async serveTicket(req, res) {
+    try {
+      const { bookingReference } = req.params;
+      const { email, phone } = req.query; // For guest verification
+      const isAuthenticated = !!req.user; // Check if user is authenticated
+      const userId = req.user?.userId || req.user?.user_id;
+
+      console.log(
+        '[serveTicket] Request for:',
+        bookingReference,
+        'isAuthenticated:',
+        isAuthenticated,
+        'userId:',
+        userId,
+        'email:',
+        email,
+        'phone:',
+        phone
+      );
+
+      // Find booking by reference
+      const booking = await bookingRepository.findByReference(bookingReference);
+      if (!booking) {
+        console.log('[serveTicket] Booking not found:', bookingReference);
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'BOOK_002',
+            message: 'Booking not found',
+          },
+        });
+      }
+
+      console.log(
+        '[serveTicket] Found booking:',
+        booking.booking_reference,
+        'status:',
+        booking.status,
+        'contact_email:',
+        booking.contact_email,
+        'user_id:',
+        booking.user_id
+      );
+
+      // Check if booking is confirmed (has ticket)
+      if (booking.status !== 'confirmed') {
+        console.log('[serveTicket] Booking not confirmed:', booking.status);
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'BOOK_003',
+            message: 'Ticket not available - booking not confirmed',
+          },
+        });
+      }
+
+      // ===== SECURITY CHECK =====
+      // Case 1: Authenticated user (has valid JWT token)
+      if (isAuthenticated && userId) {
+        console.log('[serveTicket] Checking authenticated user ownership');
+        // Registered user: Check ownership
+        if (booking.user_id !== userId) {
+          console.log(
+            '[serveTicket] ❌ Ownership check failed: booking.user_id:',
+            booking.user_id,
+            'userId:',
+            userId
+          );
+          return res.status(403).json({
+            success: false,
+            error: {
+              code: 'AUTH_003',
+              message: 'Unauthorized to access this ticket',
+            },
+          });
+        }
+        console.log('[serveTicket] ✅ Ownership check passed');
+      }
+      // Case 2: Guest user (no token) - MUST provide email or phone verification
+      else if (!isAuthenticated) {
+        console.log('[serveTicket] Guest access - requiring email or phone verification');
+        // Guest: Require email or phone verification
+        if (!email && !phone) {
+          console.log('[serveTicket] ❌ Guest verification failed: no email or phone provided');
+          return res.status(401).json({
+            success: false,
+            error: {
+              code: 'AUTH_005',
+              message: 'Authentication required. Provide email or phone as query params.',
+            },
+          });
+        }
+        // Verify contact info matches booking
+        const contactMatch =
+          (email && booking.contact_email === email) || (phone && booking.contact_phone === phone);
+        if (!contactMatch) {
+          console.log(
+            '[serveTicket] ❌ Contact verification failed: provided email:',
+            email,
+            'phone:',
+            phone,
+            'booking.contact_email:',
+            booking.contact_email,
+            'booking.contact_phone:',
+            booking.contact_phone
+          );
+          return res.status(403).json({
+            success: false,
+            error: {
+              code: 'AUTH_003',
+              message: 'Contact information does not match booking records',
+            },
+          });
+        }
+        console.log('[serveTicket] ✅ Contact verification passed');
+      }
+
+      console.log('[serveTicket] Security check passed');
+
+      // Get ticket filename from booking data
+      let ticketFilename = booking.e_ticket?.filename;
+      if (!ticketFilename && booking.ticket_url) {
+        // Extract filename from ticket_url: /bookings/tickets/filename.pdf
+        const urlMatch = booking.ticket_url.match(/\/bookings\/tickets\/(.+)$/);
+        if (urlMatch) {
+          ticketFilename = urlMatch[1];
+        }
+      }
+      if (!ticketFilename) {
+        // Fallback: try pattern ticket-{reference}-{timestamp}.pdf
+        const ticketsDir = path.join(__dirname, '../../tickets');
+        if (fs.existsSync(ticketsDir)) {
+          const files = fs.readdirSync(ticketsDir);
+          const matchingFile = files.find(
+            (file) => file.startsWith(`ticket-${bookingReference}-`) && file.endsWith('.pdf')
+          );
+          if (matchingFile) {
+            ticketFilename = matchingFile;
+          }
+        }
+      }
+      if (!ticketFilename) {
+        ticketFilename = `${bookingReference}.pdf`;
+      }
+
+      console.log('[serveTicket] Ticket filename:', ticketFilename);
+
+      const ticketPath = path.join(__dirname, '../../tickets', ticketFilename);
+
+      // Check if file exists
+      if (!fs.existsSync(ticketPath)) {
+        console.warn(`Ticket file not found: ${ticketPath}`);
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'FILE_001',
+            message: 'Ticket file not found',
+          },
+        });
+      }
+
+      console.log('[serveTicket] Serving file:', ticketPath);
+
+      // Serve the PDF file
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${bookingReference}-ticket.pdf"`);
+
+      const fileStream = fs.createReadStream(ticketPath);
+      fileStream.pipe(res);
+
+      fileStream.on('error', (error) => {
+        console.error('Error streaming ticket file:', error);
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            error: {
+              code: 'SYS_001',
+              message: 'Error serving ticket file',
+            },
+          });
+        }
+      });
+    } catch (error) {
+      console.error('Error serving ticket:', error);
+      res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYS_001',
+          message: 'Failed to serve ticket',
         },
       });
     }
@@ -899,6 +1135,296 @@ class BookingController {
         error: {
           code: 'SYS_001',
           message: 'Failed to modify booking',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  // ==================== ADMIN METHODS ====================
+
+  /**
+   * Get booking details by ID (Admin only)
+   * GET /admin/bookings/:id
+   */
+  async getBookingDetailsAdmin(req, res) {
+    try {
+      const { id } = req.params;
+
+      const booking = await bookingService.getBookingByIdAdmin(id);
+
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'BOOK_002',
+            message: 'Booking not found',
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: booking,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Error getting booking details (admin):', err);
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYS_001',
+          message: 'Failed to retrieve booking details',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Update booking status (Admin only)
+   * PUT /admin/bookings/:id/status
+   * Body: { status: "confirmed" | "cancelled" | "completed" }
+   */
+  async updateBookingStatus(req, res) {
+    try {
+      const { id } = req.params;
+      const { status } = req.body;
+
+      // Validate status
+      const validStatuses = ['confirmed', 'cancelled', 'completed'];
+      if (!status || !validStatuses.includes(status)) {
+        return res.status(422).json({
+          success: false,
+          error: {
+            code: 'VAL_001',
+            message: 'Invalid status. Must be one of: confirmed, cancelled, completed',
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const updatedBooking = await bookingService.updateBookingStatusAdmin(id, status);
+
+      if (!updatedBooking) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'BOOK_002',
+            message: 'Booking not found',
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      return res.json({
+        success: true,
+        data: updatedBooking,
+        message: `Booking status updated to ${status}`,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Error updating booking status (admin):', err);
+
+      if (err.message.includes('Cannot update status')) {
+        return res.status(409).json({
+          success: false,
+          error: {
+            code: 'BOOK_006',
+            message: err.message,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYS_001',
+          message: 'Failed to update booking status',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Process refund for a booking (Admin only)
+   * POST /admin/bookings/:id/refund
+   * Body: { refundAmount: number, reason: string }
+   */
+  async processRefundAdmin(req, res) {
+    try {
+      const { id } = req.params;
+      const { refundAmount, reason } = req.body;
+
+      // Parse refundAmount to ensure it's a number
+      const numericRefundAmount = parseFloat(refundAmount);
+
+      if (!numericRefundAmount || numericRefundAmount <= 0) {
+        return res.status(422).json({
+          success: false,
+          error: {
+            code: 'VAL_001',
+            message: 'Invalid refund amount - must be a positive number',
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const result = await bookingService.processRefundAdmin(id, numericRefundAmount, reason);
+
+      return res.json({
+        success: true,
+        data: result,
+        message: 'Refund processed successfully',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Error processing refund (admin):', err);
+
+      if (err.message.includes('not found')) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'BOOK_002',
+            message: 'Booking not found',
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (err.message.includes('already refunded')) {
+        return res.status(409).json({
+          success: false,
+          error: {
+            code: 'BOOK_007',
+            message: err.message,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYS_001',
+          message: 'Failed to process refund',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Process bulk refund for all confirmed bookings of a trip (Admin only)
+   * POST /admin/trips/:tripId/bulk-refund
+   * Body: { reason: string }
+   */
+  async processBulkRefundForTrip(req, res) {
+    try {
+      const { tripId } = req.params;
+      const { reason } = req.body;
+
+      if (!tripId) {
+        return res.status(422).json({
+          success: false,
+          error: {
+            code: 'VAL_001',
+            message: 'Trip ID is required',
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const result = await bookingService.processBulkRefundForTrip(tripId, reason);
+
+      return res.json({
+        success: true,
+        data: result,
+        message: 'Bulk refund processed successfully',
+        timestamp: new Date().toISOString(),
+      });
+    } catch (err) {
+      console.error('Error processing bulk refund:', err);
+
+      if (err.message.includes('not found')) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'TRIP_001',
+            message: 'Trip not found or no bookings to refund',
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYS_001',
+          message: 'Failed to process bulk refund',
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  /**
+   * Update passenger boarding status (Admin only)
+   * PATCH /admin/passengers/:ticketId/boarding-status
+   */
+  async updatePassengerBoardingStatus(req, res) {
+    try {
+      const { ticketId } = req.params;
+      const { boarding_status } = req.body;
+      const adminId = req.user?.user_id; // From auth middleware
+
+      // Validate boarding status
+      const validStatuses = ['not_boarded', 'boarded', 'no_show'];
+      if (!validStatuses.includes(boarding_status)) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VAL_001',
+            message: 'Invalid boarding status. Must be: not_boarded, boarded, or no_show',
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Update boarding status
+      const updatedPassenger = await bookingService.updatePassengerBoardingStatus(
+        ticketId,
+        boarding_status,
+        adminId
+      );
+
+      if (!updatedPassenger) {
+        return res.status(404).json({
+          success: false,
+          error: {
+            code: 'PASSENGER_001',
+            message: 'Passenger not found',
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      res.json({
+        success: true,
+        data: updatedPassenger,
+        message: `Passenger boarding status updated to ${boarding_status}`,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error('⚠️ Update passenger boarding status error:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          code: 'SYS_001',
+          message: 'Failed to update passenger boarding status',
         },
         timestamp: new Date().toISOString(),
       });

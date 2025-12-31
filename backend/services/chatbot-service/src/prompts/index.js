@@ -73,9 +73,9 @@ Now extract from this message:`;
 const INTENT_CLASSIFICATION_PROMPT = `You are a bus ticket booking chatbot intent classifier. Analyze the user's message and conversation context to determine their intent.
 
 INTENT DEFINITIONS:
-- search_trips: User wants to find/search for available bus trips (asking about routes, dates, times)
+- search_trips: User wants to find/search for available bus trips (asking about routes, dates, times). Use this when user mentions origin, destination, and/or date WITHOUT having search results already available.
 - select_seats: User is selecting/choosing specific seat(s) for a trip (after trip is already selected)
-- book_trip: User wants to book a trip - includes selecting trips or completing payment
+- book_trip: User wants to book a trip - ONLY when they are selecting from EXISTING search results, choosing numbered trip options, or completing payment. NOT for initial requests.
 - provide_passenger_info: User is providing passenger information (name, ID, phone, email) during booking flow
 - ask_faq: User has GENERAL questions about policies, services, rules, processes, or wants to talk to human support. Includes questions like "What is...", "How does...", "Can I...", "I want to talk to a human"
 - modify_booking: User wants to MODIFY/CHANGE an EXISTING SPECIFIC booking they already have (must have booking reference)
@@ -103,6 +103,12 @@ CRITICAL CONTEXT RULES (Most Important):
 2. If last chatbot message asked "Select dropoff point" → user response is BOOK_TRIP (selecting dropoff)
 3. If last chatbot message asked "Select seat(s)" → user response is SELECT_SEATS
 4. If last chatbot message asked "Provide passenger info" → user response is PROVIDE_PASSENGER_INFO
+5. If last chatbot message shows trip search results with "Available Trips" → user selecting a trip is BOOK_TRIP
+6. If NO previous search results exist and user mentions origin + destination + date → SEARCH_TRIPS (they need to search first!)
+
+IMPORTANT: "Tôi muốn đặt chuyến từ X đến Y" or "I want to book a trip from X to Y":
+- If NO trip search results in conversation history → SEARCH_TRIPS (must search first!)
+- If trip search results already shown → BOOK_TRIP (selecting from results)
 
 CONTINUATION MESSAGE HANDLING (VERY IMPORTANT):
 When user says "Continue", "Confirm", "Next", "Proceed", "OK", "Yes", "Let's go" etc.:
@@ -146,10 +152,17 @@ EXAMPLE CONTEXT SCENARIOS:
 PATTERN-BASED RULES (Secondary):
 1. PASSENGER INFO: Format "Name, DocumentID, Phone" or with email → provide_passenger_info
 2. SEAT CODES: A1, B2, C3 or "select seat(s)" → select_seats
-3. TRIP SELECTION: "trip #1", "chuyến #2", "book trip #3" → book_trip
-4. SEARCH: "from X to Y", "HCM to Dalat", "where can I go" → search_trips ONLY if NOT responding to previous numbered options
+3. TRIP SELECTION: "trip #1", "chuyến #2", "book trip #3" → book_trip (ONLY when selecting from shown results!)
+4. INITIAL BOOKING REQUEST: "Tôi muốn đặt chuyến từ X đến Y vào ngày Z" WITHOUT previous search results → search_trips
+5. SEARCH PHRASES: "from X to Y", "HCM to Dalat", "tìm chuyến", "search for", "where can I go" → search_trips
 
 Examples:
+Context: [No previous messages or no search results]
+"Tôi muốn đặt một chuyến đi từ Hồ Chí Minh đến Đà Lạt vào ngày 15/01/2026" → {"intent": "search_trips", "confidence": 0.95, "reason": "Initial booking request without search results - must search first"}
+
+Context: [Trip search results shown with "Available Trips"]
+"Đặt chuyến đầu tiên" or "Book first trip" → {"intent": "book_trip", "confidence": 0.95, "reason": "Selecting from shown search results"}
+
 Context: [Previous message showed "Select pickup point"]
 "1. Ho Chi Minh City - District 1 Office" → {"intent": "book_trip", "confidence": 0.95}
 
@@ -158,8 +171,6 @@ Context: [Previous message showed numbered dropoff options]
 
 "Nguyễn Văn A, 32123456789, 0987654321" → {"intent": "provide_passenger_info", "confidence": 0.95}
 "A1 A2 B3" → {"intent": "select_seats", "confidence": 0.95}
-"Book trip #3" → {"intent": "book_trip", "confidence": 0.95}
-"from hcm to dalat" → {"intent": "search_trips", "confidence": 0.95}
 
 Return ONLY valid JSON with no additional text:
 {

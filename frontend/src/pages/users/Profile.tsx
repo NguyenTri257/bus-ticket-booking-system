@@ -7,13 +7,16 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useState as useLocalState } from 'react'
 import { Label } from '@/components/ui/label'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState /*useCallback*/ } from 'react'
 import defaultAvatar from '@/assets/default-avatar.jpg'
 import {
-  updateUserProfile,
-  getUserProfile,
+  // updateUserProfile, // CŨ: gọi auth-service, chỉ dùng cho noti hoặc các bên khác
+  // getUserProfile,    // CŨ: gọi auth-service, chỉ dùng cho noti hoặc các bên khác
   changeUserPassword,
+  updateUserProfileUserService, // MỚI: gọi user-service cho profile
+  getUserProfileUserService, // MỚI: gọi user-service cho profile
 } from '@/api/userProfileApi'
+import type { UserProfile } from '@/api/userProfileApi'
 
 const Profile = () => {
   // State cho hiển thị mật khẩu
@@ -83,33 +86,39 @@ const Profile = () => {
   }
 
   const [isEditing, setIsEditing] = useState(false)
-  interface Preferences {
-    language: string
-    currency: string
-    notifications: {
-      bookingConfirmations: { email: boolean; sms: boolean }
-      tripReminders: { email: boolean; sms: boolean }
-      tripUpdates: { email: boolean; sms: boolean }
-      promotionalEmails: boolean
-    }
-  }
+  // interface Preferences {
+  //   language: string
+  //   currency: string
+  //   notifications: {
+  //     bookingConfirmations: { email: boolean; sms: boolean }
+  //     tripReminders: { email: boolean; sms: boolean }
+  //     tripUpdates: { email: boolean; sms: boolean }
+  //     promotionalEmails: boolean
+  //   }
+  // }
 
-  const safePreferences = useCallback(
-    (raw: Preferences | undefined): Preferences => {
-      return {
-        language: raw?.language || 'vi',
-        currency: raw?.currency || 'VND',
-        notifications: raw?.notifications,
-      }
-    },
-    []
-  )
+  // Đảm bảo luôn trả về notifications hợp lệ, không undefined
+  // const safePreferences = useCallback(
+  //   (raw: Preferences | undefined): Preferences => {
+  //     return {
+  //       language: raw?.language || 'vi',
+  //       currency: raw?.currency || 'VND',
+  //       notifications: raw?.notifications || {
+  //         bookingConfirmations: { email: true, sms: false },
+  //         tripReminders: { email: true, sms: false },
+  //         tripUpdates: { email: true, sms: false },
+  //         promotionalEmails: false,
+  //       },
+  //     }
+  //   },
+  //   []
+  // )
   const [form, setForm] = useState({
     fullName: user?.fullName || '',
     email: user?.email || '',
     phone: user?.phone || '',
     avatar: user?.avatar || '',
-    preferences: safePreferences(user?.preferences as Preferences | undefined),
+    // preferences: safePreferences(user?.preferences as Preferences | undefined),
   })
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [message, setMessage] = useState<{
@@ -125,12 +134,10 @@ const Profile = () => {
       email: user?.email || '',
       phone: user?.phone || '',
       avatar: user?.avatar || '',
-      preferences: safePreferences(
-        user?.preferences as Preferences | undefined
-      ),
+      // preferences: safePreferences(user?.preferences as Preferences | undefined),
     })
-  }, [user, safePreferences])
-
+    //}, [user, safePreferences])
+  }, [user])
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
@@ -166,9 +173,9 @@ const Profile = () => {
       email: user?.email || '',
       phone: user?.phone || '',
       avatar: user?.avatar || '',
-      preferences: safePreferences(
-        user?.preferences as Preferences | undefined
-      ),
+      // preferences: safePreferences(
+      //   user?.preferences as Preferences | undefined
+      // ),
     })
     setIsEditing(false)
     setAvatarFile(null)
@@ -195,6 +202,27 @@ const Profile = () => {
     }
     try {
       // ⚠️ KHÔNG gửi preferences - chỉ gửi fullName, phone, avatar
+      // const payload: {
+      //   fullName: string
+      //   phone: string
+      //   avatar?: File
+      //   preferences: Preferences // CŨ: có preferences, đã comment lại
+      // } = {
+      //   fullName: form.fullName,
+      //   phone: form.phone,
+      //   preferences: form.preferences,
+      // }
+      // CŨ: Gửi base64/avatar url
+      // const payload: {
+      //   fullName: string
+      //   phone: string
+      //   avatar?: string // base64 hoặc url
+      // } = {
+      //   fullName: form.fullName,
+      //   phone: form.phone,
+      //   avatar: avatarBase64,
+      // }
+      // MỚI: Gửi file qua FormData nếu có avatarFile
       const payload: {
         fullName: string
         phone: string
@@ -206,22 +234,25 @@ const Profile = () => {
       if (avatarFile) {
         payload.avatar = avatarFile
       }
-      const res = await updateUserProfile(payload)
-      await updateUser()
-      // Lấy lại profile mới nhất từ backend và đồng bộ lại form
-      const latestProfile = await getUserProfile()
+      await updateUserProfileUserService(
+        payload as Partial<UserProfile> & { avatar?: File }
+      )
+      const latestProfile = await getUserProfileUserService()
       setForm({
         fullName: latestProfile.fullName || '',
         email: latestProfile.email || '',
         phone: latestProfile.phone || '',
         avatar: latestProfile.avatar || '',
-        preferences: safePreferences(
-          latestProfile?.preferences as Preferences | undefined
-        ),
+        // preferences: safePreferences(
+        //   latestProfile?.preferences as Preferences | undefined
+        // ),
       })
+      // Đồng bộ lại context user để avatar mới hiển thị khi reload
+      await updateUser()
       setMessage({
         type: 'success',
-        text: res.message || 'Profile updated successfully!',
+        // text: res.message || 'Profile updated successfully!', // CŨ: dùng res, đã comment lại vì không còn res
+        text: 'Profile updated successfully!',
       })
       setIsEditing(false)
       setAvatarFile(null)

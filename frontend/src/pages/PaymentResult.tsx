@@ -241,7 +241,12 @@ const PaymentResult: React.FC = () => {
           console.error('[PaymentResult] Error confirming payment:', err)
         })
     }
-  }, [bookingId, paymentResult.resultCode, paymentResult.orderId, paymentResult.amount])
+  }, [
+    bookingId,
+    paymentResult.resultCode,
+    paymentResult.orderId,
+    paymentResult.amount,
+  ])
 
   if (!bookingId) {
     return (

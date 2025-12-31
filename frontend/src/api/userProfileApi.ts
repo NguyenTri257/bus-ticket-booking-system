@@ -40,7 +40,7 @@ interface UserPreferences {
   }
 }
 
-interface UserProfile {
+export interface UserProfile {
   userId: string | number
   email: string
   phone: string
@@ -114,5 +114,77 @@ export const getDefaultPreferences = (): UserPreferences => {
       tripUpdates: { email: true, sms: false },
       promotionalEmails: false,
     },
+  }
+}
+
+// ===== User Service APIs (profile) =====
+/**
+ * Get current user's profile (user-service)
+ */
+export const getUserProfileUserService = async (): Promise<UserProfile> => {
+  try {
+    const response = await request('/users/profile', { method: 'GET' })
+    return response.data || response
+  } catch (error) {
+    console.error('Error fetching user profile (user-service):', error)
+    throw error
+  }
+}
+
+/**
+ * Update user's profile (user-service)
+ */
+// CŨ: Gửi JSON (base64 hoặc url)
+// export const updateUserProfileUserService = async (
+//   profileData: Partial<UserProfile>
+// ): Promise<UserProfile> => {
+//   try {
+//     const body = { ...profileData }
+//     const response = await request('/users/profile', {
+//       method: 'PUT',
+//       body,
+//     })
+//     return response.data || response
+//   } catch (error) {
+//     console.error('Error updating user profile (user-service):', error)
+//     throw error
+//   }
+// }
+
+// MỚI: Gửi FormData nếu có avatarFile (file), còn lại gửi JSON như cũ
+import { requestFormData } from './auth'
+export const updateUserProfileUserService = async (
+  profileData: Partial<UserProfile> & { avatar?: File }
+): Promise<UserProfile> => {
+  try {
+    // Fix: Check if File is defined and avatar is a File
+    // Type guard: check if avatar is a File (for environments where instanceof may fail)
+    // Type guard: check if avatar is a File without using 'any' or 'instanceof'
+    const isFile =
+      profileData.avatar &&
+      typeof profileData.avatar === 'object' &&
+      Object.prototype.toString.call(profileData.avatar) === '[object File]'
+    if (isFile) {
+      const formData = new FormData()
+      formData.append('fullName', profileData.fullName || '')
+      formData.append('phone', profileData.phone || '')
+      formData.append('avatar', profileData.avatar as File)
+      const response = await requestFormData('/users/profile', {
+        method: 'PUT',
+        body: formData,
+      })
+      return response.data || response
+    } else {
+      // fallback: gửi JSON nếu không có file (giữ lại cho các trường hợp không upload ảnh)
+      const body = { ...profileData }
+      const response = await request('/users/profile', {
+        method: 'PUT',
+        body,
+      })
+      return response.data || response
+    }
+  } catch (error) {
+    console.error('Error updating user profile (user-service):', error)
+    throw error
   }
 }

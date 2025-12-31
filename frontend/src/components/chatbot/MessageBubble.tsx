@@ -511,7 +511,9 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
       // If amount is not provided or is 0, fetch it from booking
       let amount = paymentData.amount || 0
       if (amount === 0) {
-        console.log('[PaymentMethodSelector] Amount is 0, fetching from booking...')
+        console.log(
+          '[PaymentMethodSelector] Amount is 0, fetching from booking...'
+        )
         const bookingResponse = await fetch(
           `${API_BASE_URL}/bookings/${paymentData.bookingId}/guest`,
           {
@@ -520,8 +522,14 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         )
         if (bookingResponse.ok) {
           const bookingData = await bookingResponse.json()
-          amount = bookingData.data?.pricing?.total || bookingData.data?.total_price || 0
-          console.log('[PaymentMethodSelector] Fetched amount from booking:', amount)
+          amount =
+            bookingData.data?.pricing?.total ||
+            bookingData.data?.total_price ||
+            0
+          console.log(
+            '[PaymentMethodSelector] Fetched amount from booking:',
+            amount
+          )
         }
       }
 

@@ -1,6 +1,5 @@
 // Profile.tsx
 import { useAuth } from '@/context/AuthContext' // Thêm dòng này
-import { DashboardLayout } from '../../components/users/DashboardLayout'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -163,19 +162,6 @@ const Profile = () => {
       },
     }))
   }
-  const handleNotifChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target
-    setForm((prev) => ({
-      ...prev,
-      preferences: {
-        ...prev.preferences,
-        notifications: {
-          ...prev.preferences.notifications,
-          [name]: checked,
-        },
-      },
-    }))
-  }
 
   // Xử lý upload avatar qua API backend
   // Chỉ lưu file vào state, upload khi Save
@@ -288,329 +274,288 @@ const Profile = () => {
   }
 
   return (
-    <DashboardLayout>
-      <div className="max-w-2xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Profile</h1>
-          <p className="text-muted-foreground">
-            Manage your account information
-          </p>
-        </div>
-        <Card className="p-6">
-          <div className="space-y-6">
-            {message && (
-              <div
-                className={`p-2 rounded text-sm ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-              >
-                {message.text}
-              </div>
-            )}
-            {/* Avatar */}
-            <div className="space-y-2 flex flex-col items-center">
-              <Label>Avatar</Label>
-              <img
-                src={form.avatar || defaultAvatar}
-                alt="avatar"
-                className="w-24 h-24 rounded-full object-cover border"
+    <div className="max-w-2xl">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-foreground mb-2">Profile</h1>
+        <p className="text-muted-foreground">Manage your account information</p>
+      </div>
+      <Card className="p-6">
+        <div className="space-y-6">
+          {message && (
+            <div
+              className={`p-2 rounded text-sm ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+            >
+              {message.text}
+            </div>
+          )}
+          {/* Avatar */}
+          <div className="space-y-2 flex flex-col items-center">
+            <Label>Avatar</Label>
+            <img
+              src={form.avatar || defaultAvatar}
+              alt="avatar"
+              className="w-24 h-24 rounded-full object-cover border"
+            />
+            {isEditing && (
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                disabled={saving}
               />
-              {isEditing && (
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  disabled={saving}
-                />
-              )}
-            </div>
-            {/* Full Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              {isEditing ? (
-                <Input
-                  id="name"
-                  name="fullName"
-                  value={form.fullName}
-                  onChange={handleChange}
-                  disabled={saving}
-                />
-              ) : (
-                <div className="py-2 px-3 bg-muted rounded">
-                  {form.fullName}
-                </div>
-              )}
-            </div>
-            {/* Email */}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              {isEditing ? (
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={form.email}
-                  readOnly
-                  className="opacity-70 cursor-not-allowed"
-                  disabled
-                />
-              ) : (
-                <div className="py-2 px-3 bg-muted rounded">{form.email}</div>
-              )}
-            </div>
-            {/* Phone */}
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              {isEditing ? (
-                <Input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  value={form.phone}
-                  onChange={handleChange}
-                  disabled={saving}
-                />
-              ) : (
-                <div className="py-2 px-3 bg-muted rounded">{form.phone}</div>
-              )}
-            </div>
-            {/* Preferences */}
-            <div className="space-y-2">
-              <Label>Preferences</Label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Language */}
-                <div className="flex flex-col">
-                  <span className="mb-1 font-medium">Language</span>
-                  {isEditing ? (
-                    <select
-                      id="language"
-                      name="language"
-                      value={form.preferences.language}
-                      onChange={handlePrefChange}
-                      className="border rounded px-2 py-1 mt-1"
-                      disabled={saving}
-                    >
-                      {LANGUAGES.map((lang) => (
-                        <option key={lang.value} value={lang.value}>
-                          {lang.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="py-2 px-3 bg-muted rounded inline-block mt-1">
-                      {LANGUAGES.find(
-                        (l) => l.value === form.preferences.language
-                      )?.label || form.preferences.language}
-                    </div>
-                  )}
-                </div>
-                {/* Currency */}
-                <div className="flex flex-col">
-                  <span className="mb-1 font-medium">Currency</span>
-                  {isEditing ? (
-                    <select
-                      id="currency"
-                      name="currency"
-                      value={form.preferences.currency}
-                      onChange={handlePrefChange}
-                      className="border rounded px-2 py-1 mt-1"
-                      disabled={saving}
-                    >
-                      {CURRENCIES.map((cur) => (
-                        <option key={cur.value} value={cur.value}>
-                          {cur.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="py-2 px-3 bg-muted rounded inline-block mt-1">
-                      {form.preferences.currency}
-                    </div>
-                  )}
-                </div>
-                {/* Notifications */}
-                <div className="flex flex-col">
-                  <span className="mb-1 font-medium">Notifications</span>
-                  <div className="flex flex-col gap-1 mt-1">
-                    {(
-                      ['email', 'sms', 'push'] as Array<
-                        keyof typeof form.preferences.notifications
-                      >
-                    ).map((type) => (
-                      <label key={type} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          name={type}
-                          checked={!!form.preferences.notifications[type]}
-                          onChange={handleNotifChange}
-                          disabled={!isEditing || saving}
-                        />
-                        {type.toUpperCase()}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* Action buttons */}
-            <div className="flex gap-3 pt-4">
-              {isEditing ? (
-                <>
-                  <Button onClick={handleSave} disabled={saving}>
-                    {saving ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleCancel}
-                    disabled={saving}
-                  >
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button onClick={handleEdit}>Edit</Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => setShowChangePassword((v) => !v)}
-                  >
-                    Change Password
-                  </Button>
-                </>
-              )}
-            </div>
-
-            {/* Global password message (thành công) */}
-            {globalPwMessage && (
-              <div
-                className={`p-2 rounded text-sm mb-4 ${globalPwMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-              >
-                {globalPwMessage.text}
-              </div>
-            )}
-            {/* Change Password Form */}
-            {showChangePassword && (
-              <form
-                className="mt-6 space-y-4 max-w-md"
-                onSubmit={handlePwSubmit}
-              >
-                <h2 className="text-lg font-semibold">Change Password</h2>
-                {pwMessage && (
-                  <div
-                    className={`p-2 rounded text-sm ${pwMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-                  >
-                    {pwMessage.text}
-                  </div>
-                )}
-                <div>
-                  <Label htmlFor="currentPassword">Current Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="currentPassword"
-                      name="currentPassword"
-                      type={showCurrentPw ? 'text' : 'password'}
-                      value={pwForm.currentPassword}
-                      onChange={handlePwChange}
-                      disabled={pwSaving}
-                      onFocus={() => setShowCurrentPw(showCurrentPw)}
-                    />
-                    {(pwForm.currentPassword ||
-                      document.activeElement?.id === 'currentPassword') && (
-                      <button
-                        type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
-                        tabIndex={-1}
-                        onClick={() => setShowCurrentPw((v) => !v)}
-                        aria-label={
-                          showCurrentPw ? 'Hide password' : 'Show password'
-                        }
-                      >
-                        {showCurrentPw ? (
-                          <EyeOff size={18} />
-                        ) : (
-                          <Eye size={18} />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="newPassword">New Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="newPassword"
-                      name="newPassword"
-                      type={showNewPw ? 'text' : 'password'}
-                      value={pwForm.newPassword}
-                      onChange={handlePwChange}
-                      disabled={pwSaving}
-                      onFocus={() => setShowNewPw(showNewPw)}
-                    />
-                    {(pwForm.newPassword ||
-                      document.activeElement?.id === 'newPassword') && (
-                      <button
-                        type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
-                        tabIndex={-1}
-                        onClick={() => setShowNewPw((v) => !v)}
-                        aria-label={
-                          showNewPw ? 'Hide password' : 'Show password'
-                        }
-                      >
-                        {showNewPw ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                  <div className="relative">
-                    <Input
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      type={showConfirmPw ? 'text' : 'password'}
-                      value={pwForm.confirmPassword}
-                      onChange={handlePwChange}
-                      disabled={pwSaving}
-                      onFocus={() => setShowConfirmPw(showConfirmPw)}
-                    />
-                    {(pwForm.confirmPassword ||
-                      document.activeElement?.id === 'confirmPassword') && (
-                      <button
-                        type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
-                        tabIndex={-1}
-                        onClick={() => setShowConfirmPw((v) => !v)}
-                        aria-label={
-                          showConfirmPw ? 'Hide password' : 'Show password'
-                        }
-                      >
-                        {showConfirmPw ? (
-                          <EyeOff size={18} />
-                        ) : (
-                          <Eye size={18} />
-                        )}
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <Button type="submit" disabled={pwSaving}>
-                    {pwSaving ? 'Changing...' : 'Change Password'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowChangePassword(false)}
-                    disabled={pwSaving}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </form>
             )}
           </div>
-        </Card>
-      </div>
-    </DashboardLayout>
+          {/* Full Name */}
+          <div className="space-y-2">
+            <Label htmlFor="name">Full Name</Label>
+            {isEditing ? (
+              <Input
+                id="name"
+                name="fullName"
+                value={form.fullName}
+                onChange={handleChange}
+                disabled={saving}
+              />
+            ) : (
+              <div className="py-2 px-3 bg-muted rounded">{form.fullName}</div>
+            )}
+          </div>
+          {/* Email */}
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            {isEditing ? (
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                value={form.email}
+                readOnly
+                className="opacity-70 cursor-not-allowed"
+                disabled
+              />
+            ) : (
+              <div className="py-2 px-3 bg-muted rounded">{form.email}</div>
+            )}
+          </div>
+          {/* Phone */}
+          <div className="space-y-2">
+            <Label htmlFor="phone">Phone Number</Label>
+            {isEditing ? (
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                value={form.phone}
+                onChange={handleChange}
+                disabled={saving}
+              />
+            ) : (
+              <div className="py-2 px-3 bg-muted rounded">{form.phone}</div>
+            )}
+          </div>
+          {/* Preferences */}
+          <div className="space-y-2">
+            <Label>Preferences</Label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Language */}
+              <div className="flex flex-col">
+                <span className="mb-1 font-medium">Language</span>
+                {isEditing ? (
+                  <select
+                    id="language"
+                    name="language"
+                    value={form.preferences.language}
+                    onChange={handlePrefChange}
+                    className="border rounded px-2 py-1 mt-1"
+                    disabled={saving}
+                  >
+                    {LANGUAGES.map((lang) => (
+                      <option key={lang.value} value={lang.value}>
+                        {lang.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="py-2 px-3 bg-muted rounded inline-block mt-1">
+                    {LANGUAGES.find(
+                      (l) => l.value === form.preferences.language
+                    )?.label || form.preferences.language}
+                  </div>
+                )}
+              </div>
+              {/* Currency */}
+              <div className="flex flex-col">
+                <span className="mb-1 font-medium">Currency</span>
+                {isEditing ? (
+                  <select
+                    id="currency"
+                    name="currency"
+                    value={form.preferences.currency}
+                    onChange={handlePrefChange}
+                    className="border rounded px-2 py-1 mt-1"
+                    disabled={saving}
+                  >
+                    {CURRENCIES.map((cur) => (
+                      <option key={cur.value} value={cur.value}>
+                        {cur.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="py-2 px-3 bg-muted rounded inline-block mt-1">
+                    {form.preferences.currency}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          {/* Action buttons */}
+          <div className="flex gap-3 pt-4">
+            {isEditing ? (
+              <>
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleCancel}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button onClick={handleEdit}>Edit</Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => setShowChangePassword((v) => !v)}
+                >
+                  Change Password
+                </Button>
+              </>
+            )}
+          </div>
+
+          {/* Global password message (thành công) */}
+          {globalPwMessage && (
+            <div
+              className={`p-2 rounded text-sm mb-4 ${globalPwMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+            >
+              {globalPwMessage.text}
+            </div>
+          )}
+          {/* Change Password Form */}
+          {showChangePassword && (
+            <form className="mt-6 space-y-4 max-w-md" onSubmit={handlePwSubmit}>
+              <h2 className="text-lg font-semibold">Change Password</h2>
+              {pwMessage && (
+                <div
+                  className={`p-2 rounded text-sm ${pwMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                >
+                  {pwMessage.text}
+                </div>
+              )}
+              <div>
+                <Label htmlFor="currentPassword">Current Password</Label>
+                <div className="relative">
+                  <Input
+                    id="currentPassword"
+                    name="currentPassword"
+                    type={showCurrentPw ? 'text' : 'password'}
+                    value={pwForm.currentPassword}
+                    onChange={handlePwChange}
+                    disabled={pwSaving}
+                    onFocus={() => setShowCurrentPw(showCurrentPw)}
+                  />
+                  {(pwForm.currentPassword ||
+                    document.activeElement?.id === 'currentPassword') && (
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                      tabIndex={-1}
+                      onClick={() => setShowCurrentPw((v) => !v)}
+                      aria-label={
+                        showCurrentPw ? 'Hide password' : 'Show password'
+                      }
+                    >
+                      {showCurrentPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="newPassword">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    name="newPassword"
+                    type={showNewPw ? 'text' : 'password'}
+                    value={pwForm.newPassword}
+                    onChange={handlePwChange}
+                    disabled={pwSaving}
+                    onFocus={() => setShowNewPw(showNewPw)}
+                  />
+                  {(pwForm.newPassword ||
+                    document.activeElement?.id === 'newPassword') && (
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                      tabIndex={-1}
+                      onClick={() => setShowNewPw((v) => !v)}
+                      aria-label={showNewPw ? 'Hide password' : 'Show password'}
+                    >
+                      {showNewPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type={showConfirmPw ? 'text' : 'password'}
+                    value={pwForm.confirmPassword}
+                    onChange={handlePwChange}
+                    disabled={pwSaving}
+                    onFocus={() => setShowConfirmPw(showConfirmPw)}
+                  />
+                  {(pwForm.confirmPassword ||
+                    document.activeElement?.id === 'confirmPassword') && (
+                    <button
+                      type="button"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                      tabIndex={-1}
+                      onClick={() => setShowConfirmPw((v) => !v)}
+                      aria-label={
+                        showConfirmPw ? 'Hide password' : 'Show password'
+                      }
+                    >
+                      {showConfirmPw ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button type="submit" disabled={pwSaving}>
+                  {pwSaving ? 'Changing...' : 'Change Password'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowChangePassword(false)}
+                  disabled={pwSaving}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          )}
+        </div>
+      </Card>
+    </div>
   )
 }
 

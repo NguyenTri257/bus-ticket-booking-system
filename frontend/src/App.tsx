@@ -19,6 +19,7 @@ import Notifications from './pages/users/Notifications'
 import TripSearch from './pages/users/TripSearch'
 import { AuthProvider } from '@/context/AuthContext'
 import { PassengerRoute, AdminRoute } from '@/components/ProtectedRoute'
+import { DashboardLayout } from '@/components/users/DashboardLayout'
 import AdminDashboard from '@/pages/admin/Dashboard'
 import AdminTripScheduling from '@/pages/admin/AdminTripScheduling'
 import AdminRouteManagement from '@/pages/admin/AdminRouteManagement'
@@ -119,7 +120,14 @@ const App = () => (
                   <Route path="/dashboard" element={<Dashboard />} />{' '}
                   {/* Passenger Dashboard */}
                   <Route path="/dashboard/history" element={<History />} />
-                  <Route path="/dashboard/profile" element={<Profile />} />
+                  <Route
+                    path="/dashboard/profile"
+                    element={
+                      <DashboardLayout>
+                        <Profile />
+                      </DashboardLayout>
+                    }
+                  />
                   <Route path="/dashboard/payments" element={<Payments />} />
                   <Route
                     path="/dashboard/notifications"

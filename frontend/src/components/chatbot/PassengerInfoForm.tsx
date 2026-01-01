@@ -2,7 +2,14 @@ import React, { useState } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
-import { Loader2, User, Phone, Mail, CreditCard } from 'lucide-react'
+import {
+  Loader2,
+  User,
+  Phone,
+  Mail,
+  CreditCard,
+  ClipboardList,
+} from 'lucide-react'
 import { chatbotApi } from '../../api/chatbot'
 import { getAccessToken } from '../../api/auth'
 import type { ChatMessage } from '../../types/chatbot.types'
@@ -25,6 +32,7 @@ interface PassengerInfoFormProps {
     required_fields?: PassengerField[]
   }
   sessionId: string
+  lang?: 'vi' | 'en'
   onFormSubmitted?: (response: ChatMessage) => void
 }
 
@@ -39,13 +47,52 @@ interface PassengerData {
 export const PassengerInfoForm: React.FC<PassengerInfoFormProps> = ({
   data,
   sessionId,
+  lang = 'vi',
   onFormSubmitted,
 }) => {
   const { seats = [], required_fields = [] } = data || {}
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Debug logging
+  // Translations
+  const translations = {
+    vi: {
+      title: 'Thông tin hành khách',
+      passenger: 'Hành khách',
+      seat: 'ghế',
+      required: '*',
+      submit: 'Xác nhận thông tin',
+      submitting: 'Đang gửi...',
+      noData: 'Không có thông tin ghế hoặc form. Vui lòng thử lại.',
+      fillField: 'Vui lòng điền',
+      forPassenger: 'cho hành khách',
+      invalidPhone: 'Số điện thoại không hợp lệ',
+      invalidEmail: 'Email không hợp lệ',
+      invalidId: 'CMND/CCCD phải có 9-12 chữ số',
+      noPassengerData: 'Không có thông tin hành khách để gửi.',
+      submitError: 'Không thể gửi thông tin. Vui lòng thử lại.',
+      generalError: 'Có lỗi xảy ra. Vui lòng thử lại.',
+    },
+    en: {
+      title: 'Passenger Information',
+      passenger: 'Passenger',
+      seat: 'seat',
+      required: '*',
+      submit: 'Confirm Information',
+      submitting: 'Sending...',
+      noData: 'No seat or form information available. Please try again.',
+      fillField: 'Please fill in',
+      forPassenger: 'for passenger',
+      invalidPhone: 'Invalid phone number',
+      invalidEmail: 'Invalid email',
+      invalidId: 'ID number must be 9-12 digits',
+      noPassengerData: 'No passenger information to submit.',
+      submitError: 'Unable to submit information. Please try again.',
+      generalError: 'An error occurred. Please try again.',
+    },
+  }
+
+  const t = translations[lang]
   console.log('[PassengerInfoForm] Rendering with data:', {
     seats,
     required_fields,
@@ -76,11 +123,12 @@ export const PassengerInfoForm: React.FC<PassengerInfoFormProps> = ({
     })
     return (
       <div className="bg-card rounded-lg border border-border p-4 my-2">
-        <h3 className="text-lg font-semibold mb-4 text-card-foreground">
-          📋 Thông tin hành khách
+        <h3 className="text-lg font-semibold mb-4 text-card-foreground flex items-center gap-2">
+          <ClipboardList className="h-5 w-5" />
+          {t.title}
         </h3>
         <div className="bg-destructive/10 text-destructive text-sm p-3 rounded border border-destructive/20">
-          Không có thông tin ghế hoặc form. Vui lòng thử lại.
+          {t.noData}
         </div>
       </div>
     )
@@ -109,7 +157,7 @@ export const PassengerInfoForm: React.FC<PassengerInfoFormProps> = ({
           const value = passenger[field.name as keyof PassengerData]
           if (!value || value.toString().trim() === '') {
             setError(
-              `Vui lòng điền ${field.label} cho hành khách ghế ${seatCode}`
+              `${t.fillField} ${field.label} ${t.forPassenger} ${t.seat} ${seatCode}`
             )
             return false
           }
@@ -120,7 +168,7 @@ export const PassengerInfoForm: React.FC<PassengerInfoFormProps> = ({
       if (passenger.phone) {
         const phoneRegex = /^(\+84|84|0)[0-9]{9,10}$/
         if (!phoneRegex.test(passenger.phone)) {
-          setError(`Số điện thoại không hợp lệ cho hành khách ghế ${seatCode}`)
+          setError(`${t.invalidPhone} ${t.forPassenger} ${t.seat} ${seatCode}`)
           return false
         }
       }
@@ -129,7 +177,7 @@ export const PassengerInfoForm: React.FC<PassengerInfoFormProps> = ({
       if (passenger.email) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
         if (!emailRegex.test(passenger.email)) {
-          setError(`Email không hợp lệ cho hành khách ghế ${seatCode}`)
+          setError(`${t.invalidEmail} ${t.forPassenger} ${t.seat} ${seatCode}`)
           return false
         }
       }
@@ -138,9 +186,7 @@ export const PassengerInfoForm: React.FC<PassengerInfoFormProps> = ({
       if (passenger.id_number && passenger.id_number.trim() !== '') {
         const idRegex = /^[0-9]{9,12}$/
         if (!idRegex.test(passenger.id_number)) {
-          setError(
-            `CMND/CCCD phải có 9-12 chữ số cho hành khách ghế ${seatCode}`
-          )
+          setError(`${t.invalidId} ${t.forPassenger} ${t.seat} ${seatCode}`)
           return false
         }
       }
@@ -159,7 +205,7 @@ export const PassengerInfoForm: React.FC<PassengerInfoFormProps> = ({
 
     // Ensure we have passengers data
     if (passengers.length === 0) {
-      setError('Không có thông tin hành khách để gửi.')
+      setError(t.noPassengerData)
       return
     }
 
@@ -211,13 +257,11 @@ export const PassengerInfoForm: React.FC<PassengerInfoFormProps> = ({
           onFormSubmitted(botMsg)
         }
       } else {
-        setError('Không thể gửi thông tin. Vui lòng thử lại.')
+        setError(t.submitError)
       }
     } catch (err) {
       console.error('[PassengerInfoForm] Submit error:', err)
-      setError(
-        err instanceof Error ? err.message : 'Có lỗi xảy ra. Vui lòng thử lại.'
-      )
+      setError(err instanceof Error ? err.message : t.generalError)
     } finally {
       setIsSubmitting(false)
     }
@@ -238,8 +282,9 @@ export const PassengerInfoForm: React.FC<PassengerInfoFormProps> = ({
 
   return (
     <div className="bg-card rounded-lg border border-border p-4 my-2">
-      <h3 className="text-lg font-semibold mb-4 text-card-foreground">
-        📋 Thông tin hành khách
+      <h3 className="text-lg font-semibold mb-4 text-card-foreground flex items-center gap-2">
+        <ClipboardList className="h-5 w-5" />
+        {t.title}
       </h3>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -252,16 +297,21 @@ export const PassengerInfoForm: React.FC<PassengerInfoFormProps> = ({
               <span className="bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center text-sm">
                 {index + 1}
               </span>
-              Hành khách ghế {getSeatCode(seats[index])}
+              {t.passenger} {t.seat} {getSeatCode(seats[index])}
             </h4>
 
             <div className="space-y-3">
               {required_fields.map((field) => (
                 <div key={field.name} className="space-y-1">
-                  <Label htmlFor={`passenger-${index}-${field.name}`}>
+                  <Label
+                    htmlFor={`passenger-${index}-${field.name}`}
+                    className="text-foreground font-medium"
+                  >
                     {field.label}
                     {field.required && (
-                      <span className="text-destructive ml-1">*</span>
+                      <span className="text-destructive ml-1">
+                        {t.required}
+                      </span>
                     )}
                   </Label>
                   <div className="relative">
@@ -300,10 +350,10 @@ export const PassengerInfoForm: React.FC<PassengerInfoFormProps> = ({
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Đang gửi...
+              {t.submitting}
             </>
           ) : (
-            'Xác nhận thông tin'
+            t.submit
           )}
         </Button>
       </form>

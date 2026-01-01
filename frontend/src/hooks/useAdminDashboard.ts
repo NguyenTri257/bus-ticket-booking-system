@@ -23,6 +23,21 @@ interface RecentBooking {
   createdAt: string
 }
 
+interface UpcomingTrip {
+  trip_id: string
+  route: string
+  origin: string
+  destination: string
+  departure_time: string
+  arrival_time: string
+  bus_type: string
+  operator_name: string
+  base_price: number
+  available_seats: number
+  total_seats: number
+  status: string
+}
+
 interface TrendItem {
   period: string
   totalBookings: number
@@ -53,15 +68,52 @@ interface BookingItem {
   created_at?: string
 }
 
+interface TripItem {
+  trip_id: string
+  departure_time?: string
+  arrival_time?: string
+  base_price?: number
+  available_seats?: number
+  total_seats?: number
+  status: string
+  bus_type?: string
+  origin?: string
+  destination?: string
+  route?: {
+    origin?: string
+    destination?: string
+  }
+  bus?: {
+    bus_type?: string
+  }
+  operator?: {
+    name?: string
+  }
+  operator_name?: string
+  schedule?: {
+    departure_time?: string
+    arrival_time?: string
+  }
+  pricing?: {
+    base_price?: number
+  }
+  availability?: {
+    available_seats?: number
+    total_seats?: number
+  }
+}
+
 export function useAdminDashboard() {
   const [dashboardData, setDashboardData] = useState({
     totalBookings: 0,
     activeUsers: 0,
+    revenueLast30Days: 0,
     revenueToday: 0,
   })
   const [bookingsTrend, setBookingsTrend] = useState<TrendData[]>([])
   const [topRoutesData, setTopRoutesData] = useState<TopRoute[]>([])
   const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([])
+  const [upcomingTrips, setUpcomingTrips] = useState<UpcomingTrip[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -99,11 +151,25 @@ export function useAdminDashboard() {
         )
 
         if (dashboardResult.success) {
-          setDashboardData({
+          setDashboardData((prev) => ({
+            ...prev,
             totalBookings: dashboardResult.data.bookings?.total || 0,
             activeUsers: dashboardResult.data.activeUsers || 0,
-            revenueToday: dashboardResult.data.revenue?.total || 0,
-          })
+            revenueLast30Days: dashboardResult.data.revenue?.total || 0,
+          }))
+        }
+
+        // Fetch today's revenue
+        const todayRevenueResult = await request(
+          `/analytics/dashboard?fromDate=${toDate}&toDate=${toDate}`,
+          { method: 'GET' }
+        )
+
+        if (todayRevenueResult.success) {
+          setDashboardData((prev) => ({
+            ...prev,
+            revenueToday: todayRevenueResult.data.revenue?.total || 0,
+          }))
         }
 
         // Fetch bookings trend (last 7 days only for the trend chart)
@@ -215,6 +281,71 @@ export function useAdminDashboard() {
           console.warn('Could not fetch recent bookings:', recentErr)
           // Don't fail the whole dashboard if recent bookings fail
         }
+
+        // Fetch upcoming trips (scheduled trips with departure_time in the future)
+        try {
+          const upcomingTripsResult = await request(
+            '/trips?status=scheduled&sort_by=departure_time&sort_order=asc&limit=10',
+            {
+              method: 'GET',
+            }
+          )
+
+          console.log('Upcoming trips result:', upcomingTripsResult)
+
+          if (
+            upcomingTripsResult.success &&
+            upcomingTripsResult.data?.trips &&
+            Array.isArray(upcomingTripsResult.data.trips)
+          ) {
+            console.log(
+              'Raw trips data:',
+              upcomingTripsResult.data.trips.slice(0, 2)
+            )
+
+            const trips = upcomingTripsResult.data.trips
+              .filter((trip: TripItem) => {
+                // Filter only trips with future departure times
+                const departureTime = new Date(
+                  trip.departure_time || trip.schedule?.departure_time
+                )
+                const now = new Date()
+                console.log(
+                  `Trip ${trip.trip_id}: departure=${departureTime.toISOString()}, now=${now.toISOString()}, isFuture=${departureTime > now}`
+                )
+                return departureTime > now
+              })
+              .slice(0, 10)
+              .map((trip: TripItem) => ({
+                trip_id: trip.trip_id,
+                route: `${trip.route?.origin || trip.origin || 'Unknown'} → ${trip.route?.destination || trip.destination || 'Unknown'}`,
+                origin: trip.route?.origin || trip.origin || 'Unknown',
+                destination:
+                  trip.route?.destination || trip.destination || 'Unknown',
+                departure_time:
+                  trip.departure_time || trip.schedule?.departure_time,
+                arrival_time: trip.arrival_time || trip.schedule?.arrival_time,
+                bus_type: trip.bus?.bus_type || trip.bus_type || 'Standard',
+                operator_name:
+                  trip.operator?.name || trip.operator_name || 'N/A',
+                base_price: trip.base_price || trip.pricing?.base_price || 0,
+                available_seats:
+                  trip.available_seats ||
+                  trip.availability?.available_seats ||
+                  0,
+                total_seats:
+                  trip.total_seats || trip.availability?.total_seats || 0,
+                status: trip.status || 'scheduled',
+              }))
+            console.log('Mapped upcoming trips:', trips)
+            setUpcomingTrips(trips)
+          } else {
+            console.warn('Upcoming trips response:', upcomingTripsResult)
+          }
+        } catch (upcomingErr) {
+          console.warn('Could not fetch upcoming trips:', upcomingErr)
+          // Don't fail the whole dashboard if upcoming trips fail
+        }
       } catch (err) {
         console.error('Error fetching dashboard data:', err)
         if (err instanceof Error) {
@@ -235,6 +366,7 @@ export function useAdminDashboard() {
     bookingsTrend,
     topRoutesData,
     recentBookings,
+    upcomingTrips,
     loading,
     error,
   }

@@ -118,7 +118,11 @@ export default function RevenueAnalytics() {
         }
 
         if (activeTab === 'revenue') {
-          console.log('🔵 Fetching REVENUE analytics:', { fromDate, toDate, groupBy: selectedGroupBy })
+          console.log('🔵 Fetching REVENUE analytics:', {
+            fromDate,
+            toDate,
+            groupBy: selectedGroupBy,
+          })
           const response = await fetchRevenueAnalytics({
             fromDate,
             toDate,
@@ -128,12 +132,16 @@ export default function RevenueAnalytics() {
           })
           console.log('🔵 Revenue response:', {
             totalBookings: response.data.summary.totalBookings,
-            totalRevenue: response.data.summary.totalRevenue
+            totalRevenue: response.data.summary.totalRevenue,
           })
           setData(response)
           setBookingData(null)
         } else {
-          console.log('🟢 Fetching BOOKING analytics:', { fromDate, toDate, groupBy: selectedGroupBy })
+          console.log('🟢 Fetching BOOKING analytics:', {
+            fromDate,
+            toDate,
+            groupBy: selectedGroupBy,
+          })
           const response = await fetchBookingAnalytics({
             fromDate,
             toDate,
@@ -142,7 +150,7 @@ export default function RevenueAnalytics() {
           console.log('🟢 Booking response:', {
             totalBookings: response.data.summary.totalBookings,
             successRate: response.data.summary.successRate,
-            cancellationRate: response.data.summary.cancellationRate
+            cancellationRate: response.data.summary.cancellationRate,
           })
           setBookingData(response)
           setData(null)

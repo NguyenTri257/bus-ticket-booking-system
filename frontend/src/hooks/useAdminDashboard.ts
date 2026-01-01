@@ -178,15 +178,18 @@ export function useAdminDashboard() {
           { method: 'GET' }
         )
 
-        console.log('Trend result:', trendResult)
-
         if (trendResult.success && trendResult.data.trends) {
-          const trendData = trendResult.data.trends.map((item: TrendItem) => ({
-            day: new Date(item.period).toLocaleDateString('en-US', {
+          const trendData = trendResult.data.trends.map((item: TrendItem) => {
+            const date = new Date(item.period)
+            const day = date.toLocaleDateString('en-US', { day: 'numeric' })
+            const weekday = date.toLocaleDateString('en-US', {
               weekday: 'short',
-            }),
-            bookings: item.totalBookings || 0,
-          }))
+            })
+            return {
+              day: `${day} ${weekday}`,
+              bookings: item.totalBookings || 0,
+            }
+          })
           setBookingsTrend(trendData)
         }
 
@@ -201,7 +204,7 @@ export function useAdminDashboard() {
         if (allTimeResult.success && allTimeResult.data.topRoutes) {
           console.log('Top routes data:', allTimeResult.data.topRoutes)
           const topRoutes = allTimeResult.data.topRoutes
-            .slice(0, 4)
+            .slice(0, 5)
             .map((route: RouteItem) => {
               const rawRevenue = route.revenue || 0
               return {

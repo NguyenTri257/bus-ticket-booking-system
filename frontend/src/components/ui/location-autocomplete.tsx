@@ -228,7 +228,7 @@ export function LocationAutocomplete({
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10 p-1 hover:bg-gray-200 rounded transition-colors cursor-pointer"
                 title="Clear search"
               >
-                <CircleX className="h-4 w-4 text-gray-700" />
+                <CircleX className="h-4 w-4 text-gray-700 dark:text-gray-300" />
               </button>
             )}
           </div>

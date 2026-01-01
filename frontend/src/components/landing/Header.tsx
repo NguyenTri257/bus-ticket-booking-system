@@ -21,7 +21,10 @@ export function Header() {
         {/* Logo */}
         <div
           className="flex items-center gap-2 cursor-pointer"
-          onClick={() => navigate('/')}
+          onClick={() => {
+            navigate('/')
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
         >
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-lg">🚌</span>
@@ -33,36 +36,56 @@ export function Header() {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-8">
-          <a
-            href="#"
+          <button
+            onClick={() => navigate('/')}
             className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition"
           >
             Home
-          </a>
-          <a
-            href="#popular-routes"
+          </button>
+          <button
+            onClick={() => {
+              navigate('/')
+              // Wait for navigation then scroll
+              setTimeout(() => {
+                document.getElementById('popular-routes')?.scrollIntoView({ behavior: 'smooth' })
+              }, 100)
+            }}
             className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition"
           >
             Routes
-          </a>
+          </button>
           <button
-            onClick={() => navigate('/booking-lookup')}
+            onClick={() => {
+              navigate('/booking-lookup')
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
             className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition"
           >
             Track Booking
           </button>
-          <a
-            href="#why-us"
+          <button
+            onClick={() => {
+              navigate('/')
+              // Wait for navigation then scroll
+              setTimeout(() => {
+                document.getElementById('why-us')?.scrollIntoView({ behavior: 'smooth' })
+              }, 100)
+            }}
             className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition"
           >
             About
-          </a>
-          <a
-            href="#"
+          </button>
+          <button
+            onClick={() => {
+              navigate('/')
+              setTimeout(() => {
+                document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' })
+              }, 100)
+            }}
             className="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium transition"
           >
             Support
-          </a>
+          </button>
         </div>
 
         {/* Auth Buttons */}
@@ -122,39 +145,61 @@ export function Header() {
       {isMobileMenuOpen && (
         <div className="md:hidden border-t bg-white dark:bg-slate-950 dark:border-slate-800">
           <div className="px-4 py-4 space-y-3">
-            <a
-              href="#"
-              className="block text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium py-2"
+            <button
+              onClick={() => {
+                navigate('/')
+                setIsMobileMenuOpen(false)
+              }}
+              className="block w-full text-left text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium py-2"
             >
               Home
-            </a>
-            <a
-              href="#popular-routes"
-              className="block text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium py-2"
+            </button>
+            <button
+              onClick={() => {
+                navigate('/')
+                setIsMobileMenuOpen(false)
+                setTimeout(() => {
+                  document.getElementById('popular-routes')?.scrollIntoView({ behavior: 'smooth' })
+                }, 100)
+              }}
+              className="block w-full text-left text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium py-2"
             >
               Routes
-            </a>
+            </button>
             <button
               onClick={() => {
                 navigate('/booking-lookup')
                 setIsMobileMenuOpen(false)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
               className="block w-full text-left text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium py-2"
             >
               Track Booking
             </button>
-            <a
-              href="#why-us"
-              className="block text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium py-2"
+            <button
+              onClick={() => {
+                navigate('/')
+                setIsMobileMenuOpen(false)
+                setTimeout(() => {
+                  document.getElementById('why-us')?.scrollIntoView({ behavior: 'smooth' })
+                }, 100)
+              }}
+              className="block w-full text-left text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium py-2"
             >
               About
-            </a>
-            <a
-              href="#"
-              className="block text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium py-2"
+            </button>
+            <button
+              onClick={() => {
+                navigate('/')
+                setIsMobileMenuOpen(false)
+                setTimeout(() => {
+                  document.getElementById('footer-contact')?.scrollIntoView({ behavior: 'smooth' })
+                }, 100)
+              }}
+              className="block w-full text-left text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white font-medium py-2"
             >
               Support
-            </a>
+            </button>
             <div className="pt-4 border-t space-y-2">
               <div className="py-2">
                 <ThemeToggle />

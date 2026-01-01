@@ -98,6 +98,7 @@ export function GrowthRateIndicators({ data }: GrowthRateIndicatorsProps) {
   let actualTodaySum = 0
   let actualYesterdaySum = 0
   let todayLabel = 'Today'
+  let isDaily = true // Track if we're in daily grouping mode
 
   if (breakdown && breakdown.length > 0) {
     console.log('Raw breakdown data:', breakdown)
@@ -126,11 +127,13 @@ export function GrowthRateIndicators({ data }: GrowthRateIndicatorsProps) {
 
       if (mostRecentDateOnly.getTime() === today.getTime()) {
         todayLabel = 'Today'
+        isDaily = true
       } else {
         // Handle different period formats
         const period = mostRecent.period
         if (period.includes('W')) {
           // Week format: show date range
+          isDaily = false
           const match = period.match(/(\d{4})-W(\d{2})/)
           if (match) {
             const year = parseInt(match[1])
@@ -142,12 +145,14 @@ export function GrowthRateIndicators({ data }: GrowthRateIndicatorsProps) {
           }
         } else if (period.match(/^\d{4}-\d{2}$/)) {
           // Month format: show month and year
+          isDaily = false
           todayLabel = mostRecentDate.toLocaleDateString('en-US', {
             month: 'long',
             year: 'numeric',
           })
         } else {
           // Day format
+          isDaily = true
           todayLabel = mostRecentDate.toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
@@ -171,10 +176,11 @@ export function GrowthRateIndicators({ data }: GrowthRateIndicatorsProps) {
       label: todayLabel,
       current: actualTodaySum,
       previous: actualYesterdaySum,
-      compareLabel:
-        todayLabel === 'Today'
+      compareLabel: isDaily
+        ? todayLabel === 'Today'
           ? 'Compared to yesterday'
-          : 'Compared to previous day',
+          : 'Compared to previous day'
+        : 'Compared to previous period',
     },
     {
       label: 'This Week',

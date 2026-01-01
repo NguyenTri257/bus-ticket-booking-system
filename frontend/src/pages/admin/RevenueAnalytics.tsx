@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { DashboardLayout } from '@/components/admin/DashboardLayout'
 import { Card, CardContent } from '@/components/ui/card'
-import { Download } from 'lucide-react'
+import { Download, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -10,6 +10,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   RevenueSummaryCards,
@@ -35,6 +41,7 @@ import {
 } from '@/api/revenueAnalytics'
 import type { BookingAnalyticsResponse } from '@/api/bookingAnalytics'
 import { fetchBookingAnalytics } from '@/api/bookingAnalytics'
+import { exportToPDF } from '@/utils/pdfExport'
 import '@/styles/admin.css'
 
 type DateRange = 'week' | 'month' | 'quarter' | 'year' | 'custom'
@@ -118,7 +125,11 @@ export default function RevenueAnalytics() {
         }
 
         if (activeTab === 'revenue') {
-          console.log('🔵 Fetching REVENUE analytics:', { fromDate, toDate, groupBy: selectedGroupBy })
+          console.log('🔵 Fetching REVENUE analytics:', {
+            fromDate,
+            toDate,
+            groupBy: selectedGroupBy,
+          })
           const response = await fetchRevenueAnalytics({
             fromDate,
             toDate,
@@ -128,12 +139,16 @@ export default function RevenueAnalytics() {
           })
           console.log('🔵 Revenue response:', {
             totalBookings: response.data.summary.totalBookings,
-            totalRevenue: response.data.summary.totalRevenue
+            totalRevenue: response.data.summary.totalRevenue,
           })
           setData(response)
           setBookingData(null)
         } else {
-          console.log('🟢 Fetching BOOKING analytics:', { fromDate, toDate, groupBy: selectedGroupBy })
+          console.log('🟢 Fetching BOOKING analytics:', {
+            fromDate,
+            toDate,
+            groupBy: selectedGroupBy,
+          })
           const response = await fetchBookingAnalytics({
             fromDate,
             toDate,
@@ -142,7 +157,7 @@ export default function RevenueAnalytics() {
           console.log('🟢 Booking response:', {
             totalBookings: response.data.summary.totalBookings,
             successRate: response.data.summary.successRate,
-            cancellationRate: response.data.summary.cancellationRate
+            cancellationRate: response.data.summary.cancellationRate,
           })
           setBookingData(response)
           setData(null)
@@ -187,7 +202,7 @@ export default function RevenueAnalytics() {
     fetchOperatorsData()
   }, [])
 
-  const handleExport = () => {
+  const handleExportCSV = () => {
     if (!data && !bookingData) return
 
     const csvLines: string[] = []
@@ -350,6 +365,29 @@ export default function RevenueAnalytics() {
     document.body.removeChild(element)
   }
 
+  const handleExportPDF = async () => {
+    if (!data && !bookingData) return
+
+    const exportFromDate =
+      dateRange === 'custom'
+        ? customDateRange.from.toISOString().split('T')[0]
+        : getDateRangeFromString(dateRange).from
+
+    const exportToDate =
+      dateRange === 'custom'
+        ? customDateRange.to.toISOString().split('T')[0]
+        : getDateRangeFromString(dateRange).to
+
+    await exportToPDF(activeTab === 'revenue' ? data : bookingData, {
+      dateRange,
+      fromDate: exportFromDate,
+      toDate: exportToDate,
+      groupBy: selectedGroupBy,
+      operator: selectedOperator,
+      activeTab,
+    })
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -365,15 +403,29 @@ export default function RevenueAnalytics() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              className="gap-2"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  disabled={!data && !bookingData}
+                >
+                  <Download className="w-4 h-4" />
+                  <span className="hidden sm:inline">Export</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportCSV}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPDF}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export as PDF (with Charts)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 

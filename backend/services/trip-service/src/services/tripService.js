@@ -227,8 +227,29 @@ class TripService {
   }
 
   async searchTrips(filters) {
-    // Có thể thêm logic business ở đây nếu cần (ví dụ filter khuyến mãi)
-    return await tripRepository.search(filters);
+    const result = await tripRepository.search(filters);
+
+    // Update available_seats to account for Redis locks
+    const tripIds = result.trips.map(t => t.trip_id);
+
+    if (tripIds.length > 0) {
+      // Get locked seats count for all trips
+      const lockedSeatsCounts = {};
+      for (const tripId of tripIds) {
+        const lockedSeats = await seatLockService.getLockedSeats(tripId);
+        lockedSeatsCounts[tripId] = Object.keys(lockedSeats).length;
+      }
+
+      // Update each trip's available_seats
+      result.trips.forEach(trip => {
+        const lockedCount = lockedSeatsCounts[trip.trip_id] || 0;
+        if (trip.availability) {
+          trip.availability.available_seats = Math.max(0, trip.availability.available_seats - lockedCount);
+        }
+      });
+    }
+
+    return result;
   }
 
   /**

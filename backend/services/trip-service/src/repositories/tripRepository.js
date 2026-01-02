@@ -25,12 +25,15 @@ class TripRepository {
         b.bus_id, b.plate_number, b.type as bus_type, bm.name as bus_model,
         b.seat_capacity, b.amenities::jsonb AS amenities, b.image_url,
         
-        -- Availability (subquery for booked seats)
+        -- Availability (subquery for booked/unavailable seats)
         (
           SELECT COUNT(*) 
           FROM bookings bk 
           JOIN booking_passengers bp ON bk.booking_id = bp.booking_id 
-          WHERE bk.trip_id = t.trip_id AND bk.status = 'confirmed'
+          WHERE bk.trip_id = t.trip_id AND (
+            bk.status = 'confirmed' OR 
+            (bk.status = 'pending' AND bk.locked_until > CURRENT_TIMESTAMP)
+          )
         ) as booked_seats
         
       FROM trips t
@@ -551,7 +554,10 @@ class TripRepository {
         SELECT COUNT(*) 
         FROM bookings bk 
         JOIN booking_passengers bp ON bk.booking_id = bp.booking_id 
-        WHERE bk.trip_id = t.trip_id AND bk.status IN ('confirmed', 'pending')
+        WHERE bk.trip_id = t.trip_id AND (
+          bk.status = 'confirmed' OR 
+          (bk.status = 'pending' AND bk.locked_until > CURRENT_TIMESTAMP)
+        )
       ), 0)) >= $${index++}`);
       values.push(passengers);
     }
@@ -639,7 +645,10 @@ class TripRepository {
           JOIN bookings bk ON bp.booking_id = bk.booking_id 
           WHERE bp.seat_code = s.seat_code 
           AND bk.trip_id = t.trip_id 
-          AND bk.status IN ('confirmed', 'pending')
+          AND (
+            bk.status = 'confirmed' OR 
+            (bk.status = 'pending' AND bk.locked_until > CURRENT_TIMESTAMP)
+          )
         )
       )`);
       values.push(locations);
@@ -658,7 +667,10 @@ class TripRepository {
         SELECT COUNT(*) 
         FROM bookings bk 
         JOIN booking_passengers bp ON bk.booking_id = bp.booking_id 
-        WHERE bk.trip_id = t.trip_id AND bk.status IN ('confirmed', 'pending')
+        WHERE bk.trip_id = t.trip_id AND (
+          bk.status = 'confirmed' OR 
+          (bk.status = 'pending' AND bk.locked_until > CURRENT_TIMESTAMP)
+        )
       ), 0)) >= $${index++}`);
       values.push(minSeats);
     }

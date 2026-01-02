@@ -45,17 +45,17 @@ function CheckoutForm({ clientSecret }) {
     <form onSubmit={handleSubmit}>
       <CardElement />
       <button type="submit" disabled={!stripe || loading}>
-        {loading ? 'Đang xử lý...' : 'Thanh toán'}
+        {loading ? 'Processing...' : 'Pay'}
       </button>
       {error && <div style={{ color: 'red' }}>{error}</div>}
-      {success && <div style={{ color: 'green' }}>Thanh toán thành công!</div>}
+      {success && <div style={{ color: 'green' }}>Payment successful!</div>}
     </form>
   )
 }
 
 // Nhận clientSecret từ prop, không fetch lại API
 export default function StripeCardCheckout({ clientSecret }) {
-  if (!clientSecret) return <div>Đang khởi tạo thanh toán...</div>
+  if (!clientSecret) return <div>Initializing payment...</div>
   return (
     <Elements stripe={stripePromise} options={{ clientSecret }}>
       <CheckoutForm clientSecret={clientSecret} />

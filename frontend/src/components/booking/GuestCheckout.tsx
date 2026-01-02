@@ -2,7 +2,7 @@ import React from 'react'
 import StripeCardCheckout from '../StripeCardCheckout'
 
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, UserCheck, Lock } from 'lucide-react'
+import { ChevronLeft, UserCheck, LogOut } from 'lucide-react'
 import { PassengerInformationForm } from '@/components/booking/PassengerInformationForm'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { useAuth } from '@/context/AuthContext'
@@ -10,6 +10,7 @@ import { createBooking } from '@/api/bookings'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector'
 import { confirmPayment } from '@/api/bookings'
 import { useBookingStore } from '@/store/bookingStore'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 interface GuestCheckoutProps {
   selectedSeats?: { seat_id: string; seat_code: string }[]
@@ -32,11 +33,18 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
   onBack,
 }) => {
   const { user } = useAuth()
+  const { logout } = useAuth()
   // const navigate = useNavigate()
   const { selectedTrip, selectedPickupPoint, selectedDropoffPoint } =
     useBookingStore()
 
   const selectedSeats = propSeats ?? []
+
+  // Helper function to calculate service fee (3% + 10,000 VND - matches backend)
+  const calculateServiceFee = (subtotal: number): number => {
+    return subtotal * 0.03 + 10000
+  }
+
   const [contactEmail, setContactEmail] = React.useState(user?.email || '')
   const [contactPhone, setContactPhone] = React.useState(user?.phone || '')
   const [contactErrors, setContactErrors] = React.useState<{
@@ -151,24 +159,22 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
         '[GuestCheckout] selectedPaymentMethod:',
         selectedPaymentMethod
       )
+
+      // Calculate service fee and total based on all selected seats
+      const basePrice = selectedTrip.pricing?.base_price || 0
+      const subtotal = basePrice * selectedSeats.length // Multiply by number of seats
+      const serviceFee = calculateServiceFee(subtotal)
+      const totalAmount = subtotal + serviceFee
+
       const paymentPayload = {
         bookingId: idToPay, // Đảm bảo backend nhận đúng bookingId
         paymentMethod: selectedPaymentMethod,
-        amount: selectedTrip.pricing?.base_price + 20000 || 0,
+        amount: totalAmount,
         transactionRef: undefined, // hoặc truyền ref nếu có
       }
       console.log('[GuestCheckout] paymentPayload:', paymentPayload)
-      type PaymentResponse = {
-        paymentUrl?: string
-        qrCode?: string
-        provider?: string
-        clientSecret?: string
-        data?: Record<string, unknown>
-      }
-      const paymentRes: PaymentResponse = await confirmPayment(
-        idToPay,
-        paymentPayload
-      )
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const paymentRes: any = await confirmPayment(idToPay, paymentPayload)
       console.log('[GuestCheckout] confirmPayment response:', paymentRes)
       setPaymentResult({
         paymentUrl: paymentRes.paymentUrl,
@@ -221,12 +227,39 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
               </span>
             </div>
           </div>
-          {/* Security Icon */}
+          {/* Theme Toggle and Auth Buttons */}
           <div className="flex items-center gap-2">
-            <Lock size={28} className="text-green-700" />
-            <span className="text-green-700 font-semibold">
-              Secure Checkout
-            </span>
+            <ThemeToggle />
+            {!user ? (
+              <Button
+                onClick={() => (window.location.href = '/login')}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <span className="hidden sm:inline">Login</span>
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => (window.location.href = '/dashboard')}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <span className="hidden sm:inline">Dashboard</span>
+                </Button>
+                <Button
+                  onClick={logout}
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Logout</span>
+                </Button>
+              </div>
+            )}
           </div>
         </nav>
       </header>
@@ -383,15 +416,26 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
                     <div className="border-t my-2"></div>
                     <div>
                       Fare:{' '}
-                      {selectedTrip.pricing.base_price.toLocaleString('vi-VN')}{' '}
+                      {(
+                        selectedTrip.pricing.base_price * selectedSeats.length
+                      ).toLocaleString('vi-VN')}{' '}
                       VND
                     </div>
-                    <div>Service fee: 20,000 VND</div>
+                    <div>
+                      Service fee:{' '}
+                      {calculateServiceFee(
+                        selectedTrip.pricing.base_price * selectedSeats.length
+                      ).toLocaleString('vi-VN')}{' '}
+                      VND
+                    </div>
                     <div className="font-bold text-lg">
                       Total:{' '}
-                      {(selectedTrip.pricing.base_price + 20000).toLocaleString(
-                        'vi-VN'
-                      )}{' '}
+                      {(
+                        selectedTrip.pricing.base_price * selectedSeats.length +
+                        calculateServiceFee(
+                          selectedTrip.pricing.base_price * selectedSeats.length
+                        )
+                      ).toLocaleString('vi-VN')}{' '}
                       VND
                     </div>
                   </div>
@@ -409,7 +453,14 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
                 <CardContent className="pt-2 pb-4 px-2 md:px-4">
                   <PaymentMethodSelector
                     amount={
-                      selectedTrip ? selectedTrip.pricing.base_price + 20000 : 0
+                      selectedTrip && selectedSeats.length > 0
+                        ? selectedTrip.pricing.base_price *
+                            selectedSeats.length +
+                          calculateServiceFee(
+                            selectedTrip.pricing.base_price *
+                              selectedSeats.length
+                          )
+                        : 0
                     }
                     onSelect={(method: { key: string }) =>
                       setSelectedPaymentMethod(method.key)
@@ -433,7 +484,7 @@ const GuestCheckout: React.FC<GuestCheckoutProps> = ({
                   I agree to Terms and Conditions
                 </label>
               </div>
-              <div className="mb-2 text-sm text-gray-700">
+              <div className="mb-2 text-sm text-gray-700 dark:text-gray-300">
                 <b>Selected Payment Method:</b>{' '}
                 {selectedPaymentMethod?.toUpperCase() || '(NOT SELECTED)'}
               </div>

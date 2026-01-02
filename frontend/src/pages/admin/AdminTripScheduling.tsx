@@ -526,7 +526,7 @@ const AdminTripSchedulingPage: React.FC = () => {
                       { key: 'route', label: 'Route' },
                       { key: 'departure_time', label: 'Departure Time' },
                       { key: 'estimated_arrival', label: 'Estimated Arrival' },
-                      { key: 'bookings', label: 'Bookings' },
+                      { key: 'bookings', label: 'Booked Seats' },
                       { key: 'status', label: 'Status' },
                       { key: 'actions', label: 'Actions' },
                     ]}

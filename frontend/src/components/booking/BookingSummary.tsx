@@ -82,8 +82,8 @@ export function BookingSummary({
     const basePrice = trip.pricing.base_price
     const subtotal = basePrice * passengers.length
 
-    // Service fee calculation (2% with min 5,000 VND)
-    const serviceFee = Math.max(subtotal * 0.02, 5000)
+    // Service fee calculation (3% + 10,000 VND fixed fee - matches backend)
+    const serviceFee = subtotal * 0.03 + 10000
     const total = subtotal + serviceFee
 
     return {

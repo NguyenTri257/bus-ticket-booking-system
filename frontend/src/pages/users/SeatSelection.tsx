@@ -828,7 +828,7 @@ export function SeatSelection() {
                 }`}
               >
                 <span className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary dark:bg-primary text-white dark:text-black text-xs font-bold">
                     1
                   </span>
                   Select Seats
@@ -850,7 +850,7 @@ export function SeatSelection() {
                 }`}
               >
                 <span className="flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary dark:bg-primary text-white dark:text-black text-xs font-bold">
                     2
                   </span>
                   Pickup & Dropoff

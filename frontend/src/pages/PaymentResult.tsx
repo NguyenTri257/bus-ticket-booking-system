@@ -139,6 +139,18 @@ const PaymentResult: React.FC = () => {
   const [redirectCountdown, setRedirectCountdown] = useState<number>(5)
   const [manualStatus, setManualStatus] = useState<string | null>(null)
 
+  // Calculate payment status from URL parameters (derived state)
+  const paymentStatusFromUrl = React.useMemo(() => {
+    const isMoMoFailed =
+      paymentResult.resultCode && paymentResult.resultCode !== '0'
+    const isPayOSCancelled =
+      paymentResult.cancel === 'true' || paymentResult.code === '01'
+
+    if (isMoMoFailed) return 'FAILED'
+    if (isPayOSCancelled) return 'CANCELLED'
+    return null
+  }, [paymentResult.resultCode, paymentResult.cancel, paymentResult.code])
+
   // Handler to navigate to booking lookup page
   const handleViewTicket = useCallback(() => {
     if (!bookingInfo) return
@@ -158,7 +170,7 @@ const PaymentResult: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    const currentStatus = manualStatus || status
+    const currentStatus = paymentStatusFromUrl || manualStatus || status
     if (bookingId && currentStatus === 'PAID') {
       const url = user
         ? `${API_BASE_URL}/bookings/${bookingId}`
@@ -188,11 +200,11 @@ const PaymentResult: React.FC = () => {
           console.error('[PaymentResult] Failed to fetch booking info:', err)
         })
     }
-  }, [bookingId, status, manualStatus, user])
+  }, [bookingId, status, manualStatus, paymentStatusFromUrl, user])
 
   // Auto redirect countdown when payment successful
   useEffect(() => {
-    const currentStatus = manualStatus || status
+    const currentStatus = paymentStatusFromUrl || manualStatus || status
     if (currentStatus === 'PAID' && bookingInfo) {
       const timer = setInterval(() => {
         setRedirectCountdown((prev) => {
@@ -207,19 +219,35 @@ const PaymentResult: React.FC = () => {
 
       return () => clearInterval(timer)
     }
-  }, [status, manualStatus, bookingInfo, handleViewTicket])
+  }, [
+    status,
+    manualStatus,
+    paymentStatusFromUrl,
+    bookingInfo,
+    handleViewTicket,
+  ])
 
   // If we have MoMo, PayOS, or Card result in URL, update booking status
   useEffect(() => {
     // Check if payment was successful
     const isMoMoSuccess =
       paymentResult.resultCode && paymentResult.resultCode === '0'
+    const isMoMoFailed =
+      paymentResult.resultCode && paymentResult.resultCode !== '0'
     const isPayOSSuccess =
       paymentResult.status === 'PAID' &&
       paymentResult.code === '00' &&
       paymentResult.cancel === 'false'
+    const isPayOSCancelled =
+      paymentResult.cancel === 'true' || paymentResult.code === '01'
     const isCardSuccess =
       paymentResult.status === 'success' && paymentResult.method === 'card'
+
+    // No need to set state for failed/cancelled - using derived state instead
+    if (bookingId && (isMoMoFailed || isPayOSCancelled)) {
+      console.log('[PaymentResult] Payment failed or cancelled')
+      return
+    }
 
     if (bookingId && (isMoMoSuccess || isPayOSSuccess || isCardSuccess)) {
       const url = user
@@ -384,7 +412,7 @@ const PaymentResult: React.FC = () => {
   }
 
   let message = ''
-  const currentStatus = manualStatus || status
+  const currentStatus = paymentStatusFromUrl || manualStatus || status
   if (currentStatus === 'PAID')
     message = 'Your payment has been processed successfully!'
   else if (currentStatus === 'CANCELLED')

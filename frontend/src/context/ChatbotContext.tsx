@@ -82,10 +82,10 @@ export const ChatbotProvider: React.FC<ChatbotProviderProps> = ({
             timestamp: isNaN(new Date(msg.timestamp).getTime())
               ? Date.now()
               : new Date(msg.timestamp).getTime(),
-            intent: msg.metadata?.intent,
-            entities: msg.metadata?.entities,
-            suggestions: msg.metadata?.suggestions,
-            actions: msg.metadata?.actions,
+            intent: msg.intent,
+            entities: msg.entities,
+            suggestions: msg.suggestions,
+            actions: msg.actions,
           })
         )
 

@@ -247,13 +247,14 @@ export async function submitRating(
   } catch (error: unknown) {
     // Re-throw with more context
     if (
-      error &&
-      typeof error === 'object' &&
-      'status' in error &&
-      'code' in error &&
-      ((error as unknown).status === 401 ||
-        (error as unknown).code === 'AUTH_001' ||
-        (error as unknown).code === 'AUTH_002')
+      (error &&
+        typeof error === 'object' &&
+        error !== null &&
+        'status' in error &&
+        'code' in error &&
+        (error as { status: unknown; code: unknown }).status === 401) ||
+      (error as { status: unknown; code: unknown }).code === 'AUTH_001' ||
+      (error as { status: unknown; code: unknown }).code === 'AUTH_002'
     ) {
       console.error('🔐 Authentication failed for ratings submission', error)
       throw new Error('Please log in again to submit your review')

@@ -59,6 +59,10 @@ export interface ChatbotHistoryResponse {
       role: 'user' | 'assistant' | 'system'
       content: string
       timestamp: string
+      intent?: string
+      entities?: Record<string, unknown>
+      suggestions?: string[]
+      actions?: ChatAction[]
     }[]
     count: number
   }

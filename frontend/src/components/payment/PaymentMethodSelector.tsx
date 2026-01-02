@@ -53,7 +53,7 @@ export default function PaymentMethodSelector({
             key={method.key}
             className={`border rounded-lg p-3 sm:p-4 flex flex-col items-center min-h-90px sm:min-h-100px shadow-sm transition-all focus:outline-none relative hover:shadow-md ${
               selected === method.key
-                ? 'border-blue-500 ring-2 ring-blue-300 bg-blue-50'
+                ? 'border-blue-500 ring-2 ring-blue-300 bg-blue-50 text-primary-foreground'
                 : 'border-gray-200 hover:border-gray-300'
             } ${!method.available ? 'opacity-50 cursor-not-allowed' : ''}`}
             onClick={() => method.available && handleSelect(method)}

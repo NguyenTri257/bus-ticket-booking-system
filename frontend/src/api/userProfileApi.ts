@@ -40,6 +40,8 @@ interface UserPreferences {
   }
 }
 
+export type { UserPreferences }
+
 export interface UserProfile {
   userId: string | number
   email: string

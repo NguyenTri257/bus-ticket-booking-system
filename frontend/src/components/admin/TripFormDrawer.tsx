@@ -210,14 +210,14 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
     setValidationErrors({})
   }, [initialTrip, isEditMode, open, defaultPolicies])
 
-  const handleCreateChange = (key: string, value: string | number) => {
+  const handleCreateChange = (key: string, value: string | number | null) => {
     setCreateForm((prev) => ({
       ...prev,
       [key]: value,
     }))
   }
 
-  const handleUpdateChange = (key: string, value: string | number) => {
+  const handleUpdateChange = (key: string, value: string | number | null) => {
     setUpdateForm((prev) => ({
       ...prev,
       [key]: value,
@@ -604,7 +604,7 @@ export const TripFormDrawer: React.FC<TripFormDrawerProps> = ({
                     onChange={(newValue) =>
                       handleUpdateChange(
                         'departure_time',
-                        newValue ? newValue.toUTC().toISO() : ''
+                        newValue ? newValue.toUTC().toISO() : null
                       )
                     }
                     slotProps={{

@@ -156,7 +156,7 @@ export const TripList: React.FC<TripListProps> = ({
                 <span
                   className="rounded-full px-3 py-1 text-xs font-semibold"
                   style={
-                    trip.status === 'active'
+                    trip.status === 'scheduled' || trip.status === 'in_progress'
                       ? {
                           backgroundColor:
                             'color-mix(in srgb, var(--success) 30%, var(--card))',
@@ -168,7 +168,9 @@ export const TripList: React.FC<TripListProps> = ({
                         }
                   }
                 >
-                  {trip.status === 'active' ? 'Active' : 'Inactive'}
+                  {trip.status === 'scheduled' || trip.status === 'in_progress'
+                    ? 'Active'
+                    : 'Inactive'}
                 </span>
                 <button
                   className="text-sm font-medium focus:outline-none rounded px-2 py-1"

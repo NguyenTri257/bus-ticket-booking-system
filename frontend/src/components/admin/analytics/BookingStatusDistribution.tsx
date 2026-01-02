@@ -114,7 +114,7 @@ export function BookingStatusDistribution({
               <Tooltip
                 formatter={(
                   value: number | undefined,
-                  name: string,
+                  _name: string | undefined,
                   props: { payload?: { percentage?: number } }
                 ) => [
                   value === undefined
@@ -162,7 +162,7 @@ export function BookingStatusDistribution({
               <Tooltip
                 formatter={(
                   value: number | undefined,
-                  name: string,
+                  _name: string | undefined,
                   props: { payload?: { percentage?: number } }
                 ) => [
                   value === undefined

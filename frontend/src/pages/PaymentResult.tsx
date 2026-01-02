@@ -138,6 +138,7 @@ const PaymentResult: React.FC = () => {
   const [bookingInfo, setBookingInfo] = useState<BookingInfo | null>(null)
   const [redirectCountdown, setRedirectCountdown] = useState<number>(5)
   const [manualStatus, setManualStatus] = useState<string | null>(null)
+  const [isProcessing, setIsProcessing] = useState<boolean>(false)
 
   // Calculate payment status from URL parameters (derived state)
   const paymentStatusFromUrl = React.useMemo(() => {
@@ -171,36 +172,57 @@ const PaymentResult: React.FC = () => {
 
   useEffect(() => {
     const currentStatus = paymentStatusFromUrl || manualStatus || status
-    if (bookingId && currentStatus === 'PAID') {
-      const url = user
-        ? `${API_BASE_URL}/bookings/${bookingId}`
-        : `${API_BASE_URL}/bookings/${bookingId}/guest`
+    if (
+      bookingId &&
+      currentStatus === 'PAID' &&
+      !isProcessing &&
+      !bookingInfo
+    ) {
+      const fetchBookingInfo = async () => {
+        setIsProcessing(true)
+        const url = user
+          ? `${API_BASE_URL}/bookings/${bookingId}`
+          : `${API_BASE_URL}/bookings/${bookingId}/guest`
 
-      const headers: HeadersInit = {}
-      if (user) {
-        const token = getAccessToken()
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`
+        const headers: HeadersInit = {}
+        if (user) {
+          const token = getAccessToken()
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`
+          }
         }
+
+        fetch(url, { headers })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.success && data.data) {
+              setBookingInfo({
+                bookingReference:
+                  data.data.bookingReference || data.data.booking_reference,
+                contactEmail: data.data.contactEmail || data.data.contact_email,
+                contactPhone: data.data.contactPhone || data.data.contact_phone,
+              })
+            }
+          })
+          .catch((err) => {
+            console.error('[PaymentResult] Failed to fetch booking info:', err)
+          })
+          .finally(() => {
+            setIsProcessing(false)
+          })
       }
 
-      fetch(url, { headers })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && data.data) {
-            setBookingInfo({
-              bookingReference:
-                data.data.bookingReference || data.data.booking_reference,
-              contactEmail: data.data.contactEmail || data.data.contact_email,
-              contactPhone: data.data.contactPhone || data.data.contact_phone,
-            })
-          }
-        })
-        .catch((err) => {
-          console.error('[PaymentResult] Failed to fetch booking info:', err)
-        })
+      fetchBookingInfo()
     }
-  }, [bookingId, status, manualStatus, paymentStatusFromUrl, user])
+  }, [
+    bookingId,
+    status,
+    manualStatus,
+    paymentStatusFromUrl,
+    user,
+    isProcessing,
+    bookingInfo,
+  ])
 
   // Auto redirect countdown when payment successful
   useEffect(() => {
@@ -249,78 +271,98 @@ const PaymentResult: React.FC = () => {
       return
     }
 
-    if (bookingId && (isMoMoSuccess || isPayOSSuccess || isCardSuccess)) {
-      const url = user
-        ? `${API_BASE_URL}/bookings/${bookingId}`
-        : `${API_BASE_URL}/bookings/${bookingId}/guest`
+    if (
+      bookingId &&
+      (isMoMoSuccess || isPayOSSuccess || isCardSuccess) &&
+      !isProcessing
+    ) {
+      const confirmPayment = async () => {
+        setIsProcessing(true)
+        const url = user
+          ? `${API_BASE_URL}/bookings/${bookingId}`
+          : `${API_BASE_URL}/bookings/${bookingId}/guest`
 
-      const headers: HeadersInit = {}
-      if (user) {
-        const token = getAccessToken()
-        if (token) {
-          headers['Authorization'] = `Bearer ${token}`
+        const headers: HeadersInit = {}
+        if (user) {
+          const token = getAccessToken()
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`
+          }
         }
-      }
 
-      // For card payment, status is already confirmed by frontend, just fetch booking info
-      if (isCardSuccess) {
+        // For card payment, status is already confirmed by frontend, just fetch booking info
+        if (isCardSuccess) {
+          fetch(url, { headers })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.success && data.data) {
+                setManualStatus('PAID')
+                setBookingInfo({
+                  bookingReference:
+                    data.data.bookingReference || data.data.booking_reference,
+                  contactEmail:
+                    data.data.contactEmail || data.data.contact_email,
+                  contactPhone:
+                    data.data.contactPhone || data.data.contact_phone,
+                })
+              }
+            })
+            .catch((err) => {
+              console.error(
+                '[PaymentResult] Failed to fetch booking info:',
+                err
+              )
+            })
+            .finally(() => {
+              setIsProcessing(false)
+            })
+          return
+        }
+
+        // Fetch booking to get the actual amount for MoMo/PayOS
         fetch(url, { headers })
           .then((res) => res.json())
+          .then((bookingData) => {
+            const amount =
+              bookingData.data?.pricing?.total ||
+              bookingData.data?.total_price ||
+              parseInt(paymentResult.amount || '0')
+
+            // Determine payment method and transaction reference
+            const paymentMethod = isPayOSSuccess ? 'payos' : 'momo'
+            const transactionRef = isPayOSSuccess
+              ? paymentResult.orderCode
+              : paymentResult.orderId
+
+            return fetch(
+              `${API_BASE_URL}/bookings/internal/${bookingId}/confirm-payment`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  paymentMethod,
+                  transactionRef,
+                  amount: amount,
+                  paymentStatus: 'paid',
+                }),
+              }
+            )
+          })
+          .then((res) => res.json())
           .then((data) => {
-            if (data.success && data.data) {
+            if (data.success) {
               setManualStatus('PAID')
-              setBookingInfo({
-                bookingReference:
-                  data.data.bookingReference || data.data.booking_reference,
-                contactEmail: data.data.contactEmail || data.data.contact_email,
-                contactPhone: data.data.contactPhone || data.data.contact_phone,
-              })
             }
           })
           .catch((err) => {
-            console.error('[PaymentResult] Failed to fetch booking info:', err)
+            console.error('[PaymentResult] Error confirming payment:', err)
           })
-        return
+          .finally(() => {
+            setIsProcessing(false)
+          })
       }
 
-      // Fetch booking to get the actual amount for MoMo/PayOS
-      fetch(url, { headers })
-        .then((res) => res.json())
-        .then((bookingData) => {
-          const amount =
-            bookingData.data?.pricing?.total ||
-            bookingData.data?.total_price ||
-            parseInt(paymentResult.amount || '0')
-
-          // Determine payment method and transaction reference
-          const paymentMethod = isPayOSSuccess ? 'payos' : 'momo'
-          const transactionRef = isPayOSSuccess
-            ? paymentResult.orderCode
-            : paymentResult.orderId
-
-          return fetch(
-            `${API_BASE_URL}/bookings/internal/${bookingId}/confirm-payment`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                paymentMethod,
-                transactionRef,
-                amount: amount,
-                paymentStatus: 'paid',
-              }),
-            }
-          )
-        })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setManualStatus('PAID')
-          }
-        })
-        .catch((err) => {
-          console.error('[PaymentResult] Error confirming payment:', err)
-        })
+      confirmPayment()
     }
   }, [
     bookingId,
@@ -330,9 +372,9 @@ const PaymentResult: React.FC = () => {
     paymentResult.status,
     paymentResult.orderCode,
     paymentResult.cancel,
-    paymentResult.amount,
     paymentResult.method,
     user,
+    isProcessing,
   ])
 
   if (!bookingId) {

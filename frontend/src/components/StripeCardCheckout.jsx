@@ -44,13 +44,13 @@ function CheckoutForm({ clientSecret, bookingId, onSuccess }) {
 
       // Gọi API để confirm booking sau khi thanh toán thành công
       try {
-        const bookingServiceUrl =
-          import.meta.env.VITE_BOOKING_SERVICE_URL || 'http://localhost:3004'
+        const apiBaseUrl =
+          import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
         const token = localStorage.getItem('token')
         const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
         const response = await axios.post(
-          `${bookingServiceUrl}/internal/${bookingId}/confirm-payment`,
+          `${apiBaseUrl}/bookings/internal/${bookingId}/confirm-payment`,
           {
             paymentMethod: 'card',
             transactionRef: paymentIntent.id,

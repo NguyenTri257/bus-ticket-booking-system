@@ -73,6 +73,7 @@ export function LocationAutocomplete({
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // Fetch top popular routes
   const fetchTopRoutes = useCallback(async () => {
@@ -104,6 +105,15 @@ export function LocationAutocomplete({
         return
       }
 
+      // Cancel previous request if exists
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
+
+      // Create new AbortController for this request
+      const abortController = new AbortController()
+      abortControllerRef.current = abortController
+
       setIsLoading(true)
       setError(null)
 
@@ -113,7 +123,8 @@ export function LocationAutocomplete({
         const searchType = type === 'destination' ? 'all' : type
 
         const response = await fetch(
-          `${API_BASE_URL}/trips/autocomplete/locations?q=${encodeURIComponent(query)}&type=${searchType}&limit=10`
+          `${API_BASE_URL}/trips/autocomplete/locations?q=${encodeURIComponent(query)}&type=${searchType}&limit=10`,
+          { signal: abortController.signal }
         )
 
         if (!response.ok) {
@@ -128,11 +139,18 @@ export function LocationAutocomplete({
           setSuggestions([])
         }
       } catch (err) {
+        // Ignore abort errors
+        if (err instanceof Error && err.name === 'AbortError') {
+          return
+        }
         console.error('Autocomplete error:', err)
         setError('Failed to load suggestions')
         setSuggestions([])
       } finally {
-        setIsLoading(false)
+        // Only set loading to false if this is still the active request
+        if (!abortController.signal.aborted) {
+          setIsLoading(false)
+        }
       }
     },
     [type]
@@ -157,11 +175,19 @@ export function LocationAutocomplete({
       }, 300) // 300ms debounce
     } else {
       setSuggestions([])
+      // Cancel any pending request when query is too short
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
+      }
     }
 
     return () => {
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
+      }
+      // Cancel any pending request on cleanup
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort()
       }
     }
   }, [searchQuery, fetchSuggestions])

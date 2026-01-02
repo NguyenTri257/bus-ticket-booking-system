@@ -18,12 +18,14 @@ export interface ChatAction {
   type:
     | 'search_results'
     | 'booking_confirmation'
+    | 'booking_summary'
     | 'payment_link'
     | 'payment_method_selector'
     | 'passenger_info_form'
     | 'seat_selection'
     | string
   data?: unknown
+  lang?: string
   seats?: (string | { seat_code: string; price: number })[]
   required_fields?: Array<{
     name: string

@@ -6,6 +6,8 @@ import type { ChatMessage, ChatAction } from '../../types/chatbot.types'
 import { MessageCircle } from 'lucide-react'
 import { PassengerInfoForm } from './PassengerInfoForm'
 import { MessageFeedback } from './MessageFeedback'
+import { BookingSummary } from './BookingSummary'
+import type { BookingSummaryData } from './BookingSummary'
 
 interface MessageBubbleProps {
   message: ChatMessage
@@ -80,15 +82,28 @@ const ChatActionRenderer: React.FC<ChatActionRendererProps> = ({
             required_fields: action.required_fields as PassengerField[],
           }}
           sessionId={sessionId || ''}
+          lang={(action.lang as 'vi' | 'en') || 'vi'}
           onFormSubmitted={onMessageFromAction}
         />
       )
     case 'booking_confirmation':
       return <BookingConfirmation data={action.data} />
+    case 'booking_summary':
+      return (
+        <BookingSummary
+          data={action.data as BookingSummaryData}
+          lang={(action.lang as 'vi' | 'en') || 'vi'}
+        />
+      )
     case 'payment_link':
       return <PaymentLink data={action.data} />
     case 'payment_method_selector':
-      return <PaymentMethodSelector data={action.data} />
+      return (
+        <PaymentMethodSelector
+          data={action.data}
+          lang={(action.lang as 'vi' | 'en') || 'vi'}
+        />
+      )
     default:
       console.warn('[ChatActionRenderer] Unknown action type:', action.type)
       return null
@@ -476,6 +491,11 @@ interface PaymentMethodData {
   bookingId: string
   bookingReference: string
   amount: number
+  booking?: {
+    pricing?: {
+      total?: number
+    }
+  }
   paymentMethods: Array<{
     id: string
     name: string
@@ -491,16 +511,40 @@ interface PaymentMethodData {
 
 interface PaymentMethodSelectorProps {
   data: unknown
+  lang?: string
 }
 
 const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   data,
+  lang = 'vi',
 }) => {
   const paymentData = data as Partial<PaymentMethodData>
   const [isProcessing, setIsProcessing] = React.useState(false)
   const [selectedMethod, setSelectedMethod] = React.useState<string | null>(
     null
   )
+
+  // Translations
+  const translations = {
+    vi: {
+      title: '💳 Chọn phương thức thanh toán',
+      paymentError: 'Không thể tạo link thanh toán. Vui lòng thử lại.',
+      generalError: 'Có lỗi xảy ra',
+      tryAgain: 'Vui lòng thử lại',
+      paymentDescription: 'Thanh toán đặt vé',
+      amount: 'Số tiền:',
+    },
+    en: {
+      title: '💳 Select Payment Method',
+      paymentError: 'Unable to create payment link. Please try again.',
+      generalError: 'An error occurred',
+      tryAgain: 'Please try again',
+      paymentDescription: 'Payment for booking',
+      amount: 'Amount:',
+    },
+  }
+
+  const t = translations[lang as 'vi' | 'en']
 
   const handlePaymentSelect = async (methodId: string) => {
     if (!paymentData.bookingId) return
@@ -569,7 +613,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
           bookingId: paymentData.bookingId,
           paymentMethod: methodId,
           amount: amount,
-          description: `Thanh toán đặt vé ${paymentData.bookingReference}`,
+          description: `${t.paymentDescription} ${paymentData.bookingReference}`,
         }),
       })
 
@@ -590,12 +634,12 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         window.location.href = result.payUrl
       } else {
         console.error('No payment URL returned:', result)
-        alert('Không thể tạo link thanh toán. Vui lòng thử lại.')
+        alert(t.paymentError)
       }
     } catch (error) {
       console.error('Payment error:', error)
       alert(
-        `Có lỗi xảy ra: ${error instanceof Error ? error.message : 'Vui lòng thử lại'}`
+        `${t.generalError}: ${error instanceof Error ? error.message : t.tryAgain}`
       )
     } finally {
       setIsProcessing(false)
@@ -606,7 +650,7 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
   return (
     <div className="bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
       <div className="text-sm font-semibold text-gray-900 dark:text-white mb-3">
-        💳 Chọn phương thức thanh toán
+        {t.title}
       </div>
       <div className="grid grid-cols-2 gap-2">
         {paymentData.paymentMethods?.map((method) => (
@@ -637,7 +681,9 @@ const PaymentMethodSelector: React.FC<PaymentMethodSelectorProps> = ({
         ))}
       </div>
       <div className="mt-3 text-xs text-gray-500 dark:text-gray-400 text-center">
-        Số tiền: {paymentData.amount?.toLocaleString('vi-VN')}₫
+        {t.amount}{' '}
+        {paymentData.amount?.toLocaleString(lang === 'vi' ? 'vi-VN' : 'en-US')}{' '}
+        {lang === 'vi' ? '₫' : 'VND'}
       </div>
     </div>
   )

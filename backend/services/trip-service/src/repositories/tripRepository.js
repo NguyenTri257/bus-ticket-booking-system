@@ -25,12 +25,15 @@ class TripRepository {
         b.bus_id, b.plate_number, b.type as bus_type, bm.name as bus_model,
         b.seat_capacity, b.amenities::jsonb AS amenities, b.image_url,
         
-        -- Availability (subquery for booked seats)
+        -- Availability (subquery for booked/unavailable seats)
         (
           SELECT COUNT(*) 
           FROM bookings bk 
           JOIN booking_passengers bp ON bk.booking_id = bp.booking_id 
-          WHERE bk.trip_id = t.trip_id AND bk.status IN ('confirmed', 'pending')
+          WHERE bk.trip_id = t.trip_id AND (
+            bk.status = 'confirmed' OR 
+            (bk.status = 'pending' AND bk.locked_until > CURRENT_TIMESTAMP)
+          )
         ) as booked_seats
         
       FROM trips t
@@ -333,7 +336,7 @@ class TripRepository {
         JOIN buses b ON t.bus_id = b.bus_id
         JOIN operators o ON b.operator_id = o.operator_id
         JOIN bus_models bm ON b.bus_model_id = bm.bus_model_id
-      LEFT JOIN (SELECT bk.trip_id, COUNT(*) as booking_count FROM bookings bk JOIN booking_passengers bp ON bk.booking_id = bp.booking_id WHERE bk.status IN ('confirmed', 'pending') GROUP BY bk.trip_id) bk ON t.trip_id = bk.trip_id`;
+      LEFT JOIN (SELECT bk.trip_id, COUNT(*) as booking_count FROM bookings bk JOIN booking_passengers bp ON bk.booking_id = bp.booking_id WHERE bk.status = 'confirmed' GROUP BY bk.trip_id) bk ON t.trip_id = bk.trip_id`;
 
       let query = `SELECT
         t.trip_id, t.departure_time, t.arrival_time, t.base_price, t.status, t.policies::jsonb AS policies, t.created_at,
@@ -347,7 +350,7 @@ class TripRepository {
       JOIN buses b ON t.bus_id = b.bus_id
       JOIN operators o ON b.operator_id = o.operator_id
       JOIN bus_models bm ON b.bus_model_id = bm.bus_model_id
-      LEFT JOIN (SELECT bk.trip_id, COUNT(*) as booking_count FROM bookings bk JOIN booking_passengers bp ON bk.booking_id = bp.booking_id WHERE bk.status IN ('confirmed', 'pending') GROUP BY bk.trip_id) bk ON t.trip_id = bk.trip_id`;
+      LEFT JOIN (SELECT bk.trip_id, COUNT(*) as booking_count FROM bookings bk JOIN booking_passengers bp ON bk.booking_id = bp.booking_id WHERE bk.status = 'confirmed' GROUP BY bk.trip_id) bk ON t.trip_id = bk.trip_id`;
 
       const values = [];
       let index = 1;
@@ -495,14 +498,33 @@ class TripRepository {
     let index = 1;
     let where_clauses = [`t.status IN ('scheduled', 'active')`];
 
-    // Build filters
+    // Build filters with advanced search capabilities
     if (origin) {
-      where_clauses.push(`r.origin ILIKE $${index++}`);
-      values.push(`%${origin}%`);
+      // Use multi-strategy search:
+      // 1. Full-text search with tsvector (fastest, uses GIN index)
+      // 2. Unaccented ILIKE search (handles partial matches)
+      // 3. Fuzzy similarity search (handles typos)
+      where_clauses.push(`(
+        r.origin_tsvector @@ to_tsquery('simple', immutable_unaccent($${index})) OR
+        immutable_unaccent(r.origin) ILIKE immutable_unaccent($${index + 1}) OR
+        similarity(immutable_unaccent(r.origin), immutable_unaccent($${index + 2})) > 0.3
+      )`);
+      values.push(origin.trim().replace(/\s+/g, ' & ')); // Full-text query
+      values.push(`%${origin}%`); // ILIKE pattern
+      values.push(origin); // Similarity comparison
+      index += 3;
     }
     if (destination) {
-      where_clauses.push(`r.destination ILIKE $${index++}`);
-      values.push(`%${destination}%`);
+      // Same multi-strategy search for destination
+      where_clauses.push(`(
+        r.destination_tsvector @@ to_tsquery('simple', immutable_unaccent($${index})) OR
+        immutable_unaccent(r.destination) ILIKE immutable_unaccent($${index + 1}) OR
+        similarity(immutable_unaccent(r.destination), immutable_unaccent($${index + 2})) > 0.3
+      )`);
+      values.push(destination.trim().replace(/\s+/g, ' & ')); // Full-text query
+      values.push(`%${destination}%`); // ILIKE pattern
+      values.push(destination); // Similarity comparison
+      index += 3;
     }
     if (date) {
       if (flexibleDays && flexibleDays > 0) {
@@ -532,7 +554,10 @@ class TripRepository {
         SELECT COUNT(*) 
         FROM bookings bk 
         JOIN booking_passengers bp ON bk.booking_id = bp.booking_id 
-        WHERE bk.trip_id = t.trip_id AND bk.status IN ('confirmed', 'pending')
+        WHERE bk.trip_id = t.trip_id AND (
+          bk.status = 'confirmed' OR 
+          (bk.status = 'pending' AND bk.locked_until > CURRENT_TIMESTAMP)
+        )
       ), 0)) >= $${index++}`);
       values.push(passengers);
     }
@@ -620,7 +645,10 @@ class TripRepository {
           JOIN bookings bk ON bp.booking_id = bk.booking_id 
           WHERE bp.seat_code = s.seat_code 
           AND bk.trip_id = t.trip_id 
-          AND bk.status IN ('confirmed', 'pending')
+          AND (
+            bk.status = 'confirmed' OR 
+            (bk.status = 'pending' AND bk.locked_until > CURRENT_TIMESTAMP)
+          )
         )
       )`);
       values.push(locations);
@@ -639,7 +667,10 @@ class TripRepository {
         SELECT COUNT(*) 
         FROM bookings bk 
         JOIN booking_passengers bp ON bk.booking_id = bp.booking_id 
-        WHERE bk.trip_id = t.trip_id AND bk.status IN ('confirmed', 'pending')
+        WHERE bk.trip_id = t.trip_id AND (
+          bk.status = 'confirmed' OR 
+          (bk.status = 'pending' AND bk.locked_until > CURRENT_TIMESTAMP)
+        )
       ), 0)) >= $${index++}`);
       values.push(minSeats);
     }
@@ -781,6 +812,251 @@ class TripRepository {
       licensePlate: trip.license_plate,
       fromLocation: trip.origin,
       toLocation: trip.destination,
+    }));
+  }
+
+  /**
+   * Autocomplete/suggest locations for origin, destination, route stops, and dropoff points
+   * Uses full-text search, unaccent, and fuzzy matching
+   * @param {string} query - Search query
+   * @param {string} type - 'origin', 'destination', 'both', 'stop', 'dropoff_point', or 'all'
+   * @param {number} limit - Maximum number of results
+   * @returns {Promise<Array>} Array of location suggestions
+   */
+  async autocompleteLocations(query, type = 'both', limit = 10) {
+    if (!query || query.trim().length < 2) {
+      return [];
+    }
+
+    const searchQuery = query.trim();
+    const tsQuery = searchQuery.replace(/\s+/g, ' & ');
+
+    let locationQuery = '';
+
+    if (type === 'both') {
+      // Search origin, destination, route stops, and dropoff points
+      locationQuery = `
+        WITH origin_matches AS (
+          SELECT DISTINCT
+            r.origin as location,
+            'origin' as location_type,
+            ts_rank(r.origin_tsvector, to_tsquery('simple', immutable_unaccent($1))) as rank,
+            similarity(immutable_unaccent(r.origin), immutable_unaccent($2)) as sim_score,
+            r.origin,
+            r.destination
+          FROM routes r
+          WHERE r.origin_tsvector @@ to_tsquery('simple', immutable_unaccent($1))
+             OR immutable_unaccent(r.origin) ILIKE immutable_unaccent($3)
+             OR similarity(immutable_unaccent(r.origin), immutable_unaccent($2)) > 0.3
+        ),
+        destination_matches AS (
+          SELECT DISTINCT
+            r.destination as location,
+            'destination' as location_type,
+            ts_rank(r.destination_tsvector, to_tsquery('simple', immutable_unaccent($1))) as rank,
+            similarity(immutable_unaccent(r.destination), immutable_unaccent($2)) as sim_score,
+            r.origin,
+            r.destination
+          FROM routes r
+          WHERE r.destination_tsvector @@ to_tsquery('simple', immutable_unaccent($1))
+             OR immutable_unaccent(r.destination) ILIKE immutable_unaccent($3)
+             OR similarity(immutable_unaccent(r.destination), immutable_unaccent($2)) > 0.3
+        ),
+        stop_matches AS (
+          SELECT DISTINCT
+            rs.stop_name as location,
+            'stop' as location_type,
+            0 as rank,
+            similarity(immutable_unaccent(rs.stop_name), immutable_unaccent($2)) as sim_score,
+            r.origin,
+            r.destination
+          FROM route_stops rs
+          JOIN routes r ON rs.route_id = r.route_id
+          WHERE immutable_unaccent(rs.stop_name) ILIKE immutable_unaccent($3)
+             OR similarity(immutable_unaccent(rs.stop_name), immutable_unaccent($2)) > 0.3
+        ),
+        dropoff_point_matches AS (
+          SELECT DISTINCT
+            rp.name as location,
+            'dropoff_point' as location_type,
+            0 as rank,
+            similarity(immutable_unaccent(rp.name), immutable_unaccent($2)) as sim_score,
+            r.origin,
+            r.destination
+          FROM route_points rp
+          JOIN routes r ON rp.route_id = r.route_id
+          WHERE rp.is_dropoff = true
+            AND (immutable_unaccent(rp.name) ILIKE immutable_unaccent($3)
+             OR similarity(immutable_unaccent(rp.name), immutable_unaccent($2)) > 0.3)
+        ),
+        all_matches AS (
+          SELECT * FROM origin_matches
+          UNION
+          SELECT * FROM destination_matches
+          UNION
+          SELECT * FROM stop_matches
+          UNION
+          SELECT * FROM dropoff_point_matches
+        )
+        SELECT 
+          location,
+          location_type,
+          MAX(rank) as max_rank,
+          MAX(sim_score) as max_similarity,
+          (array_agg(origin))[1] as origin,
+          (array_agg(destination))[1] as destination
+        FROM all_matches
+        GROUP BY location, location_type
+        ORDER BY max_rank DESC, max_similarity DESC
+        LIMIT $4
+      `;
+    } else if (type === 'origin') {
+      locationQuery = `
+        SELECT DISTINCT
+          r.origin as location,
+          'origin' as location_type,
+          ts_rank(r.origin_tsvector, to_tsquery('simple', immutable_unaccent($1))) as max_rank,
+          similarity(immutable_unaccent(r.origin), immutable_unaccent($2)) as max_similarity
+        FROM routes r
+        WHERE r.origin_tsvector @@ to_tsquery('simple', immutable_unaccent($1))
+           OR immutable_unaccent(r.origin) ILIKE immutable_unaccent($3)
+           OR similarity(immutable_unaccent(r.origin), immutable_unaccent($2)) > 0.3
+        ORDER BY max_rank DESC, max_similarity DESC
+        LIMIT $4
+      `;
+    } else if (type === 'destination') {
+      locationQuery = `
+        SELECT DISTINCT
+          r.destination as location,
+          'destination' as location_type,
+          ts_rank(r.destination_tsvector, to_tsquery('simple', immutable_unaccent($1))) as max_rank,
+          similarity(immutable_unaccent(r.destination), immutable_unaccent($2)) as max_similarity
+        FROM routes r
+        WHERE r.destination_tsvector @@ to_tsquery('simple', immutable_unaccent($1))
+           OR immutable_unaccent(r.destination) ILIKE immutable_unaccent($3)
+           OR similarity(immutable_unaccent(r.destination), immutable_unaccent($2)) > 0.3
+        ORDER BY max_rank DESC, max_similarity DESC
+        LIMIT $4
+      `;
+    } else if (type === 'stop') {
+      locationQuery = `
+        SELECT DISTINCT
+          rs.stop_name as location,
+          'stop' as location_type,
+          0 as max_rank,
+          similarity(immutable_unaccent(rs.stop_name), immutable_unaccent($2)) as max_similarity
+        FROM route_stops rs
+        WHERE immutable_unaccent(rs.stop_name) ILIKE immutable_unaccent($3)
+           OR similarity(immutable_unaccent(rs.stop_name), immutable_unaccent($2)) > 0.3
+        ORDER BY max_similarity DESC
+        LIMIT $4
+      `;
+    } else if (type === 'dropoff_point') {
+      locationQuery = `
+        SELECT DISTINCT
+          rp.name as location,
+          'dropoff_point' as location_type,
+          0 as max_rank,
+          similarity(immutable_unaccent(rp.name), immutable_unaccent($2)) as max_similarity
+        FROM route_points rp
+        WHERE rp.is_dropoff = true
+          AND (immutable_unaccent(rp.name) ILIKE immutable_unaccent($3)
+           OR similarity(immutable_unaccent(rp.name), immutable_unaccent($2)) > 0.3)
+        ORDER BY max_similarity DESC
+        LIMIT $4
+      `;
+    } else if (type === 'all') {
+      // Include all types: origin, destination, stops, dropoff points
+      locationQuery = `
+        WITH origin_matches AS (
+          SELECT DISTINCT
+            r.origin as location,
+            'origin' as location_type,
+            ts_rank(r.origin_tsvector, to_tsquery('simple', immutable_unaccent($1))) as rank,
+            similarity(immutable_unaccent(r.origin), immutable_unaccent($2)) as sim_score,
+            r.origin,
+            r.destination
+          FROM routes r
+          WHERE r.origin_tsvector @@ to_tsquery('simple', immutable_unaccent($1))
+             OR immutable_unaccent(r.origin) ILIKE immutable_unaccent($3)
+             OR similarity(immutable_unaccent(r.origin), immutable_unaccent($2)) > 0.3
+        ),
+        destination_matches AS (
+          SELECT DISTINCT
+            r.destination as location,
+            'destination' as location_type,
+            ts_rank(r.destination_tsvector, to_tsquery('simple', immutable_unaccent($1))) as rank,
+            similarity(immutable_unaccent(r.destination), immutable_unaccent($2)) as sim_score,
+            r.origin,
+            r.destination
+          FROM routes r
+          WHERE r.destination_tsvector @@ to_tsquery('simple', immutable_unaccent($1))
+             OR immutable_unaccent(r.destination) ILIKE immutable_unaccent($3)
+             OR similarity(immutable_unaccent(r.destination), immutable_unaccent($2)) > 0.3
+        ),
+        stop_matches AS (
+          SELECT DISTINCT
+            rs.stop_name as location,
+            'stop' as location_type,
+            0 as rank,
+            similarity(immutable_unaccent(rs.stop_name), immutable_unaccent($2)) as sim_score,
+            r.origin,
+            r.destination
+          FROM route_stops rs
+          JOIN routes r ON rs.route_id = r.route_id
+          WHERE immutable_unaccent(rs.stop_name) ILIKE immutable_unaccent($3)
+             OR similarity(immutable_unaccent(rs.stop_name), immutable_unaccent($2)) > 0.3
+        ),
+        dropoff_point_matches AS (
+          SELECT DISTINCT
+            rp.name as location,
+            'dropoff_point' as location_type,
+            0 as rank,
+            similarity(immutable_unaccent(rp.name), immutable_unaccent($2)) as sim_score,
+            r.origin,
+            r.destination
+          FROM route_points rp
+          JOIN routes r ON rp.route_id = r.route_id
+          WHERE rp.is_dropoff = true
+            AND (immutable_unaccent(rp.name) ILIKE immutable_unaccent($3)
+             OR similarity(immutable_unaccent(rp.name), immutable_unaccent($2)) > 0.3)
+        ),
+        all_matches AS (
+          SELECT * FROM origin_matches
+          UNION
+          SELECT * FROM destination_matches
+          UNION
+          SELECT * FROM stop_matches
+          UNION
+          SELECT * FROM dropoff_point_matches
+        )
+        SELECT 
+          location,
+          location_type,
+          MAX(rank) as max_rank,
+          MAX(sim_score) as max_similarity,
+          (array_agg(origin))[1] as origin,
+          (array_agg(destination))[1] as destination
+        FROM all_matches
+        GROUP BY location, location_type
+        ORDER BY max_rank DESC, max_similarity DESC
+        LIMIT $4
+      `;
+    }
+
+    const result = await pool.query(locationQuery, [
+      tsQuery,
+      searchQuery,
+      `%${searchQuery}%`,
+      limit,
+    ]);
+
+    return result.rows.map((row) => ({
+      location: row.location,
+      type: row.location_type,
+      relevance: parseFloat(row.max_rank || 0) + parseFloat(row.max_similarity || 0),
+      origin: row.origin,
+      destination: row.destination,
     }));
   }
 }

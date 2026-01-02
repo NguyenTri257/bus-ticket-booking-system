@@ -185,7 +185,7 @@ export const TripFilters: React.FC<TripFiltersProps> = ({
           <CustomDropdown
             options={[
               { id: 'departure_time', label: 'Departure Time' },
-              { id: 'bookings', label: 'Bookings' },
+              { id: 'bookings', label: 'Booked Seats' },
               { id: 'created_at', label: 'Created At' },
             ]}
             value={filters.sort_by || 'departure_time'}

@@ -265,7 +265,7 @@ export interface Trip {
     available_seats: number
     occupancy_rate?: number
   }
-  bookings?: number // Number of confirmed bookings
+  bookings?: number // Number of booked seats/passengers
   policies: Policies
   pickup_points: PickupPoint[]
   dropoff_points: DropoffPoint[]

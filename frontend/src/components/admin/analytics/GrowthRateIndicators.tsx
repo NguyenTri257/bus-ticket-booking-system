@@ -10,13 +10,33 @@ interface GrowthRateIndicatorsProps {
   data: RevenueAnalyticsResponse
 }
 
+function parsePeriod(period: string): Date {
+  // Parse period string to Date - handle different formats
+  if (period.includes('W')) {
+    // Week format: "YYYY-WNN" -> parse as first day of that week
+    const match = period.match(/(\d{4})-W(\d{2})/)
+    if (match) {
+      const year = parseInt(match[1])
+      const week = parseInt(match[2])
+      // Calculate first day of the week (approximation)
+      const firstDay = new Date(year, 0, 1 + (week - 1) * 7)
+      return firstDay
+    }
+  } else if (period.match(/^\d{4}-\d{2}$/)) {
+    // Month format: "YYYY-MM" -> parse as first day of month
+    return new Date(period + '-01')
+  }
+  // Day format: "YYYY-MM-DD" or full ISO string
+  return new Date(period)
+}
+
 function sumRange(breakdown: RevenueBreakdown[], start: Date, end: Date) {
   if (!breakdown || !Array.isArray(breakdown)) return 0
 
   const startT = start.setHours(0, 0, 0, 0)
   const endT = end.setHours(23, 59, 59, 999)
   return breakdown.reduce((acc, item) => {
-    const d = new Date(item.period).getTime()
+    const d = parsePeriod(item.period).getTime()
     if (d >= startT && d <= endT) return acc + item.revenue
     return acc
   }, 0)
@@ -78,16 +98,18 @@ export function GrowthRateIndicators({ data }: GrowthRateIndicatorsProps) {
   let actualTodaySum = 0
   let actualYesterdaySum = 0
   let todayLabel = 'Today'
+  let isDaily = true // Track if we're in daily grouping mode
 
   if (breakdown && breakdown.length > 0) {
     console.log('Raw breakdown data:', breakdown)
     // Find the most recent date with data
     const sortedBreakdown = [...breakdown].sort(
-      (a, b) => new Date(b.period).getTime() - new Date(a.period).getTime()
+      (a, b) =>
+        parsePeriod(b.period).getTime() - parsePeriod(a.period).getTime()
     )
     const mostRecent = sortedBreakdown[0]
     if (mostRecent) {
-      const mostRecentDate = new Date(mostRecent.period)
+      const mostRecentDate = parsePeriod(mostRecent.period)
       const mostRecentDateOnly = new Date(
         Date.UTC(
           mostRecentDate.getUTCFullYear(),
@@ -105,11 +127,37 @@ export function GrowthRateIndicators({ data }: GrowthRateIndicatorsProps) {
 
       if (mostRecentDateOnly.getTime() === today.getTime()) {
         todayLabel = 'Today'
+        isDaily = true
       } else {
-        todayLabel = mostRecentDate.toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-        })
+        // Handle different period formats
+        const period = mostRecent.period
+        if (period.includes('W')) {
+          // Week format: show date range
+          isDaily = false
+          const match = period.match(/(\d{4})-W(\d{2})/)
+          if (match) {
+            const year = parseInt(match[1])
+            const week = parseInt(match[2])
+            const firstDay = new Date(year, 0, 1 + (week - 1) * 7)
+            const lastDay = new Date(firstDay)
+            lastDay.setDate(firstDay.getDate() + 6)
+            todayLabel = `${firstDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${lastDay.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+          }
+        } else if (period.match(/^\d{4}-\d{2}$/)) {
+          // Month format: show month and year
+          isDaily = false
+          todayLabel = mostRecentDate.toLocaleDateString('en-US', {
+            month: 'long',
+            year: 'numeric',
+          })
+        } else {
+          // Day format
+          isDaily = true
+          todayLabel = mostRecentDate.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+          })
+        }
       }
     }
   }
@@ -128,10 +176,11 @@ export function GrowthRateIndicators({ data }: GrowthRateIndicatorsProps) {
       label: todayLabel,
       current: actualTodaySum,
       previous: actualYesterdaySum,
-      compareLabel:
-        todayLabel === 'Today'
+      compareLabel: isDaily
+        ? todayLabel === 'Today'
           ? 'Compared to yesterday'
-          : 'Compared to previous day',
+          : 'Compared to previous day'
+        : 'Compared to previous period',
     },
     {
       label: 'This Week',

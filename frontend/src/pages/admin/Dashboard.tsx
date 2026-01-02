@@ -42,6 +42,7 @@ export default function Dashboard() {
     bookingsTrend,
     topRoutesData,
     recentBookings,
+    upcomingTrips,
     loading,
     error,
   } = useAdminDashboard()
@@ -259,6 +260,89 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Upcoming Trips Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Upcoming Trips</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {upcomingTrips.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Route</TableHead>
+                    <TableHead>Departure</TableHead>
+                    <TableHead>Estimated Arrival</TableHead>
+                    <TableHead>Bus Type</TableHead>
+                    <TableHead>Operator</TableHead>
+                    <TableHead>Base Price</TableHead>
+                    <TableHead>Available Seats</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {upcomingTrips.map((trip) => (
+                    <TableRow key={trip.trip_id}>
+                      <TableCell className="font-medium">
+                        {trip.route}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(trip.departure_time).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(trip.arrival_time).toLocaleString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </TableCell>
+                      <TableCell className="capitalize">
+                        {trip.bus_type}
+                      </TableCell>
+                      <TableCell>{trip.operator_name}</TableCell>
+                      <TableCell className="group">
+                        <div className="flex items-center gap-1">
+                          <span>{(trip.base_price / 1000000).toFixed(1)}M</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <HelpCircle className="h-3 w-3 text-muted-foreground cursor-help opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{trip.base_price.toLocaleString()} VND</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-left">
+                        <span className="text-sm text-muted-foreground">
+                          {trip.available_seats} / {trip.total_seats}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="px-2 py-1 rounded text-sm font-medium bg-blue-100 text-blue-800">
+                          {trip.status}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <AdminEmptyState
+                icon={Route}
+                title="No Upcoming Trips"
+                description="Scheduled trips will be displayed here once trip data is available."
+              />
+            )}
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   )

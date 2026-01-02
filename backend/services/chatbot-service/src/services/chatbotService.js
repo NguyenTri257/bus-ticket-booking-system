@@ -2362,6 +2362,30 @@ Return ONLY the text response, no JSON, no explanations.`;
       sessionId,
       lang,
     });
+    
+    // Check if user is in the middle of booking process (not yet created booking)
+    const bookingContext = await conversationRepository.getBookingContext(sessionId);
+    const isInBookingProcess = bookingContext && (
+      bookingContext.selectedTrip ||
+      bookingContext.selectedSeats ||
+      bookingContext.passengerInfo
+    ) && !bookingContext.bookingConfirmation;
+    
+    if (isInBookingProcess) {
+      console.log('[ChatbotService] User canceling in-progress booking, clearing context');
+      // Clear booking context by saving empty object
+      await conversationRepository.saveBookingContext(sessionId, {});
+      
+      return {
+        text: lang === 'vi'
+          ? 'Đã hủy đặt vé. Cảm ơn bạn! Nếu bạn muốn tìm chuyến khác, hãy cho tôi biết.'
+          : 'Booking canceled. Thank you! Let me know if you want to search for another trip.',
+        suggestions: lang === 'vi'
+          ? ['Tìm chuyến khác', 'Xem câu hỏi thường gặp']
+          : ['Search trips', 'View FAQs']
+      };
+    }
+    
     // Extract booking reference from message
     const referenceMatch = message.match(/\b[A-Z]{2}\d{11}\b/);
     console.log(

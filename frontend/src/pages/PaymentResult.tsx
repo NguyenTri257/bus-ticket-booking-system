@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePaymentStatus } from '@/hooks/usePaymentStatus'
 import { API_BASE_URL } from '@/lib/api'
+import { useAuth } from '@/context/AuthContext'
+import { getAccessToken } from '@/api/auth'
 
 interface BookingInfo {
   bookingReference: string
@@ -23,9 +25,14 @@ async function getBookingIdFromQueryAsync() {
       // ignore
     }
   }
-  // Fallback: lấy bookingId trực tiếp từ query nếu có
+  // Fallback: lấy bookingId trực tiếp từ query nếu có (ưu tiên cao nhất)
   const bookingId = params.get('bookingId')
   if (bookingId) return bookingId
+
+  // PayOS: lấy từ parameter 'id' (lưu ý: đây là transaction ID, có thể không phải bookingId)
+  const payosId = params.get('id')
+  if (payosId) return payosId
+
   // Nếu là ZaloPay, thử lấy từ apptransid (orderId)
   const apptransid = params.get('apptransid')
   if (apptransid) {
@@ -46,9 +53,16 @@ async function getBookingIdFromQueryAsync() {
 function getPaymentResultFromQuery() {
   const params = new URLSearchParams(window.location.search)
   return {
+    // MoMo params
     resultCode: params.get('resultCode'),
     orderId: params.get('orderId'),
     message: params.get('message'),
+    amount: params.get('amount'),
+    // PayOS params
+    code: params.get('code'),
+    status: params.get('status'),
+    orderCode: params.get('orderCode'),
+    cancel: params.get('cancel'),
   }
 }
 
@@ -136,6 +150,7 @@ function StatusIcon({ status, cancel }: { status?: string; cancel?: string }) {
 
 const PaymentResult: React.FC = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [bookingId, setBookingId] = useState<string>('')
   const paymentResult = getPaymentResultFromQuery()
   const { status, loading, error } = usePaymentStatus(bookingId)
@@ -164,7 +179,19 @@ const PaymentResult: React.FC = () => {
   useEffect(() => {
     const currentStatus = manualStatus || status
     if (bookingId && currentStatus === 'PAID') {
-      fetch(`${API_BASE_URL}/bookings/${bookingId}/guest`)
+      const url = user
+        ? `${API_BASE_URL}/bookings/${bookingId}`
+        : `${API_BASE_URL}/bookings/${bookingId}/guest`
+
+      const headers: HeadersInit = {}
+      if (user) {
+        const token = getAccessToken()
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
+        }
+      }
+
+      fetch(url, { headers })
         .then((res) => res.json())
         .then((data) => {
           if (data.success && data.data) {
@@ -180,7 +207,7 @@ const PaymentResult: React.FC = () => {
           console.error('[PaymentResult] Failed to fetch booking info:', err)
         })
     }
-  }, [bookingId, status, manualStatus])
+  }, [bookingId, status, manualStatus, user])
 
   // Auto redirect countdown when payment successful
   useEffect(() => {
@@ -201,15 +228,31 @@ const PaymentResult: React.FC = () => {
     }
   }, [status, manualStatus, bookingInfo, handleViewTicket])
 
-  // If we have MoMo result in URL, update booking status
+  // If we have MoMo or PayOS result in URL, update booking status
   useEffect(() => {
-    if (
-      bookingId &&
-      paymentResult.resultCode &&
-      paymentResult.resultCode === '0'
-    ) {
+    // Check if payment was successful
+    const isMoMoSuccess =
+      paymentResult.resultCode && paymentResult.resultCode === '0'
+    const isPayOSSuccess =
+      paymentResult.status === 'PAID' &&
+      paymentResult.code === '00' &&
+      paymentResult.cancel === 'false'
+
+    if (bookingId && (isMoMoSuccess || isPayOSSuccess)) {
+      const url = user
+        ? `${API_BASE_URL}/bookings/${bookingId}`
+        : `${API_BASE_URL}/bookings/${bookingId}/guest`
+
+      const headers: HeadersInit = {}
+      if (user) {
+        const token = getAccessToken()
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
+        }
+      }
+
       // Fetch booking to get the actual amount
-      fetch(`${API_BASE_URL}/bookings/${bookingId}/guest`)
+      fetch(url, { headers })
         .then((res) => res.json())
         .then((bookingData) => {
           const amount =
@@ -217,14 +260,20 @@ const PaymentResult: React.FC = () => {
             bookingData.data?.total_price ||
             parseInt(paymentResult.amount || '0')
 
+          // Determine payment method and transaction reference
+          const paymentMethod = isPayOSSuccess ? 'payos' : 'momo'
+          const transactionRef = isPayOSSuccess
+            ? paymentResult.orderCode
+            : paymentResult.orderId
+
           return fetch(
             `${API_BASE_URL}/bookings/internal/${bookingId}/confirm-payment`,
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                paymentMethod: 'momo',
-                transactionRef: paymentResult.orderId,
+                paymentMethod,
+                transactionRef,
                 amount: amount,
                 paymentStatus: 'paid',
               }),
@@ -245,7 +294,11 @@ const PaymentResult: React.FC = () => {
     bookingId,
     paymentResult.resultCode,
     paymentResult.orderId,
-    paymentResult.amount,
+    paymentResult.code,
+    paymentResult.status,
+    paymentResult.orderCode,
+    paymentResult.cancel,
+    user,
   ])
 
   if (!bookingId) {

@@ -67,16 +67,18 @@ async function createPayment(body) {
     // Nếu không có orderId, sinh số ngẫu nhiên dựa trên timestamp
     orderCode = Number(`${Date.now()}${Math.floor(Math.random() * 1000)}`);
   }
+  // Thêm bookingId vào returnUrl và cancelUrl để frontend có thể lấy
+  const baseUrl = process.env.VITE_BASE_URL || 'http://localhost:5173';
+  const bookingId = body.bookingId || body.orderId;
+  const returnUrl = `${baseUrl}/payment-result?bookingId=${bookingId}`;
+  const cancelUrl = `${baseUrl}/payment-result?bookingId=${bookingId}`;
+  
   const dataForSignature = {
     orderCode,
     amount: body.amount,
     description: safeDescription,
-    cancelUrl: process.env.VITE_BASE_URL
-      ? `${process.env.VITE_BASE_URL}/payment-result`
-      : 'http://localhost:5173/payment-result',
-    returnUrl: process.env.VITE_BASE_URL
-      ? `${process.env.VITE_BASE_URL}/payment-result`
-      : 'http://localhost:5173/payment-result',
+    cancelUrl,
+    returnUrl,
   };
 
   const signature = generateSignature(dataForSignature, checksumKey);
@@ -111,5 +113,78 @@ async function createPayment(body) {
   };
 }
 
-module.exports = { createPayment };
+/**
+ * Handle PayOS webhook when payment is completed
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ */
+async function handleWebhook(req, res) {
+  try {
+    const { verifyPayOSSignature } = require('../../utils/webhookVerifier');
+    const checksumKey = process.env.PAYOS_CHECKSUM_KEY;
+    
+    // Verify webhook signature
+    const isValid = verifyPayOSSignature(req, checksumKey);
+    if (!isValid) {
+      console.error('[PayOS Webhook] Invalid signature');
+      return res.status(401).json({ message: 'Invalid PayOS signature' });
+    }
+    
+    const body = req.body;
+    console.log('[PayOS Webhook] Received:', JSON.stringify(body, null, 2));
+    
+    // PayOS webhook format: { code, desc, data: { orderCode, amount, description, ... }, signature }
+    const webhookData = body.data || body;
+    const code = body.code || webhookData.code;
+    const orderCode = webhookData.orderCode;
+    const description = webhookData.description; // Contains bookingId or booking reference
+    const amount = webhookData.amount;
+    
+    // Extract bookingId from description (format: "BKXXXXXXX" or contains booking reference)
+    let bookingId = description;
+    
+    // Determine payment status
+    let status = 'FAILED';
+    if (code === '00' || code === 0) {
+      status = 'PAID';
+    } else if (code === '01') {
+      status = 'CANCELLED';
+    }
+    
+    // Call booking service to confirm payment if successful
+    if (bookingId && status === 'PAID') {
+      try {
+        const axios = require('axios');
+        const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://booking-service:3004';
+        
+        console.log('[PayOS Webhook] Confirming payment for booking:', bookingId);
+        await axios.post(`${bookingServiceUrl}/internal/${bookingId}/confirm-payment`, {
+          paymentMethod: 'payos',
+          transactionRef: String(orderCode),
+          amount: amount,
+          paymentStatus: 'paid'
+        });
+        
+        console.log('[PayOS Webhook] Booking confirmed successfully');
+      } catch (err) {
+        console.error('[PayOS Webhook] Failed to confirm booking:', err.message);
+        // Still return 200 to PayOS to prevent retry
+      }
+    }
+    
+    // Always return 200 to PayOS to acknowledge webhook receipt
+    res.status(200).json({
+      success: true,
+      bookingId,
+      status,
+      payos: webhookData
+    });
+    
+  } catch (err) {
+    console.error('[PayOS handleWebhook] error:', err);
+    res.status(500).json({ message: 'Internal server error', error: err.message });
+  }
+}
+
+module.exports = { createPayment, handleWebhook };
 

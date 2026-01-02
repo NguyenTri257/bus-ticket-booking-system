@@ -155,6 +155,7 @@ async function handleWebhook(req, res) {
       try {
         const axios = require('axios');
         const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://booking-service:3004';
+        const notificationUrl = process.env.NOTIFICATION_URL || 'http://notification-service:3003/webhook';
 
         console.log('[PayOS Webhook] Confirming payment for booking:', bookingId);
         await axios.post(`${bookingServiceUrl}/internal/${bookingId}/confirm-payment`, {
@@ -165,9 +166,63 @@ async function handleWebhook(req, res) {
         });
 
         console.log('[PayOS Webhook] Booking confirmed successfully');
+
+        // Send notification event
+        const payload = {
+          event: 'payment.completed',
+          timestamp: new Date().toISOString(),
+          data: {
+            bookingId,
+            status: 'PAID',
+            gateway: 'payos',
+            transactionId: String(orderCode)
+          }
+        };
+        const crypto = require('crypto');
+        const webhookSecret = process.env.WEBHOOK_SECRET || 'default-secret';
+        const signature = crypto
+          .createHmac('sha256', webhookSecret)
+          .update(JSON.stringify(payload))
+          .digest('hex');
+        
+        await axios.post(notificationUrl, payload, {
+          headers: { 'X-Webhook-Signature': signature }
+        });
+        console.log('[PayOS Webhook] Notification sent successfully');
       } catch (err) {
         console.error('[PayOS Webhook] Failed to confirm booking:', err.message);
         // Still return 200 to PayOS to prevent retry
+      }
+    } else if (bookingId && (status === 'CANCELLED' || status === 'FAILED')) {
+      // Send notification for cancelled/failed payments
+      try {
+        const axios = require('axios');
+        const notificationUrl = process.env.NOTIFICATION_URL || 'http://notification-service:3003/webhook';
+        
+        const payload = {
+          event: 'payment.failed',
+          timestamp: new Date().toISOString(),
+          data: {
+            bookingId,
+            status: status,
+            gateway: 'payos',
+            transactionId: String(orderCode),
+            reason: body.desc || webhookData.description || 'Payment cancelled or failed'
+          }
+        };
+        const crypto = require('crypto');
+        const webhookSecret = process.env.WEBHOOK_SECRET || 'default-secret';
+        const signature = crypto
+          .createHmac('sha256', webhookSecret)
+          .update(JSON.stringify(payload))
+          .digest('hex');
+        
+        await axios.post(notificationUrl, payload, {
+          headers: { 'X-Webhook-Signature': signature }
+        });
+        console.log('[PayOS Webhook] Failed/cancelled notification sent');
+      } catch (err) {
+        console.error('[PayOS Webhook] Failed to send notification:', err.message);
       }
     }
 

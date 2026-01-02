@@ -326,66 +326,76 @@ class BookingService {
   async getUserBookings(userId, filters) {
     const result = await bookingRepository.findByUserId(userId, filters);
 
-    // Enrich each booking with passengers count, rating status, and trip details
-    const enrichedBookings = await Promise.all(
-      result.bookings.map(async (booking) => {
-        const passengers = await passengerRepository.findByBookingId(booking.booking_id);
+    // Limit concurrent requests to avoid timeout
+    const MAX_CONCURRENT = 10;
+    const enrichedBookings = [];
+    
+    // Process bookings in batches
+    for (let i = 0; i < result.bookings.length; i += MAX_CONCURRENT) {
+      const batch = result.bookings.slice(i, i + MAX_CONCURRENT);
+      
+      const enrichedBatch = await Promise.all(
+        batch.map(async (booking) => {
+          const passengers = await passengerRepository.findByBookingId(booking.booking_id);
 
-        // Check if booking has a rating
-        let hasRating = false;
-        try {
-          const tripServiceUrl = process.env.TRIP_SERVICE_URL || 'http://localhost:3002';
-          const ratingResponse = await axios.get(
-            `${tripServiceUrl}/ratings/check/${booking.booking_id}`,
-            {
-              headers: {
-                'x-user-id': userId,
-              },
-              timeout: 5000,
-            }
-          );
-          hasRating = ratingResponse.data?.hasRating || false;
-        } catch (error) {
-          // If rating check fails, assume no rating (don't break booking loading)
-          console.warn(`Failed to check rating for booking ${booking.booking_id}:`, error.message);
-          hasRating = false;
-        }
-
-        // Fetch trip details
-        let tripDetails = null;
-        try {
-          const trip = await this.getTripById(booking.trip_id);
-          if (trip) {
-            tripDetails = {
-              route: {
-                origin: trip.route?.origin || trip.origin,
-                destination: trip.route?.destination || trip.destination,
-              },
-              operator: {
-                name: trip.operator?.name || 'Unknown Operator',
-              },
-              schedule: {
-                departure_time: trip.schedule?.departure_time || trip.schedule?.departureTime,
-                arrival_time: trip.schedule?.arrival_time || trip.schedule?.arrivalTime,
-              },
-            };
+          // Check if booking has a rating
+          let hasRating = false;
+          try {
+            const tripServiceUrl = process.env.TRIP_SERVICE_URL || 'http://localhost:3002';
+            const ratingResponse = await axios.get(
+              `${tripServiceUrl}/ratings/check/${booking.booking_id}`,
+              {
+                headers: {
+                  'x-user-id': userId,
+                },
+                timeout: 3000, // Reduce timeout
+              }
+            );
+            hasRating = ratingResponse.data?.hasRating || false;
+          } catch (error) {
+            // If rating check fails, assume no rating (don't break booking loading)
+            console.warn(`Failed to check rating for booking ${booking.booking_id}:`, error.message);
+            hasRating = false;
           }
-        } catch (error) {
-          console.error(
-            `Failed to fetch trip details for booking ${booking.booking_id}:`,
-            error.message
-          );
-        }
 
-        return {
-          ...booking,
-          passengersCount: passengers.length,
-          seatCodes: passengers.map((p) => p.seat_code),
-          hasRating,
-          trip_details: tripDetails,
-        };
-      })
-    );
+          // Fetch trip details
+          let tripDetails = null;
+          try {
+            const trip = await this.getTripById(booking.trip_id);
+            if (trip) {
+              tripDetails = {
+                route: {
+                  origin: trip.route?.origin || trip.origin,
+                  destination: trip.route?.destination || trip.destination,
+                },
+                operator: {
+                  name: trip.operator?.name || 'Unknown Operator',
+                },
+                schedule: {
+                  departure_time: trip.schedule?.departure_time || trip.schedule?.departureTime,
+                  arrival_time: trip.schedule?.arrival_time || trip.schedule?.arrivalTime,
+                },
+              };
+            }
+          } catch (error) {
+            console.error(
+              `Failed to fetch trip details for booking ${booking.booking_id}:`,
+              error.message
+            );
+          }
+
+          return {
+            ...booking,
+            passengersCount: passengers.length,
+            seatCodes: passengers.map((p) => p.seat_code),
+            hasRating,
+            trip_details: tripDetails,
+          };
+        })
+      );
+      
+      enrichedBookings.push(...enrichedBatch);
+    }
 
     return {
       bookings: enrichedBookings,
@@ -2364,7 +2374,11 @@ class BookingService {
       // Trigger e-ticket generation if not already generated
       if (!booking.ticket_url) {
         try {
-          await this.generateAndSendETicket(bookingId);
+          console.log('[confirmBookingWithPayment] Generating e-ticket for booking:', bookingId);
+          await ticketService.processTicketGeneration(bookingId);
+          // Fetch updated booking with ticket_url
+          const updatedBooking = await bookingRepository.findById(bookingId);
+          return updatedBooking;
         } catch (err) {
           console.error('[BookingService] E-ticket generation failed:', err.message);
           // Don't fail the confirmation if ticket generation fails

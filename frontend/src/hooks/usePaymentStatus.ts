@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { API_BASE_URL } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
+import { getAccessToken } from '@/api/auth'
 
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELLED'
 
@@ -38,7 +39,16 @@ export function usePaymentStatus(
         const url = user
           ? `${API_BASE_URL}/bookings/${bookingId}`
           : `${API_BASE_URL}/bookings/${bookingId}/guest`
-        const res = await fetch(url)
+        
+        const headers: HeadersInit = {}
+        if (user) {
+          const token = getAccessToken()
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`
+          }
+        }
+        
+        const res = await fetch(url, { headers })
         if (!res.ok) throw new Error('Failed to fetch payment status')
         const data = await res.json()
         const paymentStatus = data?.data?.paymentStatus

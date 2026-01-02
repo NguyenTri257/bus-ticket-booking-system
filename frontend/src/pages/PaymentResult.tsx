@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePaymentStatus } from '@/hooks/usePaymentStatus'
 import { API_BASE_URL } from '@/lib/api'
+import { useAuth } from '@/context/AuthContext'
+import { getAccessToken } from '@/api/auth'
 
 interface BookingInfo {
   bookingReference: string
@@ -136,6 +138,7 @@ function StatusIcon({ status, cancel }: { status?: string; cancel?: string }) {
 
 const PaymentResult: React.FC = () => {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [bookingId, setBookingId] = useState<string>('')
   const paymentResult = getPaymentResultFromQuery()
   const { status, loading, error } = usePaymentStatus(bookingId)
@@ -164,7 +167,19 @@ const PaymentResult: React.FC = () => {
   useEffect(() => {
     const currentStatus = manualStatus || status
     if (bookingId && currentStatus === 'PAID') {
-      fetch(`${API_BASE_URL}/bookings/${bookingId}/guest`)
+      const url = user
+        ? `${API_BASE_URL}/bookings/${bookingId}`
+        : `${API_BASE_URL}/bookings/${bookingId}/guest`
+      
+      const headers: HeadersInit = {}
+      if (user) {
+        const token = getAccessToken()
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
+        }
+      }
+      
+      fetch(url, { headers })
         .then((res) => res.json())
         .then((data) => {
           if (data.success && data.data) {
@@ -180,7 +195,7 @@ const PaymentResult: React.FC = () => {
           console.error('[PaymentResult] Failed to fetch booking info:', err)
         })
     }
-  }, [bookingId, status, manualStatus])
+  }, [bookingId, status, manualStatus, user])
 
   // Auto redirect countdown when payment successful
   useEffect(() => {
@@ -208,8 +223,20 @@ const PaymentResult: React.FC = () => {
       paymentResult.resultCode &&
       paymentResult.resultCode === '0'
     ) {
+      const url = user
+        ? `${API_BASE_URL}/bookings/${bookingId}`
+        : `${API_BASE_URL}/bookings/${bookingId}/guest`
+      
+      const headers: HeadersInit = {}
+      if (user) {
+        const token = getAccessToken()
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`
+        }
+      }
+      
       // Fetch booking to get the actual amount
-      fetch(`${API_BASE_URL}/bookings/${bookingId}/guest`)
+      fetch(url, { headers })
         .then((res) => res.json())
         .then((bookingData) => {
           const amount =
@@ -246,6 +273,7 @@ const PaymentResult: React.FC = () => {
     paymentResult.resultCode,
     paymentResult.orderId,
     paymentResult.amount,
+    user,
   ])
 
   if (!bookingId) {

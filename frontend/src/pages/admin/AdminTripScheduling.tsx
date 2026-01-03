@@ -111,6 +111,7 @@ const AdminTripSchedulingPage: React.FC = () => {
   ): 'success' | 'danger' | 'default' | 'warning' => {
     switch (status) {
       case 'scheduled':
+        return 'default'
       case 'completed':
         return 'success'
       case 'cancelled':
@@ -787,6 +788,10 @@ const AdminTripSchedulingPage: React.FC = () => {
           setSelectedTripForPassengers(null)
         }}
         tripId={selectedTripForPassengers || ''}
+        tripStatus={
+          trips.find((trip) => trip.trip_id === selectedTripForPassengers)
+            ?.status
+        }
       />
     </DashboardLayout>
   )

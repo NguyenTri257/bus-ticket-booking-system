@@ -24,6 +24,7 @@ interface PassengerListModalProps {
   open: boolean
   onClose: () => void
   tripId: string
+  tripStatus?: string
 }
 
 interface ErrorResponse {
@@ -40,6 +41,7 @@ const PassengerListModal: React.FC<PassengerListModalProps> = ({
   open,
   onClose,
   tripId,
+  tripStatus,
 }) => {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -390,83 +392,89 @@ const PassengerListModal: React.FC<PassengerListModalProps> = ({
                             >
                               Seat {passenger.seat_code}
                             </span>
-                            <div className="flex gap-1">
-                              {passenger.boarding_status !== 'boarded' && (
-                                <button
-                                  onClick={() =>
-                                    updateBoardingStatus(
-                                      passenger.ticket_id,
-                                      'boarded'
-                                    )
-                                  }
-                                  className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition"
-                                  style={{
-                                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                                    color: '#16a34a',
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor =
-                                      'rgba(34, 197, 94, 0.2)'
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor =
-                                      'rgba(34, 197, 94, 0.1)'
-                                  }}
-                                >
-                                  <Check size={16} /> Board
-                                </button>
+                            {tripStatus !== 'completed' &&
+                              tripStatus !== 'cancelled' && (
+                                <div className="flex gap-1">
+                                  {passenger.boarding_status !== 'boarded' && (
+                                    <button
+                                      onClick={() =>
+                                        updateBoardingStatus(
+                                          passenger.ticket_id,
+                                          'boarded'
+                                        )
+                                      }
+                                      className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition"
+                                      style={{
+                                        backgroundColor:
+                                          'rgba(34, 197, 94, 0.1)',
+                                        color: '#16a34a',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor =
+                                          'rgba(34, 197, 94, 0.2)'
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor =
+                                          'rgba(34, 197, 94, 0.1)'
+                                      }}
+                                    >
+                                      <Check size={16} /> Board
+                                    </button>
+                                  )}
+                                  {passenger.boarding_status === 'boarded' && (
+                                    <button
+                                      onClick={() =>
+                                        updateBoardingStatus(
+                                          passenger.ticket_id,
+                                          'not_boarded'
+                                        )
+                                      }
+                                      className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition"
+                                      style={{
+                                        backgroundColor:
+                                          'rgba(239, 68, 68, 0.1)',
+                                        color: '#dc2626',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor =
+                                          'rgba(239, 68, 68, 0.2)'
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor =
+                                          'rgba(239, 68, 68, 0.1)'
+                                      }}
+                                    >
+                                      <X size={16} /> Unboard
+                                    </button>
+                                  )}
+                                  {passenger.boarding_status !== 'no_show' && (
+                                    <button
+                                      onClick={() =>
+                                        updateBoardingStatus(
+                                          passenger.ticket_id,
+                                          'no_show'
+                                        )
+                                      }
+                                      className="rounded px-2 py-1 text-xs font-medium transition"
+                                      style={{
+                                        backgroundColor:
+                                          'rgba(239, 68, 68, 0.1)',
+                                        color: '#dc2626',
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.backgroundColor =
+                                          'rgba(239, 68, 68, 0.2)'
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.backgroundColor =
+                                          'rgba(239, 68, 68, 0.1)'
+                                      }}
+                                    >
+                                      No Show
+                                    </button>
+                                  )}
+                                </div>
                               )}
-                              {passenger.boarding_status === 'boarded' && (
-                                <button
-                                  onClick={() =>
-                                    updateBoardingStatus(
-                                      passenger.ticket_id,
-                                      'not_boarded'
-                                    )
-                                  }
-                                  className="flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition"
-                                  style={{
-                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                    color: '#dc2626',
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor =
-                                      'rgba(239, 68, 68, 0.2)'
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor =
-                                      'rgba(239, 68, 68, 0.1)'
-                                  }}
-                                >
-                                  <X size={16} /> Unboard
-                                </button>
-                              )}
-                              {passenger.boarding_status !== 'no_show' && (
-                                <button
-                                  onClick={() =>
-                                    updateBoardingStatus(
-                                      passenger.ticket_id,
-                                      'no_show'
-                                    )
-                                  }
-                                  className="rounded px-2 py-1 text-xs font-medium transition"
-                                  style={{
-                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                    color: '#dc2626',
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.backgroundColor =
-                                      'rgba(239, 68, 68, 0.2)'
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor =
-                                      'rgba(239, 68, 68, 0.1)'
-                                  }}
-                                >
-                                  No Show
-                                </button>
-                              )}
-                            </div>
                           </div>
                         </div>
                       ))}

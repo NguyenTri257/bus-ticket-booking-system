@@ -459,7 +459,7 @@ class TripRepository {
     let query = `
       SELECT COUNT(*) FROM trips 
       WHERE bus_id = $1 
-      AND status = 'active'
+      AND status IN ('scheduled', 'in_progress')
       AND departure_time < $3 AND arrival_time > $2
     `;
     const values = [bus_id, departure_time, arrival_time];

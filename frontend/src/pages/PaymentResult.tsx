@@ -203,7 +203,7 @@ const PaymentResult: React.FC = () => {
     paymentResult.method,
   ])
 
-  // Handler to navigate to booking lookup page
+  // Handler to navigate to booking lookup page (auto fill)
   const handleViewTicket = useCallback(() => {
     if (!bookingInfo) return
     const params = new URLSearchParams({
@@ -213,6 +213,21 @@ const PaymentResult: React.FC = () => {
       autoSearch: '1',
     })
     navigate(`/booking-lookup?${params.toString()}`)
+  }, [bookingInfo, navigate])
+
+  // Handler for 'Check Booking Status' button: auto fill if possible
+  const handleCheckBookingStatus = useCallback(() => {
+    if (bookingInfo) {
+      const params = new URLSearchParams({
+        bookingReference: bookingInfo.bookingReference,
+        email: bookingInfo.contactEmail,
+        phone: bookingInfo.contactPhone,
+        autoSearch: '1',
+      })
+      navigate(`/booking-lookup?${params.toString()}`)
+    } else {
+      navigate('/booking-lookup')
+    }
   }, [bookingInfo, navigate])
 
   // Fetch booking info for redirect to lookup page
@@ -231,22 +246,12 @@ const PaymentResult: React.FC = () => {
     // Check if we need to confirm payment
     const isMoMoSuccess =
       paymentResult.resultCode && paymentResult.resultCode === '0'
-    const isMoMoFailed =
-      paymentResult.resultCode && paymentResult.resultCode !== '0'
     const isPayOSSuccess =
       paymentResult.status === 'PAID' &&
       paymentResult.code === '00' &&
       paymentResult.cancel === 'false'
-    const isPayOSCancelled =
-      paymentResult.cancel === 'true' || paymentResult.code === '01'
     const isCardSuccess =
       paymentResult.status === 'success' && paymentResult.method === 'card'
-
-    // Exit early for failed/cancelled payments
-    if (isMoMoFailed || isPayOSCancelled) {
-      console.log('[PaymentResult] Payment failed or cancelled')
-      return
-    }
 
     // Scenario 1: Need to confirm payment from gateway
     if (isMoMoSuccess || isPayOSSuccess || isCardSuccess) {
@@ -346,6 +351,49 @@ const PaymentResult: React.FC = () => {
           }
         } catch (err) {
           console.error('[PaymentResult] Failed to fetch booking info:', err)
+        } finally {
+          setIsProcessing(false)
+        }
+      }
+
+      fetchInfo()
+    }
+    // Scenario 3: Failed/Cancelled, fetch booking info for auto-fill
+    else if (
+      (currentStatus === 'FAILED' || currentStatus === 'CANCELLED') &&
+      !bookingInfo
+    ) {
+      const fetchInfo = async () => {
+        setIsProcessing(true)
+
+        try {
+          const url = user
+            ? `${API_BASE_URL}/bookings/${bookingId}`
+            : `${API_BASE_URL}/bookings/${bookingId}/guest`
+
+          const headers: HeadersInit = {}
+          if (user) {
+            const token = getAccessToken()
+            if (token) {
+              headers['Authorization'] = `Bearer ${token}`
+            }
+          }
+
+          const data = await fetchWithRetry(url, { headers })
+
+          if (data.success && data.data) {
+            setBookingInfo({
+              bookingReference:
+                data.data.bookingReference || data.data.booking_reference,
+              contactEmail: data.data.contactEmail || data.data.contact_email,
+              contactPhone: data.data.contactPhone || data.data.contact_phone,
+            })
+          }
+        } catch (err) {
+          console.error(
+            '[PaymentResult] Failed to fetch booking info for failed/cancelled payment:',
+            err
+          )
         } finally {
           setIsProcessing(false)
         }
@@ -562,7 +610,7 @@ const PaymentResult: React.FC = () => {
           {currentStatus !== 'PAID' && (
             <button
               className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition duration-200 text-sm"
-              onClick={() => navigate('/booking-lookup')}
+              onClick={handleCheckBookingStatus}
             >
               Check Booking Status
             </button>

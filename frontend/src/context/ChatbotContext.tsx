@@ -89,7 +89,19 @@ export const ChatbotProvider: React.FC<ChatbotProviderProps> = ({
           })
         )
 
-        setMessages(historyMessages)
+        // Only update messages if we don't already have messages
+        // This prevents overwriting newly added messages with old history
+        setMessages((prevMessages) => {
+          // If there are already messages, don't replace them with history
+          // The history will be appended when messages are loaded for a new session
+          if (prevMessages.length > 0) {
+            console.log(
+              '[ChatbotContext] Keeping existing messages, not overwriting with history'
+            )
+            return prevMessages
+          }
+          return historyMessages
+        })
         setIsSessionValid(true)
       }
     } catch (err) {

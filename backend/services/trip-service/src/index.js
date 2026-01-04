@@ -12,11 +12,13 @@ const busController = require('./controllers/busController');
 const adminOperatorController = require('./controllers/adminOperatorController');
 const seatLockController = require('./controllers/seatLockController');
 const ratingController = require('./controllers/ratingController');
+const tripCacheController = require('./controllers/tripCacheController');
 const uploadRoutes = require('./routes/uploadRoutes');
 
 const { authenticate, authorize, optionalAuthenticate } = require('./middleware/authMiddleware');
 const lockCleanupService = require('./services/lockCleanupService');
 const { isRedisAvailable } = require('./redis');
+const { cacheMiddleware } = require('./cacheMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -63,11 +65,15 @@ console.log('✅ Trip status update cron job started (runs every minute)');
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'healthy' }));
 
+// --- Cache Management Endpoints ---
+app.get('/cache/stats', tripCacheController.getCacheStatistics);
+app.delete('/cache/clear', authenticate, authorize(['admin']), tripCacheController.clearCacheData);
+
 // --- Upload routes (must be before other routes) ---
 app.use('/upload', uploadRoutes.router);
 
 // --- Public routes ---
-app.get('/search', tripController.search);
+app.get('/search', cacheMiddleware(), tripController.search);
 app.get('/autocomplete/locations', tripController.autocompleteLocations);
 
 // --- Admin: Trip listing (must come before /:id route) ---

@@ -142,6 +142,7 @@ services:
       - DB_PASSWORD=postgres
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-your-secret-key}
+      - CACHE_TTL=${CACHE_TTL:-600}
     ports:
       - "3002:3002"
     networks:
@@ -208,6 +209,10 @@ services:
       - SERVICE_FEE_FIXED=10000
       - API_URL=http://api-gateway:3000
       - TICKET_BASE_URL=http://api-gateway:3000
+      - TTL_BOOKING_DRAFT=${TTL_BOOKING_DRAFT:-1800}
+      - TTL_SEAT_SELECTION=${TTL_SEAT_SELECTION:-900}
+      - TTL_PAYMENT_STATUS=${TTL_PAYMENT_STATUS:-3600}
+      - TTL_USER_SESSION=${TTL_USER_SESSION:-86400}
     networks:
       - bus-ticket-network
     volumes:

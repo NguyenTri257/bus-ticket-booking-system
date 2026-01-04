@@ -1149,10 +1149,20 @@ export function TripSearchResults() {
                                     e.target.value as 'next' | 'previous'
                                   )
                                 }
-                                className="px-2 py-1 text-sm border border-input rounded"
+                                className="px-2 py-1 text-sm text-foreground bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:border-transparent"
                               >
-                                <option value="next">Next</option>
-                                <option value="previous">Previous</option>
+                                <option
+                                  value="next"
+                                  className="text-foreground bg-background"
+                                >
+                                  Next
+                                </option>
+                                <option
+                                  value="previous"
+                                  className="text-foreground bg-background"
+                                >
+                                  Previous
+                                </option>
                               </select>
                               <input
                                 type="number"
@@ -1162,9 +1172,11 @@ export function TripSearchResults() {
                                 onChange={(e) =>
                                   setFlexibleDays(parseInt(e.target.value) || 7)
                                 }
-                                className="w-16 px-2 py-1 text-sm border border-input rounded"
+                                className="w-16 px-2 py-1 text-sm text-foreground bg-background border border-input rounded focus:ring-2 focus:ring-ring focus:border-transparent"
                               />
-                              <span className="text-sm">days</span>
+                              <span className="text-sm text-foreground">
+                                days
+                              </span>
                               <Button
                                 variant="ghost"
                                 size="sm"

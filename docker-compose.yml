@@ -57,8 +57,9 @@ services:
       - NODE_ENV=production
       - VITE_API_URL=${VITE_API_URL}
       - VITE_GOOGLE_REDIRECT_URI=${VITE_GOOGLE_REDIRECT_URI}
-      - VITE_CLOUDINARY_CLOUD_NAME=${VITE_CLOUDINARY_CLOUD_NAME}
-      - VITE_CLOUDINARY_UPLOAD_PRESET=${VITE_CLOUDINARY_UPLOAD_PRESET}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
 
   # API Gateway
   api-gateway:

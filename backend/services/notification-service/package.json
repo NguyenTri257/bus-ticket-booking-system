@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
+    "node-mailjet": "^6.0.5",
     "amqplib": "^0.10.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",

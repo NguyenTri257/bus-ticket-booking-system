@@ -1,4 +1,5 @@
 const sgMail = require('@sendgrid/mail');
+const mailjet = require('node-mailjet');
 const fetch = require('node-fetch');
 const { generateTicketEmailTemplate } = require('../templates/ticketEmailTemplate');
 const { generateBookingConfirmationTemplate } = require('../templates/bookingConfirmationTemplate');
@@ -9,28 +10,140 @@ const { generateRefundEmailTemplate } = require('../templates/refundEmailTemplat
 const { generateBookingExpirationTemplate } = require('../templates/bookingExpirationTemplate');
 const { generateBookingCancellationTemplate } = require('../templates/bookingCancellationTemplate');
 
-// Only set API key if it's provided
+const DEFAULT_EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@quad-n.me';
+const EMAIL_SERVICE = process.env.EMAIL_SERVICE || 'sendgrid';
+
+// ========================================
+// EMAIL SERVICE CONFIGURATION LOGGING
+// ========================================
+console.log('\n📧 ========== EMAIL SERVICE INITIALIZATION ==========');
+console.log(`📧 Active Email Service: ${EMAIL_SERVICE.toUpperCase()}`);
+console.log(`📧 From Email: ${DEFAULT_EMAIL_FROM}`);
+
+// Initialize SendGrid
 if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+  console.log('✅ SendGrid API Key: CONFIGURED (present)');
 } else {
+  console.log('⚠️  SendGrid API Key: NOT CONFIGURED');
   const isProduction = process.env.NODE_ENV === 'production';
-  if (isProduction) {
+  if (isProduction && process.env.EMAIL_SERVICE === 'sendgrid') {
     throw new Error('SendGrid API key is required in production but not configured.');
-  } else {
-    console.warn(
-      '⚠️  SendGrid API key not set. Email sending will be disabled in development mode.'
-    );
+  } else if (!process.env.SENDGRID_API_KEY && process.env.EMAIL_SERVICE === 'sendgrid') {
+    console.warn('⚠️ SendGrid API key not set but EMAIL_SERVICE is set to sendgrid.');
   }
 }
 
-const DEFAULT_EMAIL_FROM = process.env.EMAIL_FROM || 'noreply@quad-n.me';
+// Initialize Mailjet
+const mailjetClient = mailjet.apiConnect(
+  process.env.MAILJET_API_KEY,
+  process.env.MAILJET_SECRET_KEY
+);
+
+const mailjetConfigured = process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY;
+if (mailjetConfigured) {
+  console.log('✅ Mailjet API Key: CONFIGURED (present)');
+  console.log('✅ Mailjet Secret Key: CONFIGURED (present)');
+} else {
+  console.log('⚠️  Mailjet API Key: NOT CONFIGURED');
+  console.log('⚠️  Mailjet Secret Key: NOT CONFIGURED');
+  const isProduction = process.env.NODE_ENV === 'production';
+  if (isProduction && process.env.EMAIL_SERVICE === 'mailjet') {
+    throw new Error('Mailjet credentials are required in production but not configured.');
+  } else if (process.env.EMAIL_SERVICE === 'mailjet') {
+    console.warn('⚠️ Mailjet credentials not set but EMAIL_SERVICE is set to mailjet.');
+  }
+}
+
+console.log(`\n🔧 NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+console.log(
+  `📧 Will use: ${EMAIL_SERVICE === 'mailjet' ? '🔵 MAILJET' : '🔵 SENDGRID'} for sending emails`
+);
+console.log('========================================================\n');
+
+// Mailjet sender - converts SendGrid format to Mailjet format
+const sendViaMailjet = async (msg) => {
+  // Validate required fields
+  if (!msg.to || (typeof msg.to === 'string' && !msg.to.trim())) {
+    console.error('[Mailjet] Invalid message: missing or empty "to" field', msg);
+    throw new Error('Mailjet: Email recipient (to) is required and must be non-empty');
+  }
+
+  // Ensure all required fields are strings
+  const fromEmail = String(msg.from || DEFAULT_EMAIL_FROM);
+  const toEmails = Array.isArray(msg.to)
+    ? msg.to.map((e) => ({ Email: String(e) }))
+    : [{ Email: String(msg.to) }];
+  const subject = String(msg.subject || '');
+  const htmlPart = String(msg.html || '');
+  const textPart = String(msg.text || 'Email content');
+
+  const mjMessage = {
+    Messages: [
+      {
+        From: { Email: fromEmail },
+        To: toEmails,
+        Subject: subject,
+        HTMLPart: htmlPart,
+        TextPart: textPart,
+      },
+    ],
+  };
+
+  if (msg.attachments && msg.attachments.length > 0) {
+    mjMessage.Messages[0].Attachments = msg.attachments
+      .filter((a) => a.disposition !== 'inline')
+      .map((att) => ({
+        ContentType: att.type,
+        Filename: att.filename,
+        Base64Content: att.content,
+      }));
+    const inlineAttachments = msg.attachments.filter((a) => a.disposition === 'inline');
+    if (inlineAttachments.length > 0) {
+      mjMessage.Messages[0].InlinedAttachments = inlineAttachments.map((att) => ({
+        ContentType: att.type,
+        Filename: att.filename,
+        Base64Content: att.content,
+        ContentID: att.content_id,
+      }));
+    }
+  }
+
+  try {
+    console.log('[Mailjet] Sending message:', JSON.stringify(mjMessage, null, 2));
+    const result = await mailjetClient.post('send', { version: 'v3.1' }).request(mjMessage);
+    console.log(`📧 [Mailjet] Email sent successfully to ${msg.to}`);
+    return result;
+  } catch (error) {
+    console.error('📧 [Mailjet] Error sending email:', error.message || error);
+    if (error.response) {
+      console.error('📧 [Mailjet] Response status:', error.response.status);
+      console.error('📧 [Mailjet] Response data:', error.response.data);
+    }
+    throw error;
+  }
+};
+
+// Helper to send via selected service
+const sendEmail = async (msg) => {
+  if (EMAIL_SERVICE === 'mailjet') return sendViaMailjet(msg);
+  return sgMail.send(msg);
+};
+
+// Helper to check if email service is configured
+const isEmailServiceConfigured = () => {
+  if (EMAIL_SERVICE === 'mailjet') {
+    return process.env.MAILJET_API_KEY && process.env.MAILJET_SECRET_KEY;
+  }
+  return process.env.SENDGRID_API_KEY;
+};
 
 class EmailService {
   async sendVerificationEmail(email, token) {
     const verificationUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${token}`;
 
-    // Check if SendGrid is configured
-    if (!process.env.SENDGRID_API_KEY) {
+    // Check if email service is configured
+    if (!isEmailServiceConfigured()) {
       console.log(`📧 [DEV MODE] Verification email would be sent to ${email} with token ${token}`);
       console.log(`📧 [DEV MODE] Verification URL: ${verificationUrl}`);
       return { success: true, mode: 'development' };
@@ -61,7 +174,7 @@ class EmailService {
     };
 
     try {
-      await sgMail.send(msg);
+      await sendEmail(msg);
       console.log(`📧 Verification email sent to ${email}`);
     } catch (error) {
       console.error('⚠️ Error sending verification email:', error);
@@ -73,8 +186,8 @@ class EmailService {
   async sendPasswordResetEmail(email, token) {
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${token}`;
 
-    // Check if SendGrid is configured
-    if (!process.env.SENDGRID_API_KEY) {
+    // Check if email service is configured
+    if (!isEmailServiceConfigured()) {
       console.log(
         `📧 [DEV MODE] Password reset email would be sent to ${email} with token ${token}`
       );
@@ -107,7 +220,7 @@ class EmailService {
     };
 
     try {
-      await sgMail.send(msg);
+      await sendEmail(msg);
       console.log(`📧 Password reset email sent to ${email}`);
     } catch (error) {
       console.error('⚠️ Error sending password reset email:', error);
@@ -117,8 +230,8 @@ class EmailService {
   }
 
   async sendOTPEmail(email, otp) {
-    // Check if SendGrid is configured
-    if (!process.env.SENDGRID_API_KEY) {
+    // Check if email service is configured
+    if (!isEmailServiceConfigured()) {
       console.log(`📧 [DEV MODE] OTP email would be sent to ${email} with OTP ${otp}`);
       return { success: true, mode: 'development' };
     }
@@ -145,7 +258,7 @@ class EmailService {
     };
 
     try {
-      await sgMail.send(msg);
+      await sendEmail(msg);
       console.log(`📧 OTP email sent to ${email}`);
     } catch (error) {
       console.error('⚠️ Error sending OTP email:', error);
@@ -155,8 +268,8 @@ class EmailService {
   }
 
   async sendPasswordChangedEmail(email, userName) {
-    // Check if SendGrid is configured
-    if (!process.env.SENDGRID_API_KEY) {
+    // Check if email service is configured
+    if (!isEmailServiceConfigured()) {
       console.log(
         `📧 [DEV MODE] Password changed email would be sent to ${email} for user ${userName}`
       );
@@ -188,7 +301,7 @@ class EmailService {
     };
 
     try {
-      await sgMail.send(msg);
+      await sendEmail(msg);
       console.log(`📧 Password changed email sent to ${email}`);
     } catch (error) {
       console.error('⚠️ Error sending password changed email:', error);
@@ -198,8 +311,8 @@ class EmailService {
   }
 
   async sendBookingConfirmationEmail(email, bookingData) {
-    // Check if SendGrid is configured
-    if (!process.env.SENDGRID_API_KEY) {
+    // Check if email service is configured
+    if (!isEmailServiceConfigured()) {
       console.log(`📧 [DEV MODE] Booking confirmation email would be sent to ${email}`);
       console.log(`📧 [DEV MODE] Booking Reference: ${bookingData.bookingReference}`);
       return { success: true, mode: 'development' };
@@ -317,7 +430,7 @@ class EmailService {
         msg.attachments = attachments;
       }
 
-      await sgMail.send(msg);
+      await sendEmail(msg);
       console.log(
         `📧 Booking confirmation email sent to ${email} for ${bookingData.bookingReference}`
       );
@@ -330,8 +443,8 @@ class EmailService {
   }
 
   async sendTicketEmail(email, bookingData, ticketUrl, qrCode) {
-    // Check if SendGrid is configured
-    if (!process.env.SENDGRID_API_KEY) {
+    // Check if email service is configured
+    if (!isEmailServiceConfigured()) {
       console.log(
         `📧 [DEV MODE] Ticket email would be sent to ${email} for booking ${bookingData.reference}`
       );
@@ -436,7 +549,7 @@ class EmailService {
         msg.attachments = attachments;
       }
 
-      await sgMail.send(msg);
+      await sendEmail(msg);
       console.log(`📧 Ticket email sent to ${email} for booking ${bookingData.reference}`);
     } catch (error) {
       console.error('⚠️ Error sending ticket email:', error);
@@ -446,8 +559,8 @@ class EmailService {
   }
 
   async sendTripReminderEmail(email, tripData, hoursUntilDeparture) {
-    // Check if SendGrid is configured
-    if (!process.env.SENDGRID_API_KEY) {
+    // Check if email service is configured
+    if (!isEmailServiceConfigured()) {
       console.log(
         `📧 [DEV MODE] Trip reminder email would be sent to ${email} for booking ${tripData.bookingReference}`
       );
@@ -464,7 +577,7 @@ class EmailService {
     };
 
     try {
-      await sgMail.send(msg);
+      await sendEmail(msg);
       console.log(
         `📧 Trip reminder email sent to ${email} for booking ${tripData.bookingReference} (${hoursUntilDeparture}h)`
       );
@@ -492,8 +605,8 @@ class EmailService {
 
     const subject = `${updateTitles[updateType] || 'Trip Update'} - Booking ${bookingReference}`;
 
-    // Check if SendGrid is configured
-    if (!process.env.SENDGRID_API_KEY) {
+    // Check if email service is configured
+    if (!isEmailServiceConfigured()) {
       console.log(`📧 [DEV MODE] Trip update email would be sent to ${email}`);
       console.log(`📧 [DEV MODE] Subject: ${subject}`);
       console.log(`📧 [DEV MODE] Update Type: ${updateType}`);
@@ -529,7 +642,7 @@ class EmailService {
     };
 
     try {
-      await sgMail.send(msg);
+      await sendEmail(msg);
       console.log(
         `📧 Trip update email sent to ${email} for booking ${bookingReference} (${updateType})`
       );
@@ -568,8 +681,8 @@ class EmailService {
       currency,
     });
 
-    // Check if SendGrid is configured
-    if (!process.env.SENDGRID_API_KEY) {
+    // Check if email service is configured
+    if (!isEmailServiceConfigured()) {
       console.log(`📧 [DEV MODE] Refund email would be sent to ${email}`);
       console.log(`📧 [DEV MODE] Subject: ${subject}`);
       console.log(`📧 [DEV MODE] Refund Amount: ${refundAmount} ${currency}`);
@@ -577,23 +690,19 @@ class EmailService {
     }
 
     const msg = {
-      personalizations: [
-        {
-          to: [{ email: email }],
-        },
-      ],
-      from: { email: DEFAULT_EMAIL_FROM },
+      to: email,
+      from: DEFAULT_EMAIL_FROM,
       subject: subject,
-      content: [{ type: 'text/html', value: htmlContent }],
+      html: htmlContent,
     };
 
     try {
-      await sgMail.send(msg);
+      await sendEmail(msg);
       console.log(`📧 Refund email sent to ${email} for booking ${bookingReference}`);
       return { success: true };
     } catch (error) {
       console.error('⚠️ Error sending refund email:', error);
-      console.error('⚠️ SendGrid response:', error.response?.body || error.message);
+      console.error('⚠️ Mailjet/SendGrid response:', error.response?.body || error.message);
       throw new Error('Failed to send refund email');
     }
   }
@@ -623,8 +732,8 @@ class EmailService {
       refundAmount: numericRefundAmount,
     });
 
-    // Check if SendGrid is configured
-    if (!process.env.SENDGRID_API_KEY) {
+    // Check if email service is configured
+    if (!isEmailServiceConfigured()) {
       console.log(`📧 [DEV MODE] Booking cancellation email would be sent to ${email}`);
       console.log(`📧 [DEV MODE] Subject: ${subject}`);
       console.log(`📧 [DEV MODE] Refund Amount: ${refundAmount} VND`);
@@ -632,23 +741,19 @@ class EmailService {
     }
 
     const msg = {
-      personalizations: [
-        {
-          to: [{ email: email }],
-        },
-      ],
-      from: { email: DEFAULT_EMAIL_FROM },
+      to: email,
+      from: DEFAULT_EMAIL_FROM,
       subject: subject,
-      content: [{ type: 'text/html', value: htmlContent }],
+      html: htmlContent,
     };
 
     try {
-      await sgMail.send(msg);
+      await sendEmail(msg);
       console.log(`📧 Booking cancellation email sent to ${email} for booking ${bookingReference}`);
       return { success: true };
     } catch (error) {
       console.error('⚠️ Error sending booking cancellation email:', error);
-      console.error('⚠️ SendGrid response:', error.response?.body || error.message);
+      console.error('⚠️ Mailjet/SendGrid response:', error.response?.body || error.message);
       throw new Error('Failed to send booking cancellation email');
     }
   }
@@ -656,6 +761,10 @@ class EmailService {
   async sendBookingExpirationEmail(email, expirationData) {
     if (!expirationData || typeof expirationData !== 'object') {
       throw new Error('Invalid expiration data provided');
+    }
+
+    if (!email || typeof email !== 'string' || !email.trim()) {
+      throw new Error('Email is required and must be a non-empty string');
     }
 
     const { bookingReference, expirationTime, trip } = expirationData;
@@ -673,8 +782,8 @@ class EmailService {
       contactPhone: '+84-1800-TICKET',
     });
 
-    // Check if SendGrid is configured
-    if (!process.env.SENDGRID_API_KEY) {
+    // Check if email service is configured
+    if (!isEmailServiceConfigured()) {
       console.log(`📧 [DEV MODE] Booking expiration email would be sent to ${email}`);
       console.log(`📧 [DEV MODE] Subject: ${template.subject}`);
       console.log(`📧 [DEV MODE] Booking: ${bookingReference}`);
@@ -682,26 +791,20 @@ class EmailService {
     }
 
     const msg = {
-      personalizations: [
-        {
-          to: [{ email: email }],
-        },
-      ],
-      from: { email: DEFAULT_EMAIL_FROM },
+      to: email,
+      from: DEFAULT_EMAIL_FROM,
       subject: template.subject,
-      content: [
-        { type: 'text/plain', value: template.text },
-        { type: 'text/html', value: template.html },
-      ],
+      html: template.html,
+      text: template.text,
     };
 
     try {
-      await sgMail.send(msg);
+      await sendEmail(msg);
       console.log(`📧 Booking expiration email sent to ${email} for booking ${bookingReference}`);
       return { success: true };
     } catch (error) {
       console.error('⚠️ Error sending booking expiration email:', error);
-      console.error('⚠️ SendGrid response:', error.response?.body || error.message);
+      console.error('⚠️ Mailjet/SendGrid response:', error.response?.body || error.message);
       throw new Error('Failed to send booking expiration email');
     }
   }

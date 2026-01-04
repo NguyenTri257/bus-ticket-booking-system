@@ -163,7 +163,7 @@ services:
       dockerfile: Dockerfile
     container_name: bus-ticket-notification-service
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV}
       - PORT=3003
       - DB_HOST=postgres
       - DB_PORT=5432
@@ -176,6 +176,9 @@ services:
       - API_URL=http://api-gateway:3000
       - JWT_SECRET=${JWT_SECRET:-your-secret-key}
       - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+      - EMAIL_SERVICE=${EMAIL_SERVICE}
+      - MAILJET_API_KEY=${MAILJET_API_KEY}
+      - MAILJET_SECRET_KEY=${MAILJET_SECRET_KEY}
     networks:
       - bus-ticket-network
     volumes:

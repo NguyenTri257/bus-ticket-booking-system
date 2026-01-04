@@ -95,9 +95,13 @@ class BookingController {
    */
   async create(req, res) {
     try {
+      console.log('[BookingController] Raw req.body:', JSON.stringify(req.body, null, 2));
+      console.log('[BookingController] req.headers:', JSON.stringify(req.headers, null, 2));
+
       // Validate request body
       const { error, value } = createBookingSchema.validate(req.body);
       if (error) {
+        console.error('[BookingController] Validation error:', error.details);
         return res.status(422).json({
           success: false,
           error: {

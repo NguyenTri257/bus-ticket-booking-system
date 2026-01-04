@@ -97,7 +97,9 @@ app.post('/send-trip-update', (req, res) => {
 // Routes
 app.post('/send-email', async (req, res) => {
   try {
+    console.log('📧 [/send-email] Full request body:', JSON.stringify(req.body, null, 2));
     const { to, subject, html, type } = req.body;
+    console.log('📧 [/send-email] Extracted values - to:', to, 'type:', type);
 
     if (!to) {
       return res.status(400).json({
@@ -229,6 +231,10 @@ app.post('/send-email', async (req, res) => {
 
       case 'booking-expiration': {
         const { data } = req.body;
+        console.log('📧 [booking-expiration] Request body:', req.body);
+        console.log('📧 [booking-expiration] Extracted to:', to);
+        console.log('📧 [booking-expiration] Extracted data:', data);
+
         if (!data) {
           return res.status(400).json({
             success: false,
@@ -239,6 +245,19 @@ app.post('/send-email', async (req, res) => {
             timestamp: new Date().toISOString(),
           });
         }
+
+        if (!to || to.trim() === '') {
+          console.error('📧 [booking-expiration] Missing or empty email address');
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'VAL_002',
+              message: 'Email address (to) is missing or empty',
+            },
+            timestamp: new Date().toISOString(),
+          });
+        }
+
         await emailService.sendBookingExpirationEmail(to, data);
         break;
       }

@@ -182,14 +182,14 @@ export const MessageFeedback: React.FC<MessageFeedbackProps> = ({
 
       {/* Comment box */}
       {showCommentBox && (
-        <div className="mt-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div className="mt-2 p-3 bg-white dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-gray-700">
+            <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
               Tell us more (optional)
             </span>
             <button
               onClick={handleCancelComment}
-              className="p-1 hover:bg-gray-200 rounded-md transition-colors"
+              className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
               title="Close"
             >
               <X size={14} />
@@ -206,7 +206,7 @@ export const MessageFeedback: React.FC<MessageFeedbackProps> = ({
               }
             }}
             placeholder="How can we improve? What went wrong? (Ctrl+Enter to submit)"
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+            className="w-full px-3 py-2 text-sm font-normal text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 bg-white dark:bg-slate-900 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none placeholder:text-gray-500 dark:placeholder:text-gray-400"
             rows={3}
             maxLength={500}
           />

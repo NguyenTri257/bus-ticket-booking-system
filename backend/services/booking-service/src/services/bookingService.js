@@ -414,6 +414,11 @@ class BookingService {
    */
   async confirmPayment(bookingId, paymentData, userId = null) {
     const booking = await bookingRepository.findById(bookingId);
+    console.log('[BookingService] confirmPayment called:', {
+      bookingId,
+      paymentMethod: paymentData.paymentMethod,
+    });
+
     // Nếu có paymentMethod (momo, payos, ...) thì gọi payment-service để lấy paymentUrl/qrCode
     // Kiểm tra trạng thái payment trước khi cho phép thanh toán lại
     if (booking.payment_status === 'paid') {
@@ -422,15 +427,23 @@ class BookingService {
     if (paymentData.paymentMethod && paymentData.paymentMethod !== 'none') {
       try {
         const paymentServiceUrl = process.env.PAYMENT_SERVICE_URL || 'http://payment-service:3005';
+        console.log('[BookingService] Calling payment-service at:', paymentServiceUrl);
         const payRes = await axios.post(`${paymentServiceUrl}/api/payment`, {
           amount: booking.pricing?.total || booking.total_price,
           bookingId: bookingId,
           paymentMethod: paymentData.paymentMethod,
           description: `Thanh toán vé xe BK${booking.booking_reference}`,
         });
+        console.log('[BookingService] Payment-service response:', {
+          success: payRes.data?.success,
+          paymentUrl: payRes.data?.paymentUrl ? '✅ exists' : '❌ missing',
+          qrCode: payRes.data?.qrCode ? '✅ exists' : '❌ missing',
+        });
+
         if (payRes.data && payRes.data.success) {
           // Nếu là Stripe/card thì trả về clientSecret
           if (paymentData.paymentMethod === 'card' && payRes.data.paymentIntent) {
+            console.log('[BookingService] Returning Stripe clientSecret');
             return {
               clientSecret: payRes.data.paymentIntent.client_secret,
               paymentIntent: payRes.data.paymentIntent,
@@ -440,6 +453,7 @@ class BookingService {
           }
           // Các phương thức khác trả về paymentUrl/qrCode như cũ
           if (payRes.data.paymentUrl || payRes.data.qrCode) {
+            console.log('[BookingService] Returning paymentUrl/qrCode');
             return {
               paymentUrl: payRes.data.paymentUrl,
               qrCode: payRes.data.qrCode,
@@ -448,11 +462,14 @@ class BookingService {
             };
           }
           // Nếu không có gì thì báo lỗi chung
+          console.error('[BookingService] ❌ No paymentUrl or qrCode in response');
           throw new Error('Không lấy được thông tin thanh toán phù hợp');
         } else {
+          console.error('[BookingService] ❌ Payment-service success = false:', payRes.data);
           throw new Error(payRes.data?.message || 'Không lấy được link thanh toán');
         }
       } catch (err) {
+        console.error('[BookingService] ❌ Error calling payment-service:', err.message);
         throw new Error('Tạo giao dịch thanh toán thất bại: ' + (err.message || err));
       }
     }
@@ -1014,16 +1031,33 @@ class BookingService {
    */
   async sendExpirationNotification(data) {
     try {
-      if (!data.booking.contact_email) {
-        console.log('[BookingService] No contact email for expiration notification');
+      console.log(
+        '[BookingService] sendExpirationNotification called with data:',
+        JSON.stringify(data, null, 2)
+      );
+
+      // Use contact_email for guests, fall back to user_email for logged-in users
+      const email = data.booking.contact_email || data.booking.user_email;
+      console.log('[BookingService] Extracted email:', email, 'from booking fields:', {
+        contact_email: data.booking.contact_email,
+        user_email: data.booking.user_email,
+      });
+
+      if (!email || email.trim() === '') {
+        console.log('[BookingService] No contact email for expiration notification:', {
+          bookingRef: data.booking.booking_reference,
+          contactEmail: data.booking.contact_email,
+          userEmail: data.booking.user_email,
+        });
         return;
       }
 
       const notificationServiceUrl =
         process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3003';
 
+      console.log('[BookingService] Sending expiration notification to:', email);
       await axios.post(`${notificationServiceUrl}/send-email`, {
-        to: data.booking.contact_email,
+        to: email,
         type: 'booking-expiration',
         data: {
           bookingReference: data.booking.booking_reference,

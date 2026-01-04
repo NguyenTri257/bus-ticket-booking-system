@@ -1,3 +1,8 @@
+<!-- File Location: /CHATBOT_BOOKING_FLOW.md -->
+<!-- This file has been reviewed for documentation consolidation -->
+<!-- Content: Chatbot Booking Flow Implementation -->
+<!-- Status: Keep for technical reference - detailed chatbot guide -->
+
 # Chatbot Booking Flow - Complete Implementation Plan
 
 ## Overview

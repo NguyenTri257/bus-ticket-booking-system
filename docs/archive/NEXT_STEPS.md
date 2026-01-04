@@ -1,3 +1,8 @@
+<!-- File Location: /NEXT_STEPS.md -->
+<!-- This file has been reviewed for documentation consolidation -->
+<!-- Content: Future Development Roadmap -->
+<!-- Status: Keep for project planning reference -->
+
 # Next Steps for Bus Ticket Booking System
 
 ## Assignment 2: Trip Management & Search

@@ -1,3 +1,8 @@
+<!-- File Location: /PERFORMANCE_OPTIMIZATION.md -->
+<!-- This file has been reviewed for documentation consolidation -->
+<!-- Content: Performance Optimization Strategies -->
+<!-- Status: Keep for technical reference - optimization details -->
+
 # Performance Optimization Guide - Trip Service
 
 ## Overview

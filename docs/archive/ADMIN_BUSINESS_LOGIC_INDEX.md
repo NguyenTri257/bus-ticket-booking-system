@@ -1,3 +1,8 @@
+<!-- File Location: /ADMIN_BUSINESS_LOGIC_INDEX.md -->
+<!-- This file has been reviewed for documentation consolidation -->
+<!-- Content: Admin Business Logic Documentation -->
+<!-- Status: Can be archived - content integrated into /docs/developer/ -->
+
 # Admin Business Logic Documentation Index
 
 ## Overview

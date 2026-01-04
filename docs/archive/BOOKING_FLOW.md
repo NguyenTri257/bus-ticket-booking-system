@@ -1,3 +1,8 @@
+<!-- File Location: /BOOKING_FLOW.md -->
+<!-- This file has been reviewed for documentation consolidation -->
+<!-- Content: Complete Booking Flow Implementation Details -->
+<!-- Status: Keep for technical reference - detailed implementation guide -->
+
 # Bus Ticket Booking Flow - Complete Implementation
 
 ## Overview

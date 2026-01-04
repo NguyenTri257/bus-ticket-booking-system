@@ -1,3 +1,6 @@
+<!-- File Location: /README.md -->
+<!-- This file has been reviewed for documentation consolidation -->
+
 # Bus Ticket Booking System
 
 **Production-Ready** | Microservices Architecture | Guest Checkout | E-Ticket Generation

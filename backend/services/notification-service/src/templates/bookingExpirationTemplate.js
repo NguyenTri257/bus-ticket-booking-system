@@ -46,15 +46,18 @@ function generateBookingExpirationTemplate(data) {
     ? `
     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
       <h3 style="color: #495057; margin: 0 0 15px 0; font-size: 18px;">Trip Details</h3>
-      <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-          <strong style="color: #212529;">${trip.origin || 'Origin'}</strong>
-          <span style="color: #6c757d; margin: 0 10px;">→</span>
-          <strong style="color: #212529;">${trip.destination || 'Destination'}</strong>
+      <div style="display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start;">
+        <div style="flex: 1; min-width: 250px;">
+          <div style="color: #6c757d; font-size: 12px; margin-bottom: 8px;">Route</div>
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <strong style="color: #212529; font-size: 16px;">${trip.origin || 'Origin'}</strong>
+            <span style="color: #6c757d;">→</span>
+            <strong style="color: #212529; font-size: 16px;">${trip.destination || 'Destination'}</strong>
+          </div>
         </div>
-        <div style="text-align: right;">
-          <div style="color: #6c757d; font-size: 14px;">Departure</div>
-          <div style="color: #212529; font-weight: bold;">
+        <div style="flex: 0 0 auto; min-width: 180px;">
+          <div style="color: #6c757d; font-size: 12px; margin-bottom: 8px;">Departure</div>
+          <div style="color: #212529; font-weight: bold; font-size: 16px;">
             ${
               trip.departureTime
                 ? new Date(trip.departureTime).toLocaleString('en-US', {

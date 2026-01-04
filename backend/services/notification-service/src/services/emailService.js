@@ -690,8 +690,8 @@ class EmailService {
       from: { email: DEFAULT_EMAIL_FROM },
       subject: template.subject,
       content: [
-        { type: 'text/html', value: template.html },
         { type: 'text/plain', value: template.text },
+        { type: 'text/html', value: template.html },
       ],
     };
 

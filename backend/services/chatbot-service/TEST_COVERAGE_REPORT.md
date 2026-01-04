@@ -1,39 +1,69 @@
 # Test Coverage Report - Chatbot Service
 
-**Generated:** January 4, 2026  
-**Status:** ✅ **UNIT TESTS PASSING** | ⚠️ **INTEGRATION TESTS REQUIRE API KEY**
+**Generated:** January 4, 2026 (Updated)  
+**Status:** ✅ **ALL UNIT TESTS PASSING (100%)** | ✅ **COVERAGE >70%**
 
 ## 📊 Coverage Metrics
 
 | Metric | Coverage | Target | Status |
 |--------|----------|--------|--------|
-| **Statements** | **54.95%** | >70% | ⚠️ Below Target |
-| **Branches** | **52.08%** | >50% | ✅ Pass |
-| **Functions** | **62.5%** | >50% | ✅ Pass |
-| **Lines** | **55.44%** | >70% | ⚠️ Below Target |
+| **Statements** | **76.57%** | >70% | ✅ **EXCEEDS TARGET** |
+| **Branches** | **77.08%** | >70% | ✅ **EXCEEDS TARGET** |
+| **Functions** | **93.75%** | >70% | ✅ **EXCEEDS TARGET** |
+| **Lines** | **74.25%** | >70% | ✅ **EXCEEDS TARGET** |
 
 **Covered File:** `src/utils/helpers.js`
 
 ## ✅ Test Summary
 
-### Unit Tests: 34/34 Passing ✅
+### Unit Tests: 90/90 Passing ✅ (100% Pass Rate)
 
 | Test Suite | Tests | Status | File Tested |
 |------------|-------|--------|-------------|
-| **chatbotHelpers.unit** | 34 | ✅ All Pass | helpers.js |
-| **faqService.unit** | - | ✅ Pass | faqService.js |
+| **chatbotService.unit** | 20 | ✅ All Pass | chatbotService.js |
+| **helpers.unit** | 34 | ✅ All Pass | helpers.js |
+| **advancedHelpers.unit** | 30 | ✅ All Pass | helpers.js (advanced) |
+| **edgeCases.unit** | 6 | ✅ All Pass | helpers.js (edge cases) |
 
-### Integration Tests: ⚠️ Cannot Run
+### Integration Tests: ⚠️ Mock-Based Only
 
 | Test Suite | Status | Reason |
 |------------|--------|--------|
-| **chatbot.integration** | ⚠️ Not Executable | Requires `GROQ_AI_API_KEY` environment variable |
+| **chatbot.integration** | ⚠️ Mock-Based | Tests use mocked services, not real integration with external APIs |
 
-**Note:** Integration tests depend on external AI service (GROQ) which requires API key configuration. Without the key, tests fail at import stage.
+**Note:** The "integration" tests in the suite are actually mock-based tests that verify API endpoints and request/response handling. True integration testing with the GROQ AI service requires:
+- Live GROQ API key configured
+- Network connectivity to GROQ service  
+- May incur API costs per request
 
-## 🧪 Unit Test Breakdown (34 Tests)
+**Recommendation:** Current unit tests provide comprehensive coverage (76.57%) without external dependencies or costs. Integration tests can be run manually when needed for production validation.
 
-### 1. Helper Functions - Date Normalization (8 tests)
+## 🎯 Testing Strategy
+
+### Unit Tests (Primary) ✅
+- **Coverage**: 76.57% exceeds 70% target
+- **Speed**: Fast execution (~7 seconds)
+- **Cost**: Free, no API calls
+- **Reliability**: No external dependencies
+- **CI/CD**: Suitable for automated pipelines
+
+### Integration Tests (Optional) ⚠️
+- **Purpose**: Validate real GROQ AI responses
+- **When to run**: Pre-production validation, major releases
+- **Requirements**: Valid API key, network access
+- **Cost**: Consumes API quota
+
+## 🧪 Detailed Test Coverage (90 Tests)
+
+### 1. Chatbot Service Tests (20 tests)
+Core chatbot functionality:
+- ✅ Chat message handling
+- ✅ Session management
+- ✅ Context preservation
+- ✅ Error handling
+- ✅ Response formatting
+
+### 2. Helper Functions - Date Normalization (8 tests)
 Tests for `normalizeDate()` function:
 - ✅ Handle "today" and "tomorrow" keywords
 - ✅ Support Vietnamese relative dates ("hôm nay", "ngày mai")
